@@ -1,0 +1,464 @@
+-- =====================================================
+-- CDRRMO Recording System - Supabase Database Schema
+-- =====================================================
+-- Run this SQL in your Supabase SQL Editor
+-- 
+-- If you get "already exists" errors:
+-- 1. Run CLEANUP.sql first to drop all tables
+-- 2. Then run this schema.sql again
+-- =====================================================
+
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- =====================================================
+-- EMPLOYEES TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS employees (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  employee_id TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  username TEXT UNIQUE NOT NULL,
+  designation TEXT,
+  email TEXT,
+  contact TEXT,
+  duty_status TEXT DEFAULT 'Off Duty',
+  photo TEXT,
+  dob DATE,
+  pob TEXT,
+  civil_status TEXT,
+  blood_type TEXT,
+  address TEXT,
+  height TEXT,
+  weight TEXT,
+  waist TEXT,
+  shirt_size TEXT,
+  shoe_size TEXT,
+  father_name TEXT,
+  mother_name TEXT,
+  spouse_name TEXT,
+  office TEXT,
+  tin TEXT,
+  pagibig TEXT,
+  sss TEXT,
+  gsis TEXT,
+  philhealth TEXT,
+  education TEXT,
+  department TEXT,
+  joined TEXT,
+  duties JSONB DEFAULT '[]'::jsonb,
+  seminars JSONB DEFAULT '[]'::jsonb,
+  trainings JSONB DEFAULT '[]'::jsonb,
+  children JSONB DEFAULT '[]'::jsonb,
+  remarks TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- INCIDENTS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS incidents (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  record_id TEXT UNIQUE NOT NULL,
+  incident_type TEXT NOT NULL,
+  location TEXT NOT NULL,
+  date_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  severity TEXT NOT NULL,
+  remarks TEXT,
+  saved_at TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- VOUCHERS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS vouchers (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  record_id TEXT UNIQUE NOT NULL,
+  beneficiary_name TEXT NOT NULL,
+  amount NUMERIC NOT NULL,
+  purpose TEXT NOT NULL,
+  date DATE NOT NULL,
+  status TEXT NOT NULL,
+  saved_at TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- INVENTORY TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS inventory (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  record_id TEXT UNIQUE NOT NULL,
+  item_name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  condition TEXT NOT NULL,
+  date_acquired DATE NOT NULL,
+  saved_at TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- TRANSPORT TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS transport (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  record_id TEXT UNIQUE NOT NULL,
+  vehicle TEXT NOT NULL,
+  driver TEXT NOT NULL,
+  destination TEXT NOT NULL,
+  date_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  purpose TEXT,
+  saved_at TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- VENUES TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS venues (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  record_id TEXT UNIQUE NOT NULL,
+  facility_name TEXT NOT NULL,
+  date DATE NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  purpose TEXT,
+  booked_by TEXT NOT NULL,
+  saved_at TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- ACTIVITIES TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS activities (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  record_id TEXT UNIQUE NOT NULL,
+  activity_title TEXT NOT NULL,
+  date DATE NOT NULL,
+  location TEXT,
+  participants INTEGER,
+  description TEXT,
+  saved_at TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- EVENTS ASSISTANCE TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS events_assistance (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  record_id TEXT UNIQUE NOT NULL,
+  event_name TEXT NOT NULL,
+  date DATE NOT NULL,
+  location TEXT,
+  type_of_assistance TEXT NOT NULL,
+  requestor TEXT,
+  saved_at TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- TRAINING ATTENDED TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS training_attended (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  record_id TEXT UNIQUE NOT NULL,
+  training_title TEXT NOT NULL,
+  date DATE NOT NULL,
+  venue TEXT,
+  conducted_by TEXT,
+  attendees TEXT,
+  saved_at TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- TRAINING CONDUCTED TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS training_conducted (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  record_id TEXT UNIQUE NOT NULL,
+  training_title TEXT NOT NULL,
+  date DATE NOT NULL,
+  venue TEXT,
+  facilitator TEXT,
+  participants TEXT,
+  saved_at TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- VOLUNTEERS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS volunteers (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  record_id TEXT UNIQUE NOT NULL,
+  volunteer_name TEXT NOT NULL,
+  organization TEXT,
+  accreditation_no TEXT NOT NULL,
+  date DATE,
+  status TEXT,
+  saved_at TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- CDRRMC RESOLUTIONS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS cdrrmc_reso (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  record_id TEXT UNIQUE NOT NULL,
+  resolution_no TEXT NOT NULL,
+  title TEXT NOT NULL,
+  date_passed DATE NOT NULL,
+  description TEXT,
+  saved_at TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- CDRRMC MEETINGS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS cdrrmc_meeting (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  record_id TEXT UNIQUE NOT NULL,
+  meeting_no TEXT NOT NULL,
+  date DATE NOT NULL,
+  agenda TEXT NOT NULL,
+  attendees TEXT,
+  minutes_summary TEXT,
+  saved_at TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- MAPS AVAILABLE TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS maps_available (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  record_id TEXT UNIQUE NOT NULL,
+  map_title TEXT NOT NULL,
+  type TEXT,
+  coverage_area TEXT,
+  date_updated DATE,
+  file_url TEXT,
+  saved_at TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- PRUNING TRIMMING TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS pruning_trimming (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  record_id TEXT UNIQUE NOT NULL,
+  location TEXT NOT NULL,
+  date DATE NOT NULL,
+  trees_pruned INTEGER,
+  conducted_by TEXT,
+  remarks TEXT,
+  saved_at TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- HISTORY TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS history (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  record_id TEXT UNIQUE NOT NULL,
+  event_title TEXT NOT NULL,
+  date DATE NOT NULL,
+  description TEXT NOT NULL,
+  category TEXT,
+  saved_at TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- DOCUMENTATIONS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS documentations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  record_id TEXT UNIQUE NOT NULL,
+  document_title TEXT NOT NULL,
+  date DATE NOT NULL,
+  type TEXT,
+  description TEXT,
+  file_url TEXT,
+  saved_at TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- CALENDAR EVENTS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS calendar_events (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  record_id TEXT UNIQUE NOT NULL,
+  event_title TEXT NOT NULL,
+  date DATE NOT NULL,
+  notes TEXT,
+  saved_at TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- VEHICLES TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS vehicles (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  vehicle_id TEXT UNIQUE NOT NULL,
+  plate TEXT NOT NULL,
+  model TEXT NOT NULL,
+  manufacturer TEXT,
+  year TEXT,
+  type TEXT,
+  capacity TEXT,
+  status TEXT DEFAULT 'Available',
+  last_maintenance DATE,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- DRIVERS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS drivers (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  driver_id TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  license_no TEXT,
+  license_expiry DATE,
+  contact TEXT,
+  status TEXT DEFAULT 'Available',
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- INDEXES FOR BETTER PERFORMANCE
+-- =====================================================
+CREATE INDEX IF NOT EXISTS idx_employees_employee_id ON employees(employee_id);
+CREATE INDEX IF NOT EXISTS idx_employees_username ON employees(username);
+CREATE INDEX IF NOT EXISTS idx_incidents_date_time ON incidents(date_time DESC);
+CREATE INDEX IF NOT EXISTS idx_vouchers_date ON vouchers(date DESC);
+CREATE INDEX IF NOT EXISTS idx_inventory_category ON inventory(category);
+CREATE INDEX IF NOT EXISTS idx_transport_date_time ON transport(date_time DESC);
+CREATE INDEX IF NOT EXISTS idx_vehicles_vehicle_id ON vehicles(vehicle_id);
+CREATE INDEX IF NOT EXISTS idx_drivers_driver_id ON drivers(driver_id);
+
+-- =====================================================
+-- ROW LEVEL SECURITY (RLS) POLICIES
+-- =====================================================
+
+-- Enable RLS on all tables
+ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE incidents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vouchers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE inventory ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transport ENABLE ROW LEVEL SECURITY;
+ALTER TABLE venues ENABLE ROW LEVEL SECURITY;
+ALTER TABLE activities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE events_assistance ENABLE ROW LEVEL SECURITY;
+ALTER TABLE training_attended ENABLE ROW LEVEL SECURITY;
+ALTER TABLE training_conducted ENABLE ROW LEVEL SECURITY;
+ALTER TABLE volunteers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cdrrmc_reso ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cdrrmc_meeting ENABLE ROW LEVEL SECURITY;
+ALTER TABLE maps_available ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pruning_trimming ENABLE ROW LEVEL SECURITY;
+ALTER TABLE history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE documentations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE calendar_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vehicles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE drivers ENABLE ROW LEVEL SECURITY;
+
+-- Allow authenticated users to read all data
+CREATE POLICY "Allow authenticated read access" ON employees FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated read access" ON incidents FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated read access" ON vouchers FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated read access" ON inventory FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated read access" ON transport FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated read access" ON venues FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated read access" ON activities FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated read access" ON events_assistance FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated read access" ON training_attended FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated read access" ON training_conducted FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated read access" ON volunteers FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated read access" ON cdrrmc_reso FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated read access" ON cdrrmc_meeting FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated read access" ON maps_available FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated read access" ON pruning_trimming FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated read access" ON history FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated read access" ON documentations FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated read access" ON calendar_events FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated read access" ON vehicles FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow authenticated read access" ON drivers FOR SELECT TO authenticated USING (true);
+
+-- Allow authenticated users to insert/update/delete (you can refine this based on roles later)
+CREATE POLICY "Allow authenticated insert access" ON employees FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON employees FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON employees FOR DELETE TO authenticated USING (true);
+
+CREATE POLICY "Allow authenticated insert access" ON incidents FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert access" ON vouchers FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert access" ON inventory FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert access" ON transport FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert access" ON venues FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert access" ON activities FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert access" ON events_assistance FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert access" ON training_attended FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert access" ON training_conducted FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert access" ON volunteers FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert access" ON cdrrmc_reso FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert access" ON cdrrmc_meeting FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert access" ON maps_available FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert access" ON pruning_trimming FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert access" ON history FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert access" ON documentations FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert access" ON calendar_events FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated insert access" ON vehicles FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON vehicles FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON vehicles FOR DELETE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated insert access" ON drivers FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON drivers FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON drivers FOR DELETE TO authenticated USING (true);
+
+-- =====================================================
+-- FUNCTIONS
+-- =====================================================
+
+-- Function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Triggers for updated_at
+CREATE TRIGGER update_employees_updated_at BEFORE UPDATE ON employees FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_vehicles_updated_at BEFORE UPDATE ON vehicles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_drivers_updated_at BEFORE UPDATE ON drivers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- =====================================================
+-- SAMPLE DATA (Optional - for testing)
+-- =====================================================
+
+-- Insert a test employee
+INSERT INTO employees (employee_id, name, username, designation, email, contact, duty_status)
+VALUES ('EMP-2026-001', 'Admin User', 'admin', 'Administrator', 'admin@cdrrmo.gov.ph', '0917-000-0000', 'On Duty')
+ON CONFLICT (employee_id) DO NOTHING;
+
+COMMENT ON TABLE employees IS 'Employee records for CDRRMO personnel';
+COMMENT ON TABLE incidents IS 'Incident reports and emergency responses';
+COMMENT ON TABLE vehicles IS 'Fleet vehicle registry';
+COMMENT ON TABLE drivers IS 'Registered drivers for CDRRMO vehicles';
