@@ -1,21 +1,20 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
-import { format, isPast } from 'date-fns'
+import { format } from 'date-fns'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 
 const INITIAL_FORM_STATE = {
-  driver_id: '',
-  name: '',
-  license_no: '',
-  license_expiry: '',
-  contact: '',
-  status: 'Available',
-  notes: ''
+  record_id: '',
+  map_title: '',
+  type: '',
+  coverage_area: '',
+  date_updated: '',
+  file_url: ''
 }
 
-export default function Drivers() {
-  const [drivers, setDrivers] = useState([])
+export default function Maps() {
+  const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -28,22 +27,22 @@ export default function Drivers() {
   const isAdmin = useIsAdmin()
 
   useEffect(() => {
-    loadDrivers()
+    loadRecords()
   }, [])
 
-  const loadDrivers = async () => {
+  const loadRecords = async () => {
     try {
       setLoading(true)
       setError(null)
       const { data, error } = await supabase
-        .from('drivers')
+        .from('maps_available')
         .select('*')
-        .order('created_at', { ascending: false })
+        .order('date_updated', { ascending: false })
       
       if (error) throw error
-      setDrivers(data || [])
+      setRecords(data || [])
     } catch (err) {
-      console.error('Error loading drivers:', err)
+      console.error('Error loading maps records:', err)
       setError(err.message)
     } finally {
       setLoading(false)
@@ -55,24 +54,26 @@ export default function Drivers() {
     setSelectedId(null)
     const year = new Date().getFullYear()
     const rand = Math.floor(1000 + Math.random() * 9000)
+    const todayStr = new Date().toISOString().split('T')[0]
+
     setFormData({
       ...INITIAL_FORM_STATE,
-      driver_id: `DRV-${year}-${rand}`
+      record_id: `MAP-${year}-${rand}`,
+      date_updated: todayStr
     })
     setIsModalOpen(true)
   }
 
-  const handleOpenEdit = (d) => {
+  const handleOpenEdit = (rec) => {
     setIsEditing(true)
-    setSelectedId(d.id)
+    setSelectedId(rec.id)
     setFormData({
-      driver_id: d.driver_id || '',
-      name: d.name || '',
-      license_no: d.license_no || '',
-      license_expiry: d.license_expiry || '',
-      contact: d.contact || '',
-      status: d.status || 'Available',
-      notes: d.notes || ''
+      record_id: rec.record_id || '',
+      map_title: rec.map_title || '',
+      type: rec.type || '',
+      coverage_area: rec.coverage_area || '',
+      date_updated: rec.date_updated || '',
+      file_url: rec.file_url || ''
     })
     setIsModalOpen(true)
   }
@@ -89,99 +90,61 @@ export default function Drivers() {
     try {
       const payload = {
         ...formData,
-        license_expiry: formData.license_expiry || null
+        date_updated: formData.date_updated || null
       }
 
       if (isEditing) {
         const { data, error } = await supabase
-          .from('drivers')
+          .from('maps_available')
           .update(payload)
           .eq('id', selectedId)
           .select()
 
         if (error) throw error
-        setDrivers(drivers.map(d => d.id === selectedId ? data[0] : d))
-        alert('Driver updated successfully!')
+        setRecords(records.map(rec => rec.id === selectedId ? data[0] : rec))
+        alert('Map details updated successfully!')
       } else {
         const { data, error } = await supabase
-          .from('drivers')
+          .from('maps_available')
           .insert([payload])
           .select()
 
         if (error) throw error
-        setDrivers([data[0], ...drivers])
-        alert('Driver added successfully!')
+        setRecords([data[0], ...records])
+        alert('Map registered successfully!')
       }
       setIsModalOpen(false)
     } catch (err) {
-      console.error('Error saving driver:', err)
-      alert('Error saving driver: ' + err.message)
+      console.error('Error saving map record:', err)
+      alert('Error saving record: ' + err.message)
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this driver?')) return
+    if (!confirm('Are you sure you want to delete this map?')) return
 
     try {
       const { error } = await supabase
-        .from('drivers')
+        .from('maps_available')
         .delete()
         .eq('id', id)
       
       if (error) throw error
       
-      setDrivers(drivers.filter(d => d.id !== id))
+      setRecords(records.filter(rec => rec.id !== id))
     } catch (err) {
-      console.error('Error deleting driver:', err)
-      alert('Failed to delete driver: ' + err.message)
+      console.error('Error deleting map record:', err)
+      alert('Failed to delete record: ' + err.message)
     }
-  }
-
-  const getStatusBadge = (status) => {
-    const colors = {
-      'Available': { bg: '#d1fae5', color: '#065f46' },
-      'On Duty': { bg: '#fef3c7', color: '#92400e' },
-      'Off Duty': { bg: '#f3f4f6', color: '#374151' },
-      'Unavailable': { bg: '#fee2e2', color: '#991b1b' }
-    }
-    const style = colors[status] || colors['Available']
-    
-    return (
-      <span style={{
-        display: 'inline-block',
-        padding: '4px 12px',
-        borderRadius: '12px',
-        fontSize: '12px',
-        fontWeight: '700',
-        background: style.bg,
-        color: style.color
-      }}>
-        {status || 'Available'}
-      </span>
-    )
-  }
-
-  const getLicenseStatus = (expiryDate) => {
-    if (!expiryDate) return null
-    const isExpired = isPast(new Date(expiryDate))
-    return (
-      <span style={{
-        fontSize: '11px',
-        fontWeight: '700',
-        color: isExpired ? '#991b1b' : '#065f46'
-      }}>
-        {isExpired ? '⚠️ EXPIRED' : '✓ Valid'}
-      </span>
-    )
   }
 
   if (loading) {
     return (
       <div className="loading-container">
         <i className="ri-loader-4-line loading-spinner"></i>
-        <p>Loading drivers...</p>
+        <p>Loading maps repository...</p>
       </div>
     )
   }
@@ -199,10 +162,10 @@ export default function Drivers() {
           margin: '0 auto'
         }}>
           <i className="ri-error-warning-line" style={{ fontSize: '48px', marginBottom: '16px' }}></i>
-          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Error Loading Drivers</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Error Loading Maps</h3>
           <p>{error}</p>
           <button 
-            onClick={loadDrivers}
+            onClick={loadRecords}
             style={{
               marginTop: '16px',
               padding: '10px 20px',
@@ -225,70 +188,69 @@ export default function Drivers() {
     <div>
       <div className="page-header">
         <h2>
-          <i className="ri-steering-2-line" style={{ marginRight: '12px' }}></i>
-          Drivers
+          <i className="ri-map-2-line" style={{ marginRight: '12px' }}></i>
+          Maps Available
         </h2>
         <button className="btn-add" onClick={handleOpenAdd} style={{ display: isAdmin ? '' : 'none' }}>
           <i className="ri-add-line"></i>
-          Add Driver
+          Add Map
         </button>
       </div>
 
-      {drivers.length === 0 ? (
+      {records.length === 0 ? (
         <div className="empty-state">
-          <i className="ri-steering-2-line"></i>
-          <h3>No Drivers Found</h3>
-          <p>Click "Add Driver" to register your first driver.</p>
+          <i className="ri-map-2-line"></i>
+          <h3>No Maps Found</h3>
+          <p>Click "Add Map" to register your first hazard or evacuation map.</p>
         </div>
       ) : (
         <div className="data-table">
           <table>
             <thead>
               <tr>
-                <th>Driver ID</th>
-                <th>Name</th>
-                <th>License No.</th>
-                <th>License Expiry</th>
-                <th>Contact</th>
-                <th>Status</th>
+                <th>Record ID</th>
+                <th>Map Title</th>
+                <th>Type</th>
+                <th>Coverage Area</th>
+                <th>Last Updated</th>
+                <th>File Link</th>
                 {isAdmin && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {drivers.map((driver) => (
-                <tr key={driver.id}>
-                  <td><code style={{ fontWeight: '700' }}>{driver.driver_id || '-'}</code></td>
-                  <td style={{ fontWeight: '700' }}>{driver.name || '-'}</td>
-                  <td>
-                    <div style={{ fontFamily: 'monospace', fontWeight: '600' }}>
-                      {driver.license_no || 'Not provided'}
-                    </div>
+              {records.map((record) => (
+                <tr key={record.id}>
+                  <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
+                  <td style={{ fontWeight: '700' }}>{record.map_title || '-'}</td>
+                  <td>{record.type || '-'}</td>
+                  <td>{record.coverage_area || '-'}</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
+                    {record.date_updated 
+                      ? format(new Date(record.date_updated), 'MMM dd, yyyy')
+                      : '-'}
                   </td>
                   <td>
-                    {driver.license_expiry ? (
-                      <div>
-                        <div>{format(new Date(driver.license_expiry), 'MMM dd, yyyy')}</div>
-                        {getLicenseStatus(driver.license_expiry)}
-                      </div>
+                    {record.file_url ? (
+                      <a href={record.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', color: 'var(--primary)', fontWeight: '700' }}>
+                        <i className="ri-download-cloud-line"></i> Download/View
+                      </a>
                     ) : (
-                      'Not provided'
+                      'No file linked'
                     )}
                   </td>
-                  <td>{driver.contact || '-'}</td>
-                  <td>{getStatusBadge(driver.status)}</td>
                   {isAdmin && (
                   <td>
                     <div className="table-actions">
                       <button 
                         className="btn-icon btn-edit"
-                        onClick={() => handleOpenEdit(driver)}
-                        title="Edit"
+                        onClick={() => handleOpenEdit(record)}
+                        title="Edit Details"
                       >
                         <i className="ri-pencil-line"></i>
                       </button>
                       <button 
                         className="btn-icon btn-delete"
-                        onClick={() => handleDelete(driver.id)}
+                        onClick={() => handleDelete(record.id)}
                         title="Delete"
                       >
                         <i className="ri-delete-bin-line"></i>
@@ -309,93 +271,83 @@ export default function Drivers() {
         color: 'var(--text-muted)',
         textAlign: 'center'
       }}>
-        Total Drivers: <strong>{drivers.length}</strong>
+        Total Maps: <strong>{records.length}</strong>
       </div>
 
       {/* Add/Edit Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={isEditing ? 'Edit Driver Details' : 'Register Driver'}
+        title={isEditing ? 'Edit Map Details' : 'Add Map to Repository'}
       >
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-row">
             <div className="form-group">
-              <label>Driver ID *</label>
+              <label>Record ID *</label>
               <input 
                 type="text" 
-                name="driver_id" 
-                value={formData.driver_id} 
+                name="record_id" 
+                value={formData.record_id} 
                 onChange={handleInputChange} 
                 required 
                disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
             </div>
             <div className="form-group">
-              <label>Full Name *</label>
+              <label>Map Title *</label>
               <input 
                 type="text" 
-                name="name" 
-                value={formData.name} 
+                name="map_title" 
+                value={formData.map_title} 
                 onChange={handleInputChange} 
                 required 
-                placeholder="e.g. Juan dela Cruz"
+                placeholder="e.g. Flood Susceptibility Map"
               />
             </div>
           </div>
 
           <div className="form-row">
             <div className="form-group">
-              <label>License Number</label>
+              <label>Map Type / Classification</label>
               <input 
                 type="text" 
-                name="license_no" 
-                value={formData.license_no} 
+                name="type" 
+                value={formData.type} 
                 onChange={handleInputChange} 
-                placeholder="e.g. N01-XX-XXXXXX"
+                placeholder="e.g. Hazard Map, Evacuation Route"
               />
             </div>
             <div className="form-group">
-              <label>License Expiry</label>
+              <label>Coverage Area</label>
+              <input 
+                type="text" 
+                name="coverage_area" 
+                value={formData.coverage_area} 
+                onChange={handleInputChange} 
+                placeholder="e.g. Barangay Marcos, Palayan City"
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Date Updated</label>
               <input 
                 type="date" 
-                name="license_expiry" 
-                value={formData.license_expiry} 
+                name="date_updated" 
+                value={formData.date_updated} 
                 onChange={handleInputChange} 
               />
             </div>
-          </div>
-
-          <div className="form-row">
             <div className="form-group">
-              <label>Contact Number</label>
+              <label>File URL / Drive Link</label>
               <input 
-                type="text" 
-                name="contact" 
-                value={formData.contact} 
+                type="url" 
+                name="file_url" 
+                value={formData.file_url} 
                 onChange={handleInputChange} 
-                placeholder="e.g. 0917-XXX-XXXX"
+                placeholder="e.g. https://drive.google.com/..."
               />
             </div>
-            <div className="form-group">
-              <label>Duty Status</label>
-              <select name="status" value={formData.status} onChange={handleInputChange}>
-                <option value="Available">Available</option>
-                <option value="On Duty">On Duty</option>
-                <option value="Off Duty">Off Duty</option>
-                <option value="Unavailable">Unavailable</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>Notes</label>
-            <textarea 
-              name="notes" 
-              value={formData.notes} 
-              onChange={handleInputChange} 
-              rows={2} 
-              placeholder="e.g. Authorized to drive heavy trucks, fire truck"
-            />
           </div>
 
           <div className="form-actions">

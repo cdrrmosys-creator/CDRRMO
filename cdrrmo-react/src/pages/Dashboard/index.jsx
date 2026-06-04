@@ -97,31 +97,6 @@ export default function Dashboard() {
         <p style={{ fontSize: '16px', color: 'var(--text-muted)', maxWidth: '600px', margin: '0 auto' }}>
           Your comprehensive disaster risk reduction and management platform. Use the sidebar to navigate through different modules.
         </p>
-        <div style={{ marginTop: '24px', display: 'flex', gap: '12px', justifyContent: 'center' }}>
-          <a href="/employees" style={{
-            padding: '12px 24px',
-            background: 'var(--primary)',
-            color: '#fff',
-            borderRadius: 'var(--radius-md)',
-            textDecoration: 'none',
-            fontWeight: '700',
-            fontSize: '14px'
-          }}>
-            <i className="ri-team-line"></i> Manage Employees
-          </a>
-          <a href="/incidents" style={{
-            padding: '12px 24px',
-            background: 'var(--bg-app)',
-            color: 'var(--text-main)',
-            border: '1px solid var(--border-light)',
-            borderRadius: 'var(--radius-md)',
-            textDecoration: 'none',
-            fontWeight: '700',
-            fontSize: '14px'
-          }}>
-            <i className="ri-alarm-warning-line"></i> View Incidents
-          </a>
-        </div>
       </div>
     </div>
   )

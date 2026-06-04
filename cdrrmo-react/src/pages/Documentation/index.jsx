@@ -6,15 +6,29 @@ import { useIsAdmin } from '../../hooks/useIsAdmin'
 
 const INITIAL_FORM_STATE = {
   record_id: '',
-  incident_type: '',
-  location: '',
-  date_time: '',
-  severity: 'Medium',
-  remarks: ''
+  title: '',
+  document_type: '',
+  date_filed: '',
+  filed_by: '',
+  description: '',
+  file_url: ''
 }
 
-export default function Incidents() {
-  const [incidents, setIncidents] = useState([])
+const DOC_TYPES = [
+  'Memorandum',
+  'Circular',
+  'Letter',
+  'Report',
+  'Plan',
+  'Manual',
+  'Protocol',
+  'Resolution',
+  'Order',
+  'Other'
+]
+
+export default function Documentation() {
+  const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -27,22 +41,22 @@ export default function Incidents() {
   const isAdmin = useIsAdmin()
 
   useEffect(() => {
-    loadIncidents()
+    loadRecords()
   }, [])
 
-  const loadIncidents = async () => {
+  const loadRecords = async () => {
     try {
       setLoading(true)
       setError(null)
       const { data, error } = await supabase
-        .from('incidents')
+        .from('documentations')
         .select('*')
-        .order('date_time', { ascending: false })
-      
+        .order('date_filed', { ascending: false })
+
       if (error) throw error
-      setIncidents(data || [])
+      setRecords(data || [])
     } catch (err) {
-      console.error('Error loading incidents:', err)
+      console.error('Error loading documentation records:', err)
       setError(err.message)
     } finally {
       setLoading(false)
@@ -52,41 +66,29 @@ export default function Incidents() {
   const handleOpenAdd = () => {
     setIsEditing(false)
     setSelectedId(null)
-    // Generate incident ID
     const year = new Date().getFullYear()
     const rand = Math.floor(1000 + Math.random() * 9000)
-    // Set default local datetime string for input type="datetime-local" (YYYY-MM-DDThh:mm)
-    const now = new Date()
-    const tzOffset = now.getTimezoneOffset() * 60000
-    const localISOTime = (new Date(now - tzOffset)).toISOString().slice(0, 16)
-    
+    const todayStr = new Date().toISOString().split('T')[0]
+
     setFormData({
       ...INITIAL_FORM_STATE,
-      record_id: `INC-${year}-${rand}`,
-      date_time: localISOTime
+      record_id: `DOC-${year}-${rand}`,
+      date_filed: todayStr
     })
     setIsModalOpen(true)
   }
 
-  const handleOpenEdit = (inc) => {
+  const handleOpenEdit = (rec) => {
     setIsEditing(true)
-    setSelectedId(inc.id)
-    
-    // Parse date for datetime-local input
-    let formattedDateTime = ''
-    if (inc.date_time) {
-      const d = new Date(inc.date_time)
-      const tzOffset = d.getTimezoneOffset() * 60000
-      formattedDateTime = (new Date(d - tzOffset)).toISOString().slice(0, 16)
-    }
-
+    setSelectedId(rec.id)
     setFormData({
-      record_id: inc.record_id || '',
-      incident_type: inc.incident_type || '',
-      location: inc.location || '',
-      date_time: formattedDateTime,
-      severity: inc.severity || 'Medium',
-      remarks: inc.remarks || ''
+      record_id: rec.record_id || '',
+      title: rec.title || '',
+      document_type: rec.document_type || '',
+      date_filed: rec.date_filed || '',
+      filed_by: rec.filed_by || '',
+      description: rec.description || '',
+      file_url: rec.file_url || ''
     })
     setIsModalOpen(true)
   }
@@ -101,68 +103,63 @@ export default function Incidents() {
     setIsSaving(true)
 
     try {
-      // Format datetime back to standard timestamp with timezone
-      const payload = {
-        ...formData,
-        date_time: new Date(formData.date_time).toISOString()
-      }
-
       if (isEditing) {
         const { data, error } = await supabase
-          .from('incidents')
-          .update(payload)
+          .from('documentations')
+          .update(formData)
           .eq('id', selectedId)
           .select()
 
         if (error) throw error
-        setIncidents(incidents.map(inc => inc.id === selectedId ? data[0] : inc))
-        alert('Incident updated successfully!')
+        setRecords(records.map(rec => rec.id === selectedId ? data[0] : rec))
+        alert('Document record updated successfully!')
       } else {
         const { data, error } = await supabase
-          .from('incidents')
-          .insert([payload])
+          .from('documentations')
+          .insert([formData])
           .select()
 
         if (error) throw error
-        setIncidents([data[0], ...incidents])
-        alert('Incident reported successfully!')
+        setRecords([data[0], ...records])
+        alert('Document record added successfully!')
       }
       setIsModalOpen(false)
     } catch (err) {
-      console.error('Error saving incident:', err)
-      alert('Error saving incident: ' + err.message)
+      console.error('Error saving document record:', err)
+      alert('Error saving record: ' + err.message)
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this incident record?')) return
+    if (!confirm('Are you sure you want to delete this document record?')) return
 
     try {
       const { error } = await supabase
-        .from('incidents')
+        .from('documentations')
         .delete()
         .eq('id', id)
-      
+
       if (error) throw error
-      
-      setIncidents(incidents.filter(inc => inc.id !== id))
+      setRecords(records.filter(rec => rec.id !== id))
     } catch (err) {
-      console.error('Error deleting incident:', err)
-      alert('Failed to delete incident: ' + err.message)
+      console.error('Error deleting document record:', err)
+      alert('Failed to delete record: ' + err.message)
     }
   }
 
-  const getSeverityBadge = (severity) => {
+  const getTypeBadge = (type) => {
     const colors = {
-      'Low': { bg: '#d1fae5', color: '#065f46' },
-      'Medium': { bg: '#fef3c7', color: '#92400e' },
-      'High': { bg: '#fed7aa', color: '#9a3412' },
-      'Critical': { bg: '#fee2e2', color: '#991b1b' }
+      'Memorandum': { bg: '#dbeafe', color: '#1e40af' },
+      'Circular': { bg: '#d1fae5', color: '#065f46' },
+      'Report': { bg: '#fef3c7', color: '#92400e' },
+      'Resolution': { bg: '#ede9fe', color: '#5b21b6' },
+      'Plan': { bg: '#fee2e2', color: '#991b1b' },
+      'Letter': { bg: '#e0f2fe', color: '#0c4a6e' },
     }
-    const style = colors[severity] || colors['Medium']
-    
+    const style = colors[type] || { bg: '#e5e7eb', color: '#374151' }
+
     return (
       <span style={{
         display: 'inline-block',
@@ -173,7 +170,7 @@ export default function Incidents() {
         background: style.bg,
         color: style.color
       }}>
-        {severity || 'Medium'}
+        {type || 'Other'}
       </span>
     )
   }
@@ -182,7 +179,7 @@ export default function Incidents() {
     return (
       <div className="loading-container">
         <i className="ri-loader-4-line loading-spinner"></i>
-        <p>Loading incidents...</p>
+        <p>Loading documentation records...</p>
       </div>
     )
   }
@@ -200,10 +197,10 @@ export default function Incidents() {
           margin: '0 auto'
         }}>
           <i className="ri-error-warning-line" style={{ fontSize: '48px', marginBottom: '16px' }}></i>
-          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Error Loading Incidents</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Error Loading Documentation</h3>
           <p>{error}</p>
-          <button 
-            onClick={loadIncidents}
+          <button
+            onClick={loadRecords}
             style={{
               marginTop: '16px',
               padding: '10px 20px',
@@ -226,20 +223,20 @@ export default function Incidents() {
     <div>
       <div className="page-header">
         <h2>
-          <i className="ri-alarm-warning-line" style={{ marginRight: '12px' }}></i>
-          Incident Reports
+          <i className="ri-folder-line" style={{ marginRight: '12px' }}></i>
+          Documentation Archive
         </h2>
         <button className="btn-add" onClick={handleOpenAdd} style={{ display: isAdmin ? '' : 'none' }}>
           <i className="ri-add-line"></i>
-          Report Incident
+          Add Document
         </button>
       </div>
 
-      {incidents.length === 0 ? (
+      {records.length === 0 ? (
         <div className="empty-state">
-          <i className="ri-alarm-warning-line"></i>
-          <h3>No Incidents Reported</h3>
-          <p>Click "Report Incident" to log your first incident.</p>
+          <i className="ri-folder-line"></i>
+          <h3>No Documents Filed</h3>
+          <p>Click "Add Document" to file your first document record.</p>
         </div>
       ) : (
         <div className="data-table">
@@ -247,51 +244,63 @@ export default function Incidents() {
             <thead>
               <tr>
                 <th>Record ID</th>
-                <th>Date & Time</th>
+                <th>Title</th>
                 <th>Type</th>
-                <th>Location</th>
-                <th>Severity</th>
-                <th>Remarks</th>
+                <th>Date Filed</th>
+                <th>Filed By</th>
+                <th>Description</th>
                 {isAdmin && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {incidents.map((incident) => (
-                <tr key={incident.id}>
-                  <td><code style={{ fontWeight: '700' }}>{incident.record_id || '-'}</code></td>
+              {records.map((record) => (
+                <tr key={record.id}>
+                  <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
+                  <td style={{ fontWeight: '700' }}>{record.title || '-'}</td>
+                  <td>{getTypeBadge(record.document_type)}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
-                    {incident.date_time 
-                      ? format(new Date(incident.date_time), 'MMM dd, yyyy hh:mm a')
+                    {record.date_filed
+                      ? format(new Date(record.date_filed), 'MMM dd, yyyy')
                       : '-'}
                   </td>
-                  <td style={{ fontWeight: '700' }}>{incident.incident_type || '-'}</td>
-                  <td>{incident.location || '-'}</td>
-                  <td>{getSeverityBadge(incident.severity)}</td>
+                  <td>{record.filed_by || '-'}</td>
                   <td>
                     <div style={{
-                      maxWidth: '300px',
+                      maxWidth: '250px',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
                       fontSize: '13px',
                       color: 'var(--text-muted)'
                     }}>
-                      {incident.remarks || 'No remarks'}
+                      {record.description || '-'}
                     </div>
                   </td>
                   {isAdmin && (
                   <td>
                     <div className="table-actions">
-                      <button 
+                      {record.file_url && (
+                        <a
+                          href={record.file_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn-icon"
+                          title="Open File"
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}
+                        >
+                          <i className="ri-external-link-line"></i>
+                        </a>
+                      )}
+                      <button
                         className="btn-icon btn-edit"
-                        onClick={() => handleOpenEdit(incident)}
+                        onClick={() => handleOpenEdit(record)}
                         title="Edit Details"
                       >
                         <i className="ri-pencil-line"></i>
                       </button>
-                      <button 
+                      <button
                         className="btn-icon btn-delete"
-                        onClick={() => handleDelete(incident.id)}
+                        onClick={() => handleDelete(record.id)}
                         title="Delete"
                       >
                         <i className="ri-delete-bin-line"></i>
@@ -312,82 +321,92 @@ export default function Incidents() {
         color: 'var(--text-muted)',
         textAlign: 'center'
       }}>
-        Total Incidents: <strong>{incidents.length}</strong>
+        Total Documents: <strong>{records.length}</strong>
       </div>
 
       {/* Add/Edit Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={isEditing ? 'Edit Incident Report' : 'New Incident Report'}
+        title={isEditing ? 'Edit Document Record' : 'Add Document Record'}
       >
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-row">
             <div className="form-group">
               <label>Record ID *</label>
-              <input 
-                type="text" 
-                name="record_id" 
-                value={formData.record_id} 
-                onChange={handleInputChange} 
-                required 
+              <input
+                type="text"
+                name="record_id"
+                value={formData.record_id}
+                onChange={handleInputChange}
+                required
                disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
             </div>
             <div className="form-group">
-              <label>Incident Type *</label>
-              <input 
-                type="text" 
-                name="incident_type" 
-                value={formData.incident_type} 
-                onChange={handleInputChange} 
-                required 
-                placeholder="e.g. Fire, Flood, Vehicular Accident"
-              />
+              <label>Document Type *</label>
+              <select name="document_type" value={formData.document_type} onChange={handleInputChange} required>
+                <option value="">-- Select Type --</option>
+                {DOC_TYPES.map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
             </div>
+          </div>
+
+          <div className="form-group">
+            <label>Title *</label>
+            <input
+              type="text"
+              name="title"
+              value={formData.title}
+              onChange={handleInputChange}
+              required
+              placeholder="e.g. Memorandum No. 2024-001: Evacuation Protocol"
+            />
           </div>
 
           <div className="form-row">
             <div className="form-group">
-              <label>Location *</label>
-              <input 
-                type="text" 
-                name="location" 
-                value={formData.location} 
-                onChange={handleInputChange} 
-                required 
-                placeholder="e.g. Brgy. Marcos, Palayan City"
+              <label>Date Filed *</label>
+              <input
+                type="date"
+                name="date_filed"
+                value={formData.date_filed}
+                onChange={handleInputChange}
+                required
               />
             </div>
             <div className="form-group">
-              <label>Date & Time *</label>
-              <input 
-                type="datetime-local" 
-                name="date_time" 
-                value={formData.date_time} 
-                onChange={handleInputChange} 
-                required 
+              <label>Filed By</label>
+              <input
+                type="text"
+                name="filed_by"
+                value={formData.filed_by}
+                onChange={handleInputChange}
+                placeholder="e.g. CDRRMO Head"
               />
             </div>
           </div>
 
           <div className="form-group">
-            <label>Severity *</label>
-            <select name="severity" value={formData.severity} onChange={handleInputChange} required>
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-              <option value="Critical">Critical</option>
-            </select>
+            <label>Description</label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              rows={3}
+              placeholder="Brief description of the document contents..."
+            />
           </div>
 
           <div className="form-group">
-            <label>Remarks / Notes</label>
-            <textarea 
-              name="remarks" 
-              value={formData.remarks} 
-              onChange={handleInputChange} 
-              rows={3} 
-              placeholder="Provide a detailed description of the incident..."
+            <label>File URL (optional)</label>
+            <input
+              type="url"
+              name="file_url"
+              value={formData.file_url}
+              onChange={handleInputChange}
+              placeholder="https://drive.google.com/..."
             />
           </div>
 

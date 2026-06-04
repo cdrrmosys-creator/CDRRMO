@@ -6,15 +6,14 @@ import { useIsAdmin } from '../../hooks/useIsAdmin'
 
 const INITIAL_FORM_STATE = {
   record_id: '',
-  incident_type: '',
-  location: '',
-  date_time: '',
-  severity: 'Medium',
-  remarks: ''
+  resolution_no: '',
+  title: '',
+  date_passed: '',
+  description: ''
 }
 
-export default function Incidents() {
-  const [incidents, setIncidents] = useState([])
+export default function CdrrmcReso() {
+  const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -27,22 +26,22 @@ export default function Incidents() {
   const isAdmin = useIsAdmin()
 
   useEffect(() => {
-    loadIncidents()
+    loadRecords()
   }, [])
 
-  const loadIncidents = async () => {
+  const loadRecords = async () => {
     try {
       setLoading(true)
       setError(null)
       const { data, error } = await supabase
-        .from('incidents')
+        .from('cdrrmc_reso')
         .select('*')
-        .order('date_time', { ascending: false })
+        .order('date_passed', { ascending: false })
       
       if (error) throw error
-      setIncidents(data || [])
+      setRecords(data || [])
     } catch (err) {
-      console.error('Error loading incidents:', err)
+      console.error('Error loading resolutions records:', err)
       setError(err.message)
     } finally {
       setLoading(false)
@@ -52,41 +51,27 @@ export default function Incidents() {
   const handleOpenAdd = () => {
     setIsEditing(false)
     setSelectedId(null)
-    // Generate incident ID
     const year = new Date().getFullYear()
     const rand = Math.floor(1000 + Math.random() * 9000)
-    // Set default local datetime string for input type="datetime-local" (YYYY-MM-DDThh:mm)
-    const now = new Date()
-    const tzOffset = now.getTimezoneOffset() * 60000
-    const localISOTime = (new Date(now - tzOffset)).toISOString().slice(0, 16)
-    
+    const todayStr = new Date().toISOString().split('T')[0]
+
     setFormData({
       ...INITIAL_FORM_STATE,
-      record_id: `INC-${year}-${rand}`,
-      date_time: localISOTime
+      record_id: `RES-${year}-${rand}`,
+      date_passed: todayStr
     })
     setIsModalOpen(true)
   }
 
-  const handleOpenEdit = (inc) => {
+  const handleOpenEdit = (rec) => {
     setIsEditing(true)
-    setSelectedId(inc.id)
-    
-    // Parse date for datetime-local input
-    let formattedDateTime = ''
-    if (inc.date_time) {
-      const d = new Date(inc.date_time)
-      const tzOffset = d.getTimezoneOffset() * 60000
-      formattedDateTime = (new Date(d - tzOffset)).toISOString().slice(0, 16)
-    }
-
+    setSelectedId(rec.id)
     setFormData({
-      record_id: inc.record_id || '',
-      incident_type: inc.incident_type || '',
-      location: inc.location || '',
-      date_time: formattedDateTime,
-      severity: inc.severity || 'Medium',
-      remarks: inc.remarks || ''
+      record_id: rec.record_id || '',
+      resolution_no: rec.resolution_no || '',
+      title: rec.title || '',
+      date_passed: rec.date_passed || '',
+      description: rec.description || ''
     })
     setIsModalOpen(true)
   }
@@ -101,88 +86,58 @@ export default function Incidents() {
     setIsSaving(true)
 
     try {
-      // Format datetime back to standard timestamp with timezone
-      const payload = {
-        ...formData,
-        date_time: new Date(formData.date_time).toISOString()
-      }
-
       if (isEditing) {
         const { data, error } = await supabase
-          .from('incidents')
-          .update(payload)
+          .from('cdrrmc_reso')
+          .update(formData)
           .eq('id', selectedId)
           .select()
 
         if (error) throw error
-        setIncidents(incidents.map(inc => inc.id === selectedId ? data[0] : inc))
-        alert('Incident updated successfully!')
+        setRecords(records.map(rec => rec.id === selectedId ? data[0] : rec))
+        alert('Resolution updated successfully!')
       } else {
         const { data, error } = await supabase
-          .from('incidents')
-          .insert([payload])
+          .from('cdrrmc_reso')
+          .insert([formData])
           .select()
 
         if (error) throw error
-        setIncidents([data[0], ...incidents])
-        alert('Incident reported successfully!')
+        setRecords([data[0], ...records])
+        alert('Resolution registered successfully!')
       }
       setIsModalOpen(false)
     } catch (err) {
-      console.error('Error saving incident:', err)
-      alert('Error saving incident: ' + err.message)
+      console.error('Error saving resolution record:', err)
+      alert('Error saving record: ' + err.message)
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this incident record?')) return
+    if (!confirm('Are you sure you want to delete this resolution?')) return
 
     try {
       const { error } = await supabase
-        .from('incidents')
+        .from('cdrrmc_reso')
         .delete()
         .eq('id', id)
       
       if (error) throw error
       
-      setIncidents(incidents.filter(inc => inc.id !== id))
+      setRecords(records.filter(rec => rec.id !== id))
     } catch (err) {
-      console.error('Error deleting incident:', err)
-      alert('Failed to delete incident: ' + err.message)
+      console.error('Error deleting resolution record:', err)
+      alert('Failed to delete record: ' + err.message)
     }
-  }
-
-  const getSeverityBadge = (severity) => {
-    const colors = {
-      'Low': { bg: '#d1fae5', color: '#065f46' },
-      'Medium': { bg: '#fef3c7', color: '#92400e' },
-      'High': { bg: '#fed7aa', color: '#9a3412' },
-      'Critical': { bg: '#fee2e2', color: '#991b1b' }
-    }
-    const style = colors[severity] || colors['Medium']
-    
-    return (
-      <span style={{
-        display: 'inline-block',
-        padding: '4px 12px',
-        borderRadius: '12px',
-        fontSize: '12px',
-        fontWeight: '700',
-        background: style.bg,
-        color: style.color
-      }}>
-        {severity || 'Medium'}
-      </span>
-    )
   }
 
   if (loading) {
     return (
       <div className="loading-container">
         <i className="ri-loader-4-line loading-spinner"></i>
-        <p>Loading incidents...</p>
+        <p>Loading resolutions...</p>
       </div>
     )
   }
@@ -200,10 +155,10 @@ export default function Incidents() {
           margin: '0 auto'
         }}>
           <i className="ri-error-warning-line" style={{ fontSize: '48px', marginBottom: '16px' }}></i>
-          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Error Loading Incidents</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Error Loading Resolutions</h3>
           <p>{error}</p>
           <button 
-            onClick={loadIncidents}
+            onClick={loadRecords}
             style={{
               marginTop: '16px',
               padding: '10px 20px',
@@ -226,20 +181,20 @@ export default function Incidents() {
     <div>
       <div className="page-header">
         <h2>
-          <i className="ri-alarm-warning-line" style={{ marginRight: '12px' }}></i>
-          Incident Reports
+          <i className="ri-file-list-3-line" style={{ marginRight: '12px' }}></i>
+          CDRRMC Resolutions
         </h2>
         <button className="btn-add" onClick={handleOpenAdd} style={{ display: isAdmin ? '' : 'none' }}>
           <i className="ri-add-line"></i>
-          Report Incident
+          Add Resolution
         </button>
       </div>
 
-      {incidents.length === 0 ? (
+      {records.length === 0 ? (
         <div className="empty-state">
-          <i className="ri-alarm-warning-line"></i>
-          <h3>No Incidents Reported</h3>
-          <p>Click "Report Incident" to log your first incident.</p>
+          <i className="ri-file-list-3-line"></i>
+          <h3>No Resolutions Found</h3>
+          <p>Click "Add Resolution" to log your first resolution record.</p>
         </div>
       ) : (
         <div className="data-table">
@@ -247,36 +202,34 @@ export default function Incidents() {
             <thead>
               <tr>
                 <th>Record ID</th>
-                <th>Date & Time</th>
-                <th>Type</th>
-                <th>Location</th>
-                <th>Severity</th>
-                <th>Remarks</th>
+                <th>Resolution No.</th>
+                <th>Title</th>
+                <th>Date Passed</th>
+                <th>Description</th>
                 {isAdmin && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {incidents.map((incident) => (
-                <tr key={incident.id}>
-                  <td><code style={{ fontWeight: '700' }}>{incident.record_id || '-'}</code></td>
+              {records.map((record) => (
+                <tr key={record.id}>
+                  <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
+                  <td style={{ fontWeight: '700' }}>{record.resolution_no || '-'}</td>
+                  <td>{record.title || '-'}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
-                    {incident.date_time 
-                      ? format(new Date(incident.date_time), 'MMM dd, yyyy hh:mm a')
+                    {record.date_passed 
+                      ? format(new Date(record.date_passed), 'MMM dd, yyyy')
                       : '-'}
                   </td>
-                  <td style={{ fontWeight: '700' }}>{incident.incident_type || '-'}</td>
-                  <td>{incident.location || '-'}</td>
-                  <td>{getSeverityBadge(incident.severity)}</td>
                   <td>
                     <div style={{
-                      maxWidth: '300px',
+                      maxWidth: '250px',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
                       fontSize: '13px',
                       color: 'var(--text-muted)'
                     }}>
-                      {incident.remarks || 'No remarks'}
+                      {record.description || '-'}
                     </div>
                   </td>
                   {isAdmin && (
@@ -284,14 +237,14 @@ export default function Incidents() {
                     <div className="table-actions">
                       <button 
                         className="btn-icon btn-edit"
-                        onClick={() => handleOpenEdit(incident)}
+                        onClick={() => handleOpenEdit(record)}
                         title="Edit Details"
                       >
                         <i className="ri-pencil-line"></i>
                       </button>
                       <button 
                         className="btn-icon btn-delete"
-                        onClick={() => handleDelete(incident.id)}
+                        onClick={() => handleDelete(record.id)}
                         title="Delete"
                       >
                         <i className="ri-delete-bin-line"></i>
@@ -312,14 +265,14 @@ export default function Incidents() {
         color: 'var(--text-muted)',
         textAlign: 'center'
       }}>
-        Total Incidents: <strong>{incidents.length}</strong>
+        Total Resolutions: <strong>{records.length}</strong>
       </div>
 
       {/* Add/Edit Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={isEditing ? 'Edit Incident Report' : 'New Incident Report'}
+        title={isEditing ? 'Edit CDRRMC Resolution' : 'Add CDRRMC Resolution'}
       >
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-row">
@@ -334,60 +287,51 @@ export default function Incidents() {
                disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
             </div>
             <div className="form-group">
-              <label>Incident Type *</label>
+              <label>Resolution No. *</label>
               <input 
                 type="text" 
-                name="incident_type" 
-                value={formData.incident_type} 
+                name="resolution_no" 
+                value={formData.resolution_no} 
                 onChange={handleInputChange} 
                 required 
-                placeholder="e.g. Fire, Flood, Vehicular Accident"
+                placeholder="e.g. Res. No. 12, S-2026"
               />
             </div>
           </div>
 
           <div className="form-row">
-            <div className="form-group">
-              <label>Location *</label>
+            <div className="form-group" style={{ gridColumn: 'span 2' }}>
+              <label>Resolution Title *</label>
               <input 
                 type="text" 
-                name="location" 
-                value={formData.location} 
+                name="title" 
+                value={formData.title} 
                 onChange={handleInputChange} 
                 required 
-                placeholder="e.g. Brgy. Marcos, Palayan City"
-              />
-            </div>
-            <div className="form-group">
-              <label>Date & Time *</label>
-              <input 
-                type="datetime-local" 
-                name="date_time" 
-                value={formData.date_time} 
-                onChange={handleInputChange} 
-                required 
+                placeholder="e.g. Declaration of State of Calamity"
               />
             </div>
           </div>
 
           <div className="form-group">
-            <label>Severity *</label>
-            <select name="severity" value={formData.severity} onChange={handleInputChange} required>
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-              <option value="Critical">Critical</option>
-            </select>
+            <label>Date Passed *</label>
+            <input 
+              type="date" 
+              name="date_passed" 
+              value={formData.date_passed} 
+              onChange={handleInputChange} 
+              required 
+            />
           </div>
 
           <div className="form-group">
-            <label>Remarks / Notes</label>
+            <label>Description / Notes</label>
             <textarea 
-              name="remarks" 
-              value={formData.remarks} 
+              name="description" 
+              value={formData.description} 
               onChange={handleInputChange} 
               rows={3} 
-              placeholder="Provide a detailed description of the incident..."
+              placeholder="State the resolution details..."
             />
           </div>
 

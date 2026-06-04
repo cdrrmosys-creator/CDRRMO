@@ -1,21 +1,20 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
-import { format, isPast } from 'date-fns'
+import { format } from 'date-fns'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 
 const INITIAL_FORM_STATE = {
-  driver_id: '',
-  name: '',
-  license_no: '',
-  license_expiry: '',
-  contact: '',
-  status: 'Available',
-  notes: ''
+  record_id: '',
+  volunteer_name: '',
+  organization: '',
+  accreditation_no: '',
+  date: '',
+  status: 'Active'
 }
 
-export default function Drivers() {
-  const [drivers, setDrivers] = useState([])
+export default function Volunteers() {
+  const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -28,22 +27,22 @@ export default function Drivers() {
   const isAdmin = useIsAdmin()
 
   useEffect(() => {
-    loadDrivers()
+    loadRecords()
   }, [])
 
-  const loadDrivers = async () => {
+  const loadRecords = async () => {
     try {
       setLoading(true)
       setError(null)
       const { data, error } = await supabase
-        .from('drivers')
+        .from('volunteers')
         .select('*')
         .order('created_at', { ascending: false })
       
       if (error) throw error
-      setDrivers(data || [])
+      setRecords(data || [])
     } catch (err) {
-      console.error('Error loading drivers:', err)
+      console.error('Error loading volunteer records:', err)
       setError(err.message)
     } finally {
       setLoading(false)
@@ -55,24 +54,26 @@ export default function Drivers() {
     setSelectedId(null)
     const year = new Date().getFullYear()
     const rand = Math.floor(1000 + Math.random() * 9000)
+    const todayStr = new Date().toISOString().split('T')[0]
+
     setFormData({
       ...INITIAL_FORM_STATE,
-      driver_id: `DRV-${year}-${rand}`
+      record_id: `VOL-${year}-${rand}`,
+      date: todayStr
     })
     setIsModalOpen(true)
   }
 
-  const handleOpenEdit = (d) => {
+  const handleOpenEdit = (rec) => {
     setIsEditing(true)
-    setSelectedId(d.id)
+    setSelectedId(rec.id)
     setFormData({
-      driver_id: d.driver_id || '',
-      name: d.name || '',
-      license_no: d.license_no || '',
-      license_expiry: d.license_expiry || '',
-      contact: d.contact || '',
-      status: d.status || 'Available',
-      notes: d.notes || ''
+      record_id: rec.record_id || '',
+      volunteer_name: rec.volunteer_name || '',
+      organization: rec.organization || '',
+      accreditation_no: rec.accreditation_no || '',
+      date: rec.date || '',
+      status: rec.status || 'Active'
     })
     setIsModalOpen(true)
   }
@@ -89,64 +90,63 @@ export default function Drivers() {
     try {
       const payload = {
         ...formData,
-        license_expiry: formData.license_expiry || null
+        date: formData.date || null
       }
 
       if (isEditing) {
         const { data, error } = await supabase
-          .from('drivers')
+          .from('volunteers')
           .update(payload)
           .eq('id', selectedId)
           .select()
 
         if (error) throw error
-        setDrivers(drivers.map(d => d.id === selectedId ? data[0] : d))
-        alert('Driver updated successfully!')
+        setRecords(records.map(rec => rec.id === selectedId ? data[0] : rec))
+        alert('Volunteer updated successfully!')
       } else {
         const { data, error } = await supabase
-          .from('drivers')
+          .from('volunteers')
           .insert([payload])
           .select()
 
         if (error) throw error
-        setDrivers([data[0], ...drivers])
-        alert('Driver added successfully!')
+        setRecords([data[0], ...records])
+        alert('Volunteer registered successfully!')
       }
       setIsModalOpen(false)
     } catch (err) {
-      console.error('Error saving driver:', err)
-      alert('Error saving driver: ' + err.message)
+      console.error('Error saving volunteer record:', err)
+      alert('Error saving record: ' + err.message)
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this driver?')) return
+    if (!confirm('Are you sure you want to delete this volunteer?')) return
 
     try {
       const { error } = await supabase
-        .from('drivers')
+        .from('volunteers')
         .delete()
         .eq('id', id)
       
       if (error) throw error
       
-      setDrivers(drivers.filter(d => d.id !== id))
+      setRecords(records.filter(rec => rec.id !== id))
     } catch (err) {
-      console.error('Error deleting driver:', err)
-      alert('Failed to delete driver: ' + err.message)
+      console.error('Error deleting volunteer record:', err)
+      alert('Failed to delete record: ' + err.message)
     }
   }
 
   const getStatusBadge = (status) => {
     const colors = {
-      'Available': { bg: '#d1fae5', color: '#065f46' },
-      'On Duty': { bg: '#fef3c7', color: '#92400e' },
-      'Off Duty': { bg: '#f3f4f6', color: '#374151' },
-      'Unavailable': { bg: '#fee2e2', color: '#991b1b' }
+      'Active': { bg: '#d1fae5', color: '#065f46' },
+      'Inactive': { bg: '#fee2e2', color: '#991b1b' },
+      'Expired': { bg: '#f3f4f6', color: '#374151' }
     }
-    const style = colors[status] || colors['Available']
+    const style = colors[status] || colors['Active']
     
     return (
       <span style={{
@@ -158,21 +158,7 @@ export default function Drivers() {
         background: style.bg,
         color: style.color
       }}>
-        {status || 'Available'}
-      </span>
-    )
-  }
-
-  const getLicenseStatus = (expiryDate) => {
-    if (!expiryDate) return null
-    const isExpired = isPast(new Date(expiryDate))
-    return (
-      <span style={{
-        fontSize: '11px',
-        fontWeight: '700',
-        color: isExpired ? '#991b1b' : '#065f46'
-      }}>
-        {isExpired ? '⚠️ EXPIRED' : '✓ Valid'}
+        {status || 'Active'}
       </span>
     )
   }
@@ -181,7 +167,7 @@ export default function Drivers() {
     return (
       <div className="loading-container">
         <i className="ri-loader-4-line loading-spinner"></i>
-        <p>Loading drivers...</p>
+        <p>Loading volunteers...</p>
       </div>
     )
   }
@@ -199,10 +185,10 @@ export default function Drivers() {
           margin: '0 auto'
         }}>
           <i className="ri-error-warning-line" style={{ fontSize: '48px', marginBottom: '16px' }}></i>
-          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Error Loading Drivers</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Error Loading Volunteers</h3>
           <p>{error}</p>
           <button 
-            onClick={loadDrivers}
+            onClick={loadRecords}
             style={{
               marginTop: '16px',
               padding: '10px 20px',
@@ -225,70 +211,61 @@ export default function Drivers() {
     <div>
       <div className="page-header">
         <h2>
-          <i className="ri-steering-2-line" style={{ marginRight: '12px' }}></i>
-          Drivers
+          <i className="ri-user-star-line" style={{ marginRight: '12px' }}></i>
+          Volunteers Registry
         </h2>
         <button className="btn-add" onClick={handleOpenAdd} style={{ display: isAdmin ? '' : 'none' }}>
           <i className="ri-add-line"></i>
-          Add Driver
+          Register Volunteer
         </button>
       </div>
 
-      {drivers.length === 0 ? (
+      {records.length === 0 ? (
         <div className="empty-state">
-          <i className="ri-steering-2-line"></i>
-          <h3>No Drivers Found</h3>
-          <p>Click "Add Driver" to register your first driver.</p>
+          <i className="ri-user-star-line"></i>
+          <h3>No Volunteers Registered</h3>
+          <p>Click "Register Volunteer" to add your first volunteer.</p>
         </div>
       ) : (
         <div className="data-table">
           <table>
             <thead>
               <tr>
-                <th>Driver ID</th>
-                <th>Name</th>
-                <th>License No.</th>
-                <th>License Expiry</th>
-                <th>Contact</th>
+                <th>Record ID</th>
+                <th>Volunteer Name</th>
+                <th>Organization</th>
+                <th>Accreditation No.</th>
+                <th>Date Registered</th>
                 <th>Status</th>
                 {isAdmin && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {drivers.map((driver) => (
-                <tr key={driver.id}>
-                  <td><code style={{ fontWeight: '700' }}>{driver.driver_id || '-'}</code></td>
-                  <td style={{ fontWeight: '700' }}>{driver.name || '-'}</td>
-                  <td>
-                    <div style={{ fontFamily: 'monospace', fontWeight: '600' }}>
-                      {driver.license_no || 'Not provided'}
-                    </div>
+              {records.map((record) => (
+                <tr key={record.id}>
+                  <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
+                  <td style={{ fontWeight: '700' }}>{record.volunteer_name || '-'}</td>
+                  <td>{record.organization || '-'}</td>
+                  <td><code style={{ fontSize: '13px' }}>{record.accreditation_no || '-'}</code></td>
+                  <td style={{ fontSize: '13px' }}>
+                    {record.date 
+                      ? format(new Date(record.date), 'MMM dd, yyyy')
+                      : '-'}
                   </td>
-                  <td>
-                    {driver.license_expiry ? (
-                      <div>
-                        <div>{format(new Date(driver.license_expiry), 'MMM dd, yyyy')}</div>
-                        {getLicenseStatus(driver.license_expiry)}
-                      </div>
-                    ) : (
-                      'Not provided'
-                    )}
-                  </td>
-                  <td>{driver.contact || '-'}</td>
-                  <td>{getStatusBadge(driver.status)}</td>
+                  <td>{getStatusBadge(record.status)}</td>
                   {isAdmin && (
                   <td>
                     <div className="table-actions">
                       <button 
                         className="btn-icon btn-edit"
-                        onClick={() => handleOpenEdit(driver)}
-                        title="Edit"
+                        onClick={() => handleOpenEdit(record)}
+                        title="Edit Details"
                       >
                         <i className="ri-pencil-line"></i>
                       </button>
                       <button 
                         className="btn-icon btn-delete"
-                        onClick={() => handleDelete(driver.id)}
+                        onClick={() => handleDelete(record.id)}
                         title="Delete"
                       >
                         <i className="ri-delete-bin-line"></i>
@@ -309,33 +286,33 @@ export default function Drivers() {
         color: 'var(--text-muted)',
         textAlign: 'center'
       }}>
-        Total Drivers: <strong>{drivers.length}</strong>
+        Total Volunteers: <strong>{records.length}</strong>
       </div>
 
       {/* Add/Edit Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={isEditing ? 'Edit Driver Details' : 'Register Driver'}
+        title={isEditing ? 'Edit Volunteer Details' : 'Register Volunteer'}
       >
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-row">
             <div className="form-group">
-              <label>Driver ID *</label>
+              <label>Record ID *</label>
               <input 
                 type="text" 
-                name="driver_id" 
-                value={formData.driver_id} 
+                name="record_id" 
+                value={formData.record_id} 
                 onChange={handleInputChange} 
                 required 
                disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
             </div>
             <div className="form-group">
-              <label>Full Name *</label>
+              <label>Volunteer Name *</label>
               <input 
                 type="text" 
-                name="name" 
-                value={formData.name} 
+                name="volunteer_name" 
+                value={formData.volunteer_name} 
                 onChange={handleInputChange} 
                 required 
                 placeholder="e.g. Juan dela Cruz"
@@ -345,57 +322,46 @@ export default function Drivers() {
 
           <div className="form-row">
             <div className="form-group">
-              <label>License Number</label>
+              <label>Organization / Group</label>
               <input 
                 type="text" 
-                name="license_no" 
-                value={formData.license_no} 
+                name="organization" 
+                value={formData.organization} 
                 onChange={handleInputChange} 
-                placeholder="e.g. N01-XX-XXXXXX"
+                placeholder="e.g. Red Cross Youth, React Ph"
               />
             </div>
             <div className="form-group">
-              <label>License Expiry</label>
+              <label>Accreditation No. *</label>
               <input 
-                type="date" 
-                name="license_expiry" 
-                value={formData.license_expiry} 
+                type="text" 
+                name="accreditation_no" 
+                value={formData.accreditation_no} 
                 onChange={handleInputChange} 
+                required 
+                placeholder="e.g. ACC-2026-0045"
               />
             </div>
           </div>
 
           <div className="form-row">
             <div className="form-group">
-              <label>Contact Number</label>
+              <label>Date Registered</label>
               <input 
-                type="text" 
-                name="contact" 
-                value={formData.contact} 
+                type="date" 
+                name="date" 
+                value={formData.date} 
                 onChange={handleInputChange} 
-                placeholder="e.g. 0917-XXX-XXXX"
               />
             </div>
             <div className="form-group">
-              <label>Duty Status</label>
+              <label>Status</label>
               <select name="status" value={formData.status} onChange={handleInputChange}>
-                <option value="Available">Available</option>
-                <option value="On Duty">On Duty</option>
-                <option value="Off Duty">Off Duty</option>
-                <option value="Unavailable">Unavailable</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+                <option value="Expired">Expired</option>
               </select>
             </div>
-          </div>
-
-          <div className="form-group">
-            <label>Notes</label>
-            <textarea 
-              name="notes" 
-              value={formData.notes} 
-              onChange={handleInputChange} 
-              rows={2} 
-              placeholder="e.g. Authorized to drive heavy trucks, fire truck"
-            />
           </div>
 
           <div className="form-actions">

@@ -6,14 +6,27 @@ import { useIsAdmin } from '../../hooks/useIsAdmin'
 
 const INITIAL_FORM_STATE = {
   record_id: '',
-  training_title: '',
-  date: '',
-  venue: '',
-  conducted_by: '',
-  attendees: ''
+  event_title: '',
+  event_type: '',
+  start_date: '',
+  end_date: '',
+  location: '',
+  organizer: '',
+  description: ''
 }
 
-export default function TrainingAttended() {
+const EVENT_TYPES = [
+  'Drill / Exercise',
+  'Training',
+  'Meeting',
+  'Community Outreach',
+  'Disaster Response',
+  'Holiday',
+  'Maintenance',
+  'Other'
+]
+
+export default function CalendarEvents() {
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -35,14 +48,14 @@ export default function TrainingAttended() {
       setLoading(true)
       setError(null)
       const { data, error } = await supabase
-        .from('training_attended')
+        .from('calendar_events')
         .select('*')
-        .order('date', { ascending: false })
-      
+        .order('start_date', { ascending: false })
+
       if (error) throw error
       setRecords(data || [])
     } catch (err) {
-      console.error('Error loading training attended records:', err)
+      console.error('Error loading calendar events:', err)
       setError(err.message)
     } finally {
       setLoading(false)
@@ -58,8 +71,9 @@ export default function TrainingAttended() {
 
     setFormData({
       ...INITIAL_FORM_STATE,
-      record_id: `TTA-${year}-${rand}`,
-      date: todayStr
+      record_id: `CAL-${year}-${rand}`,
+      start_date: todayStr,
+      end_date: todayStr
     })
     setIsModalOpen(true)
   }
@@ -69,11 +83,13 @@ export default function TrainingAttended() {
     setSelectedId(rec.id)
     setFormData({
       record_id: rec.record_id || '',
-      training_title: rec.training_title || '',
-      date: rec.date || '',
-      venue: rec.venue || '',
-      conducted_by: rec.conducted_by || '',
-      attendees: rec.attendees || ''
+      event_title: rec.event_title || '',
+      event_type: rec.event_type || '',
+      start_date: rec.start_date || '',
+      end_date: rec.end_date || '',
+      location: rec.location || '',
+      organizer: rec.organizer || '',
+      description: rec.description || ''
     })
     setIsModalOpen(true)
   }
@@ -90,48 +106,86 @@ export default function TrainingAttended() {
     try {
       if (isEditing) {
         const { data, error } = await supabase
-          .from('training_attended')
+          .from('calendar_events')
           .update(formData)
           .eq('id', selectedId)
           .select()
 
         if (error) throw error
         setRecords(records.map(rec => rec.id === selectedId ? data[0] : rec))
-        alert('Training attended record updated successfully!')
+        alert('Calendar event updated successfully!')
       } else {
         const { data, error } = await supabase
-          .from('training_attended')
+          .from('calendar_events')
           .insert([formData])
           .select()
 
         if (error) throw error
         setRecords([data[0], ...records])
-        alert('Training attended record added successfully!')
+        alert('Calendar event added successfully!')
       }
       setIsModalOpen(false)
     } catch (err) {
-      console.error('Error saving training attended record:', err)
-      alert('Error saving record: ' + err.message)
+      console.error('Error saving calendar event:', err)
+      alert('Error saving event: ' + err.message)
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this record?')) return
+    if (!confirm('Are you sure you want to delete this calendar event?')) return
 
     try {
       const { error } = await supabase
-        .from('training_attended')
+        .from('calendar_events')
         .delete()
         .eq('id', id)
-      
+
       if (error) throw error
-      
       setRecords(records.filter(rec => rec.id !== id))
     } catch (err) {
-      console.error('Error deleting training attended record:', err)
-      alert('Failed to delete record: ' + err.message)
+      console.error('Error deleting calendar event:', err)
+      alert('Failed to delete event: ' + err.message)
+    }
+  }
+
+  const getEventTypeBadge = (type) => {
+    const colors = {
+      'Drill / Exercise': { bg: '#fee2e2', color: '#991b1b' },
+      'Training': { bg: '#dbeafe', color: '#1e40af' },
+      'Meeting': { bg: '#fef3c7', color: '#92400e' },
+      'Community Outreach': { bg: '#d1fae5', color: '#065f46' },
+      'Disaster Response': { bg: '#fce7f3', color: '#831843' },
+      'Holiday': { bg: '#ede9fe', color: '#5b21b6' },
+      'Maintenance': { bg: '#e0f2fe', color: '#0c4a6e' },
+    }
+    const style = colors[type] || { bg: '#e5e7eb', color: '#374151' }
+
+    return (
+      <span style={{
+        display: 'inline-block',
+        padding: '4px 12px',
+        borderRadius: '12px',
+        fontSize: '12px',
+        fontWeight: '700',
+        background: style.bg,
+        color: style.color
+      }}>
+        {type || 'Other'}
+      </span>
+    )
+  }
+
+  const getDateRangeDisplay = (start, end) => {
+    if (!start) return '-'
+    try {
+      const startFmt = format(new Date(start), 'MMM dd, yyyy')
+      if (!end || end === start) return startFmt
+      const endFmt = format(new Date(end), 'MMM dd, yyyy')
+      return `${startFmt} – ${endFmt}`
+    } catch {
+      return start
     }
   }
 
@@ -139,7 +193,7 @@ export default function TrainingAttended() {
     return (
       <div className="loading-container">
         <i className="ri-loader-4-line loading-spinner"></i>
-        <p>Loading training records...</p>
+        <p>Loading calendar events...</p>
       </div>
     )
   }
@@ -157,9 +211,9 @@ export default function TrainingAttended() {
           margin: '0 auto'
         }}>
           <i className="ri-error-warning-line" style={{ fontSize: '48px', marginBottom: '16px' }}></i>
-          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Error Loading Records</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Error Loading Calendar Events</h3>
           <p>{error}</p>
-          <button 
+          <button
             onClick={loadRecords}
             style={{
               marginTop: '16px',
@@ -183,20 +237,20 @@ export default function TrainingAttended() {
     <div>
       <div className="page-header">
         <h2>
-          <i className="ri-book-read-line" style={{ marginRight: '12px' }}></i>
-          Training Attended
+          <i className="ri-calendar-line" style={{ marginRight: '12px' }}></i>
+          Calendar Events
         </h2>
         <button className="btn-add" onClick={handleOpenAdd} style={{ display: isAdmin ? '' : 'none' }}>
           <i className="ri-add-line"></i>
-          Log Training Attended
+          Add Event
         </button>
       </div>
 
       {records.length === 0 ? (
         <div className="empty-state">
-          <i className="ri-book-read-line"></i>
-          <h3>No Trainings Logged</h3>
-          <p>Click "Log Training Attended" to create your first training record.</p>
+          <i className="ri-calendar-line"></i>
+          <h3>No Calendar Events</h3>
+          <p>Click "Add Event" to schedule your first CDRRMO event.</p>
         </div>
       ) : (
         <div className="data-table">
@@ -204,11 +258,11 @@ export default function TrainingAttended() {
             <thead>
               <tr>
                 <th>Record ID</th>
-                <th>Training Title</th>
-                <th>Date</th>
-                <th>Venue</th>
-                <th>Conducted By</th>
-                <th>Attendees</th>
+                <th>Event Title</th>
+                <th>Type</th>
+                <th>Date(s)</th>
+                <th>Location</th>
+                <th>Organizer</th>
                 {isAdmin && <th>Actions</th>}
               </tr>
             </thead>
@@ -216,37 +270,24 @@ export default function TrainingAttended() {
               {records.map((record) => (
                 <tr key={record.id}>
                   <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
-                  <td style={{ fontWeight: '700' }}>{record.training_title || '-'}</td>
-                  <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
-                    {record.date 
-                      ? format(new Date(record.date), 'MMM dd, yyyy')
-                      : '-'}
+                  <td style={{ fontWeight: '700' }}>{record.event_title || '-'}</td>
+                  <td>{getEventTypeBadge(record.event_type)}</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                    {getDateRangeDisplay(record.start_date, record.end_date)}
                   </td>
-                  <td>{record.venue || '-'}</td>
-                  <td>{record.conducted_by || '-'}</td>
-                  <td>
-                    <div style={{
-                      maxWidth: '250px',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      fontSize: '13px',
-                      color: 'var(--text-muted)'
-                    }}>
-                      {record.attendees || '-'}
-                    </div>
-                  </td>
+                  <td>{record.location || '-'}</td>
+                  <td>{record.organizer || '-'}</td>
                   {isAdmin && (
                   <td>
                     <div className="table-actions">
-                      <button 
+                      <button
                         className="btn-icon btn-edit"
                         onClick={() => handleOpenEdit(record)}
                         title="Edit Details"
                       >
                         <i className="ri-pencil-line"></i>
                       </button>
-                      <button 
+                      <button
                         className="btn-icon btn-delete"
                         onClick={() => handleDelete(record.id)}
                         title="Delete"
@@ -269,82 +310,103 @@ export default function TrainingAttended() {
         color: 'var(--text-muted)',
         textAlign: 'center'
       }}>
-        Total Records: <strong>{records.length}</strong>
+        Total Events: <strong>{records.length}</strong>
       </div>
 
       {/* Add/Edit Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={isEditing ? 'Edit Training Attended' : 'Log Training Attended'}
+        title={isEditing ? 'Edit Calendar Event' : 'Add Calendar Event'}
       >
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-row">
             <div className="form-group">
               <label>Record ID *</label>
-              <input 
-                type="text" 
-                name="record_id" 
-                value={formData.record_id} 
-                onChange={handleInputChange} 
-                required 
+              <input
+                type="text"
+                name="record_id"
+                value={formData.record_id}
+                onChange={handleInputChange}
+                required
                disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
             </div>
             <div className="form-group">
-              <label>Training Title *</label>
-              <input 
-                type="text" 
-                name="training_title" 
-                value={formData.training_title} 
-                onChange={handleInputChange} 
-                required 
-                placeholder="e.g. Incident Command System (ICS) Level 1"
+              <label>Event Type *</label>
+              <select name="event_type" value={formData.event_type} onChange={handleInputChange} required>
+                <option value="">-- Select Type --</option>
+                {EVENT_TYPES.map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Event Title *</label>
+            <input
+              type="text"
+              name="event_title"
+              value={formData.event_title}
+              onChange={handleInputChange}
+              required
+              placeholder="e.g. Annual Earthquake Drill 2024"
+            />
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Start Date *</label>
+              <input
+                type="date"
+                name="start_date"
+                value={formData.start_date}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>End Date</label>
+              <input
+                type="date"
+                name="end_date"
+                value={formData.end_date}
+                onChange={handleInputChange}
               />
             </div>
           </div>
 
           <div className="form-row">
             <div className="form-group">
-              <label>Date *</label>
-              <input 
-                type="date" 
-                name="date" 
-                value={formData.date} 
-                onChange={handleInputChange} 
-                required 
+              <label>Location</label>
+              <input
+                type="text"
+                name="location"
+                value={formData.location}
+                onChange={handleInputChange}
+                placeholder="e.g. Municipal Gymnasium"
               />
             </div>
             <div className="form-group">
-              <label>Venue</label>
-              <input 
-                type="text" 
-                name="venue" 
-                value={formData.venue} 
-                onChange={handleInputChange} 
-                placeholder="e.g. NDRRMC Academy, Camp Aguinaldo"
+              <label>Organizer</label>
+              <input
+                type="text"
+                name="organizer"
+                value={formData.organizer}
+                onChange={handleInputChange}
+                placeholder="e.g. CDRRMO Office"
               />
             </div>
           </div>
 
           <div className="form-group">
-            <label>Conducted By</label>
-            <input 
-              type="text" 
-              name="conducted_by" 
-              value={formData.conducted_by} 
-              onChange={handleInputChange} 
-              placeholder="e.g. Office of Civil Defense (OCD)"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Attendees</label>
-            <textarea 
-              name="attendees" 
-              value={formData.attendees} 
-              onChange={handleInputChange} 
-              rows={3} 
-              placeholder="Enter names of personnel who attended, comma-separated..."
+            <label>Description</label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              rows={3}
+              placeholder="Brief description of the event, agenda, or objectives..."
             />
           </div>
 
