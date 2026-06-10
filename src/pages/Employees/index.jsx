@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { supabase, supabaseAdmin } from '../../services/supabase'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
+import { useToast } from '../../components/Toast'
+import { useConfirm } from '../../components/ConfirmDialog'
 
 const INITIAL_FORM_STATE = {
   employee_id: '',
@@ -47,6 +49,8 @@ export default function Employees() {
   const [isSaving, setIsSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('personal')
   const isAdmin = useIsAdmin()
+  const toast = useToast()
+  const confirm = useConfirm()
 
   useEffect(() => {
     loadEmployees()
@@ -130,12 +134,21 @@ export default function Employees() {
     e.preventDefault()
     setIsSaving(true)
     
+    // Extract system_role to keep it out of the database insert/update payload
+    const { system_role, ...employeeData } = formData
+    
+    // Set empty date to null to prevent postgres syntax error
+    const payload = {
+      ...employeeData,
+      dob: employeeData.dob || null
+    }
+    
     try {
       if (isEditing) {
         const { data, error } = await supabase
           .from('employees')
           .update({
-            ...formData,
+            ...payload,
             updated_at: new Date().toISOString()
           })
           .eq('id', selectedId)
@@ -143,12 +156,12 @@ export default function Employees() {
 
         if (error) throw error
         setEmployees(employees.map(emp => emp.id === selectedId ? data[0] : emp))
-        alert('Employee updated successfully!')
+        toast.success('Employee updated successfully!')
       } else {
         // If email is provided, auto-create a Supabase Auth login account
         if (formData.email) {
           if (!supabaseAdmin) {
-            alert('⚠️ Warning: VITE_SUPABASE_SERVICE_KEY is not set in .env. Login account was NOT created. Please add the service key and try again.')
+            toast.warning('VITE_SUPABASE_SERVICE_KEY is not set in .env. Login account was NOT created. Please add the service key and try again.')
           } else {
             const { error: authError } = await supabaseAdmin.auth.admin.createUser({
               email: formData.email,
@@ -156,36 +169,38 @@ export default function Employees() {
               email_confirm: true,
               user_metadata: { 
                 needs_password_change: true,
-                role: formData.system_role === 'admin' ? 'admin' : undefined
+                role: system_role === 'admin' ? 'admin' : undefined,
+                created_via_app: 'true'
               }
             })
             if (authError && !authError.message.toLowerCase().includes('already registered')) {
               console.warn('Auth account warning:', authError.message)
-              alert(`Warning: Employee record will be saved, but login account could not be created: ${authError.message}`)
+              toast.warning(`Employee record will be saved, but login account could not be created: ${authError.message}`)
             }
           }
         }
 
         const { data, error } = await supabase
           .from('employees')
-          .insert([formData])
+          .insert([payload])
           .select()
 
         if (error) throw error
         setEmployees([data[0], ...employees])
-        alert(`Employee added successfully!${formData.email ? '\n\nLogin account created with default password: 123456\nEmployee will be required to change it on first login.' : ''}`)
+        toast.success(formData.email ? 'Employee added! Login account created with default password: 123456' : 'Employee added successfully!')
       }
       setIsModalOpen(false)
     } catch (err) {
       console.error('Error saving employee:', err)
-      alert('Error saving employee: ' + err.message)
+      toast.error('Error saving employee: ' + err.message)
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this employee?')) return
+    const ok = await confirm('This employee record will be permanently removed. This action cannot be undone.', { title: 'Delete Employee' })
+    if (!ok) return
 
     try {
       const { error } = await supabase
@@ -198,16 +213,17 @@ export default function Employees() {
       setEmployees(employees.filter(emp => emp.id !== id))
     } catch (err) {
       console.error('Error deleting employee:', err)
-      alert('Failed to delete employee: ' + err.message)
+      toast.error('Failed to delete employee: ' + err.message)
     }
   }
 
   const handleResetPassword = async () => {
     if (!formData.email) {
-      alert('This employee has no email address configured.')
+      toast.warning('This employee has no email address configured.')
       return
     }
-    if (!confirm(`Are you sure you want to reset the password for ${formData.email} to "123456"?`)) return
+    const ok = await confirm(`The password for ${formData.email} will be reset to "123456". The user will be required to change it on next login.`, { title: 'Reset Password', confirmText: 'Reset', icon: 'ri-key-2-line', variant: 'warning' })
+    if (!ok) return
     
     try {
       setIsSaving(true)
@@ -228,10 +244,10 @@ export default function Employees() {
       )
       
       if (updateError) throw updateError
-      alert('Password has been successfully reset to "123456". User will be forced to change it on their next login.')
+      toast.success('Password reset to "123456". User will be forced to change it on next login.')
     } catch (err) {
       console.error('Error resetting password:', err)
-      alert('Failed to reset password: ' + err.message)
+      toast.error('Failed to reset password: ' + err.message)
     } finally {
       setIsSaving(false)
     }
@@ -251,7 +267,7 @@ export default function Employees() {
       setEmployees(employees.map(emp => emp.id === id ? { ...emp, duty_status: newStatus } : emp))
     } catch (err) {
       console.error('Error updating status:', err)
-      alert('Failed to update status: ' + err.message)
+      toast.error('Failed to update status: ' + err.message)
     }
   }
 

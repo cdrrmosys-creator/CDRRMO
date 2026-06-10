@@ -3,6 +3,8 @@ import { supabase } from '../../services/supabase'
 import { format, isPast } from 'date-fns'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
+import { useToast } from '../../components/Toast'
+import { useConfirm } from '../../components/ConfirmDialog'
 
 const INITIAL_FORM_STATE = {
   driver_id: '',
@@ -26,6 +28,8 @@ export default function Drivers() {
   const [selectedId, setSelectedId] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
   const isAdmin = useIsAdmin()
+  const toast = useToast()
+  const confirm = useConfirm()
 
   useEffect(() => {
     loadDrivers()
@@ -101,7 +105,7 @@ export default function Drivers() {
 
         if (error) throw error
         setDrivers(drivers.map(d => d.id === selectedId ? data[0] : d))
-        alert('Driver updated successfully!')
+        toast.success('Driver updated successfully!')
       } else {
         const { data, error } = await supabase
           .from('drivers')
@@ -110,19 +114,20 @@ export default function Drivers() {
 
         if (error) throw error
         setDrivers([data[0], ...drivers])
-        alert('Driver added successfully!')
+        toast.success('Driver added successfully!')
       }
       setIsModalOpen(false)
     } catch (err) {
       console.error('Error saving driver:', err)
-      alert('Error saving driver: ' + err.message)
+      toast.error('Error saving driver: ' + err.message)
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this driver?')) return
+    const ok = await confirm('This driver will be permanently removed. This action cannot be undone.', { title: 'Delete Record' })
+    if (!ok) return
 
     try {
       const { error } = await supabase
@@ -135,7 +140,7 @@ export default function Drivers() {
       setDrivers(drivers.filter(d => d.id !== id))
     } catch (err) {
       console.error('Error deleting driver:', err)
-      alert('Failed to delete driver: ' + err.message)
+      toast.error('Failed to delete driver: ' + err.message)
     }
   }
 

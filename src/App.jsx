@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './stores/useAuthStore'
+import { ToastProvider } from './components/Toast'
+import { ConfirmProvider } from './components/ConfirmDialog'
 
 // Pages
 import Login from './pages/Auth/Login'
@@ -48,55 +50,59 @@ function App() {
   const needsPasswordChange = user?.user_metadata?.needs_password_change === true
 
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public: Login */}
-        <Route path="/login" element={
-          user ? <Navigate to="/" replace /> : <Login />
-        } />
+    <ToastProvider>
+      <ConfirmProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public: Login */}
+            <Route path="/login" element={
+              user ? <Navigate to="/" replace /> : <Login />
+            } />
 
-        {/* Force password change — accessible when logged in but password not yet changed */}
-        <Route path="/change-password" element={
-          !user
-            ? <Navigate to="/login" replace />
-            : <ChangePassword />
-        } />
+            {/* Force password change — accessible when logged in but password not yet changed */}
+            <Route path="/change-password" element={
+              !user
+                ? <Navigate to="/login" replace />
+                : <ChangePassword />
+            } />
 
-        {/* Protected routes — blocked if password change is still required */}
-        <Route path="/" element={
-          !user
-            ? <Navigate to="/login" replace />
-            : needsPasswordChange
-              ? <Navigate to="/change-password" replace />
-              : <Layout />
-        }>
-          <Route index element={<Dashboard />} />
-          <Route path="employees" element={<Employees />} />
-          <Route path="incidents" element={<Incidents />} />
-          <Route path="vouchers" element={<Vouchers />} />
-          <Route path="inventory" element={<Inventory />} />
-          <Route path="vehicles" element={<Vehicles />} />
-          <Route path="drivers" element={<Drivers />} />
-          <Route path="transport" element={<Transport />} />
-          <Route path="venues" element={<Venues />} />
-          <Route path="activities" element={<Activities />} />
-          <Route path="events-assistance" element={<EventsAssistance />} />
-          <Route path="training-attended" element={<TrainingAttended />} />
-          <Route path="training-conducted" element={<TrainingConducted />} />
-          <Route path="volunteers" element={<Volunteers />} />
-          <Route path="cdrrmc-reso" element={<CdrrmcReso />} />
-          <Route path="cdrrmc-meeting" element={<CdrrmcMeeting />} />
-          <Route path="maps" element={<Maps />} />
-          <Route path="pruning" element={<Pruning />} />
-          <Route path="history" element={<History />} />
-          <Route path="documentation" element={<Documentation />} />
-          <Route path="calendar" element={<CalendarEvents />} />
-        </Route>
+            {/* Protected routes — blocked if password change is still required */}
+            <Route path="/" element={
+              !user
+                ? <Navigate to="/login" replace />
+                : needsPasswordChange
+                  ? <Navigate to="/change-password" replace />
+                  : <Layout />
+            }>
+              <Route index element={<Dashboard />} />
+              <Route path="employees" element={<Employees />} />
+              <Route path="incidents" element={<Incidents />} />
+              <Route path="vouchers" element={<Vouchers />} />
+              <Route path="inventory" element={<Inventory />} />
+              <Route path="vehicles" element={<Vehicles />} />
+              <Route path="drivers" element={<Drivers />} />
+              <Route path="transport" element={<Transport />} />
+              <Route path="venues" element={<Venues />} />
+              <Route path="activities" element={<Activities />} />
+              <Route path="events-assistance" element={<EventsAssistance />} />
+              <Route path="training-attended" element={<TrainingAttended />} />
+              <Route path="training-conducted" element={<TrainingConducted />} />
+              <Route path="volunteers" element={<Volunteers />} />
+              <Route path="cdrrmc-reso" element={<CdrrmcReso />} />
+              <Route path="cdrrmc-meeting" element={<CdrrmcMeeting />} />
+              <Route path="maps" element={<Maps />} />
+              <Route path="pruning" element={<Pruning />} />
+              <Route path="history" element={<History />} />
+              <Route path="documentation" element={<Documentation />} />
+              <Route path="calendar" element={<CalendarEvents />} />
+            </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </ConfirmProvider>
+    </ToastProvider>
   )
 }
 

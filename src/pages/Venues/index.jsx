@@ -3,6 +3,8 @@ import { supabase } from '../../services/supabase'
 import { format } from 'date-fns'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
+import { useToast } from '../../components/Toast'
+import { useConfirm } from '../../components/ConfirmDialog'
 
 const INITIAL_FORM_STATE = {
   record_id: '',
@@ -26,6 +28,8 @@ export default function Venues() {
   const [selectedId, setSelectedId] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
   const isAdmin = useIsAdmin()
+  const toast = useToast()
+  const confirm = useConfirm()
 
   useEffect(() => {
     loadRecords()
@@ -99,7 +103,7 @@ export default function Venues() {
 
         if (error) throw error
         setRecords(records.map(rec => rec.id === selectedId ? data[0] : rec))
-        alert('Booking updated successfully!')
+        toast.success('Booking updated successfully!')
       } else {
         const { data, error } = await supabase
           .from('venues')
@@ -108,19 +112,20 @@ export default function Venues() {
 
         if (error) throw error
         setRecords([data[0], ...records])
-        alert('Booking created successfully!')
+        toast.success('Booking created successfully!')
       }
       setIsModalOpen(false)
     } catch (err) {
       console.error('Error saving venue record:', err)
-      alert('Error saving booking: ' + err.message)
+      toast.error('Error saving booking: ' + err.message)
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this booking?')) return
+    const ok = await confirm('This booking will be permanently removed. This action cannot be undone.', { title: 'Delete Record' })
+    if (!ok) return
 
     try {
       const { error } = await supabase
@@ -133,7 +138,7 @@ export default function Venues() {
       setRecords(records.filter(rec => rec.id !== id))
     } catch (err) {
       console.error('Error deleting venue record:', err)
-      alert('Failed to delete booking: ' + err.message)
+      toast.error('Failed to delete booking: ' + err.message)
     }
   }
 

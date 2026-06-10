@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../stores/useAuthStore'
+import { useToast } from '../../components/Toast'
 
 export default function Login() {
   const navigate = useNavigate()
   const { signIn, loading } = useAuthStore()
+  const toast = useToast()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -21,11 +23,19 @@ export default function Login() {
     }
 
     try {
-      await signIn(email, password)
-      navigate('/')
+      const res = await signIn(email, password)
+      if (res && !res.success) {
+        const errorMsg = res.error || 'Invalid credentials. Please try again.'
+        setError(errorMsg)
+        toast.error(errorMsg)
+      } else {
+        navigate('/')
+      }
     } catch (err) {
       console.error('Login error:', err)
-      setError(err.message || 'Invalid credentials. Please try again.')
+      const errorMsg = err.message || 'Invalid credentials. Please try again.'
+      setError(errorMsg)
+      toast.error(errorMsg)
     }
   }
 
@@ -96,14 +106,18 @@ export default function Login() {
               {error && (
                 <div style={{
                   padding: '12px',
-                  background: 'rgba(220, 38, 38, 0.1)',
-                  border: '1px solid rgba(220, 38, 38, 0.3)',
+                  background: 'rgba(220, 38, 38, 0.15)',
+                  border: '1px solid rgba(220, 38, 38, 0.4)',
                   borderRadius: '8px',
                   color: '#fca5a5',
                   fontSize: '13px',
-                  fontWeight: '600'
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
                 }}>
-                  {error}
+                  <i className="ri-error-warning-line" style={{ fontSize: '16px', flexShrink: 0 }}></i>
+                  <span>{error}</span>
                 </div>
               )}
 

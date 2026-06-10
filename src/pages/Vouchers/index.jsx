@@ -3,6 +3,8 @@ import { supabase } from '../../services/supabase'
 import { format } from 'date-fns'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
+import { useToast } from '../../components/Toast'
+import { useConfirm } from '../../components/ConfirmDialog'
 
 const INITIAL_FORM_STATE = {
   record_id: '',
@@ -25,6 +27,8 @@ export default function Vouchers() {
   const [selectedId, setSelectedId] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
   const isAdmin = useIsAdmin()
+  const toast = useToast()
+  const confirm = useConfirm()
 
   useEffect(() => {
     loadVouchers()
@@ -104,7 +108,7 @@ export default function Vouchers() {
 
         if (error) throw error
         setVouchers(vouchers.map(v => v.id === selectedId ? data[0] : v))
-        alert('Voucher updated successfully!')
+        toast.success('Voucher updated successfully!')
       } else {
         const { data, error } = await supabase
           .from('vouchers')
@@ -113,19 +117,20 @@ export default function Vouchers() {
 
         if (error) throw error
         setVouchers([data[0], ...vouchers])
-        alert('Voucher created successfully!')
+        toast.success('Voucher created successfully!')
       }
       setIsModalOpen(false)
     } catch (err) {
       console.error('Error saving voucher:', err)
-      alert('Error saving voucher: ' + err.message)
+      toast.error('Error saving voucher: ' + err.message)
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this voucher?')) return
+    const ok = await confirm('This voucher will be permanently removed. This action cannot be undone.', { title: 'Delete Record' })
+    if (!ok) return
 
     try {
       const { error } = await supabase
@@ -138,7 +143,7 @@ export default function Vouchers() {
       setVouchers(vouchers.filter(v => v.id !== id))
     } catch (err) {
       console.error('Error deleting voucher:', err)
-      alert('Failed to delete voucher: ' + err.message)
+      toast.error('Failed to delete voucher: ' + err.message)
     }
   }
 
