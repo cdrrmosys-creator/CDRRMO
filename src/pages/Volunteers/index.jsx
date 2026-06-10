@@ -139,6 +139,7 @@ export default function Volunteers() {
       if (error) throw error
       
       setRecords(records.filter(rec => rec.id !== id))
+      toast.success('Volunteer record deleted successfully!')
     } catch (err) {
       console.error('Error deleting volunteer record:', err)
       toast.error('Failed to delete record: ' + err.message)

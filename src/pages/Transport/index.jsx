@@ -166,6 +166,7 @@ export default function Transport() {
       if (error) throw error
       
       setRecords(records.filter(rec => rec.id !== id))
+      toast.success('Transport record deleted successfully!')
     } catch (err) {
       console.error('Error deleting transport record:', err)
       toast.error('Failed to delete record: ' + err.message)

@@ -148,6 +148,7 @@ export default function Documentation() {
 
       if (error) throw error
       setRecords(records.filter(rec => rec.id !== id))
+      toast.success('Document deleted successfully!')
     } catch (err) {
       console.error('Error deleting document record:', err)
       toast.error('Failed to delete record: ' + err.message)

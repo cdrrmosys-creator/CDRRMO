@@ -211,6 +211,7 @@ export default function Employees() {
       if (error) throw error
       
       setEmployees(employees.filter(emp => emp.id !== id))
+      toast.success('Employee record deleted successfully!')
     } catch (err) {
       console.error('Error deleting employee:', err)
       toast.error('Failed to delete employee: ' + err.message)

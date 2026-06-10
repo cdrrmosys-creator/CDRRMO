@@ -134,6 +134,7 @@ export default function CdrrmcMeeting() {
       if (error) throw error
       
       setRecords(records.filter(rec => rec.id !== id))
+      toast.success('Meeting record deleted successfully!')
     } catch (err) {
       console.error('Error deleting meeting record:', err)
       toast.error('Failed to delete record: ' + err.message)

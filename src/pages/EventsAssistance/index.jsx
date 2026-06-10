@@ -134,6 +134,7 @@ export default function EventsAssistance() {
       if (error) throw error
       
       setRecords(records.filter(rec => rec.id !== id))
+      toast.success('Assistance record deleted successfully!')
     } catch (err) {
       console.error('Error deleting events assistance record:', err)
       toast.error('Failed to delete record: ' + err.message)

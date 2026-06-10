@@ -134,6 +134,7 @@ export default function TrainingConducted() {
       if (error) throw error
       
       setRecords(records.filter(rec => rec.id !== id))
+      toast.success('Training course deleted successfully!')
     } catch (err) {
       console.error('Error deleting training conducted record:', err)
       toast.error('Failed to delete record: ' + err.message)

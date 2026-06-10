@@ -144,6 +144,7 @@ export default function Vehicles() {
       if (error) throw error
       
       setVehicles(vehicles.filter(v => v.id !== id))
+      toast.success('Vehicle record deleted successfully!')
     } catch (err) {
       console.error('Error deleting vehicle:', err)
       toast.error('Failed to delete vehicle: ' + err.message)

@@ -139,6 +139,7 @@ export default function Pruning() {
       if (error) throw error
       
       setRecords(records.filter(rec => rec.id !== id))
+      toast.success('Pruning record deleted successfully!')
     } catch (err) {
       console.error('Error deleting pruning record:', err)
       toast.error('Failed to delete record: ' + err.message)

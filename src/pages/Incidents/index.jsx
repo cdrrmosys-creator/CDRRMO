@@ -153,6 +153,7 @@ export default function Incidents() {
       if (error) throw error
       
       setIncidents(incidents.filter(inc => inc.id !== id))
+      toast.success('Incident report deleted successfully!')
     } catch (err) {
       console.error('Error deleting incident:', err)
       toast.error('Failed to delete incident: ' + err.message)

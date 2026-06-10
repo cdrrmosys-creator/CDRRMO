@@ -139,6 +139,7 @@ export default function Activities() {
       if (error) throw error
       
       setRecords(records.filter(rec => rec.id !== id))
+      toast.success('Activity record deleted successfully!')
     } catch (err) {
       console.error('Error deleting activity record:', err)
       toast.error('Failed to delete activity: ' + err.message)

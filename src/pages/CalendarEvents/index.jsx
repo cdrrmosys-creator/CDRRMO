@@ -149,6 +149,7 @@ export default function CalendarEvents() {
 
       if (error) throw error
       setRecords(records.filter(rec => rec.id !== id))
+      toast.success('Event deleted successfully!')
     } catch (err) {
       console.error('Error deleting calendar event:', err)
       toast.error('Failed to delete event: ' + err.message)

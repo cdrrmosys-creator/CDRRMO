@@ -138,6 +138,7 @@ export default function Drivers() {
       if (error) throw error
       
       setDrivers(drivers.filter(d => d.id !== id))
+      toast.success('Driver record deleted successfully!')
     } catch (err) {
       console.error('Error deleting driver:', err)
       toast.error('Failed to delete driver: ' + err.message)

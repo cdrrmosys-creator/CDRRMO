@@ -141,6 +141,7 @@ export default function Vouchers() {
       if (error) throw error
       
       setVouchers(vouchers.filter(v => v.id !== id))
+      toast.success('Voucher deleted successfully!')
     } catch (err) {
       console.error('Error deleting voucher:', err)
       toast.error('Failed to delete voucher: ' + err.message)

@@ -140,6 +140,7 @@ export default function Inventory() {
       if (error) throw error
       
       setItems(items.filter(item => item.id !== id))
+      toast.success('Inventory item deleted successfully!')
     } catch (err) {
       console.error('Error deleting item:', err)
       toast.error('Failed to delete item: ' + err.message)

@@ -139,6 +139,7 @@ export default function Maps() {
       if (error) throw error
       
       setRecords(records.filter(rec => rec.id !== id))
+      toast.success('Map record deleted successfully!')
     } catch (err) {
       console.error('Error deleting map record:', err)
       toast.error('Failed to delete record: ' + err.message)

@@ -408,22 +408,72 @@ CREATE POLICY "Allow authenticated update access" ON employees FOR UPDATE TO aut
 CREATE POLICY "Allow authenticated delete access" ON employees FOR DELETE TO authenticated USING (true);
 
 CREATE POLICY "Allow authenticated insert access" ON incidents FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON incidents FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON incidents FOR DELETE TO authenticated USING (true);
+
 CREATE POLICY "Allow authenticated insert access" ON vouchers FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON vouchers FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON vouchers FOR DELETE TO authenticated USING (true);
+
 CREATE POLICY "Allow authenticated insert access" ON inventory FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON inventory FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON inventory FOR DELETE TO authenticated USING (true);
+
 CREATE POLICY "Allow authenticated insert access" ON transport FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON transport FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON transport FOR DELETE TO authenticated USING (true);
+
 CREATE POLICY "Allow authenticated insert access" ON venues FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON venues FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON venues FOR DELETE TO authenticated USING (true);
+
 CREATE POLICY "Allow authenticated insert access" ON activities FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON activities FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON activities FOR DELETE TO authenticated USING (true);
+
 CREATE POLICY "Allow authenticated insert access" ON events_assistance FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON events_assistance FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON events_assistance FOR DELETE TO authenticated USING (true);
+
 CREATE POLICY "Allow authenticated insert access" ON training_attended FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON training_attended FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON training_attended FOR DELETE TO authenticated USING (true);
+
 CREATE POLICY "Allow authenticated insert access" ON training_conducted FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON training_conducted FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON training_conducted FOR DELETE TO authenticated USING (true);
+
 CREATE POLICY "Allow authenticated insert access" ON volunteers FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON volunteers FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON volunteers FOR DELETE TO authenticated USING (true);
+
 CREATE POLICY "Allow authenticated insert access" ON cdrrmc_reso FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON cdrrmc_reso FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON cdrrmc_reso FOR DELETE TO authenticated USING (true);
+
 CREATE POLICY "Allow authenticated insert access" ON cdrrmc_meeting FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON cdrrmc_meeting FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON cdrrmc_meeting FOR DELETE TO authenticated USING (true);
+
 CREATE POLICY "Allow authenticated insert access" ON maps_available FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON maps_available FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON maps_available FOR DELETE TO authenticated USING (true);
+
 CREATE POLICY "Allow authenticated insert access" ON pruning_trimming FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON pruning_trimming FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON pruning_trimming FOR DELETE TO authenticated USING (true);
+
 CREATE POLICY "Allow authenticated insert access" ON history FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON history FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON history FOR DELETE TO authenticated USING (true);
+
 CREATE POLICY "Allow authenticated insert access" ON documentations FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON documentations FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON documentations FOR DELETE TO authenticated USING (true);
+
 CREATE POLICY "Allow authenticated insert access" ON calendar_events FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow authenticated update access" ON calendar_events FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Allow authenticated delete access" ON calendar_events FOR DELETE TO authenticated USING (true);
 CREATE POLICY "Allow authenticated insert access" ON vehicles FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Allow authenticated update access" ON vehicles FOR UPDATE TO authenticated USING (true);
 CREATE POLICY "Allow authenticated delete access" ON vehicles FOR DELETE TO authenticated USING (true);

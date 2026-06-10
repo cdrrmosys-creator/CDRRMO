@@ -132,6 +132,7 @@ export default function History() {
       if (error) throw error
       
       setRecords(records.filter(rec => rec.id !== id))
+      toast.success('History record deleted successfully!')
     } catch (err) {
       console.error('Error deleting history record:', err)
       toast.error('Failed to delete record: ' + err.message)

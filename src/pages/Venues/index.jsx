@@ -136,6 +136,7 @@ export default function Venues() {
       if (error) throw error
       
       setRecords(records.filter(rec => rec.id !== id))
+      toast.success('Reservation deleted successfully!')
     } catch (err) {
       console.error('Error deleting venue record:', err)
       toast.error('Failed to delete booking: ' + err.message)

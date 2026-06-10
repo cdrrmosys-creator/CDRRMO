@@ -132,6 +132,7 @@ export default function CdrrmcReso() {
       if (error) throw error
       
       setRecords(records.filter(rec => rec.id !== id))
+      toast.success('Resolution record deleted successfully!')
     } catch (err) {
       console.error('Error deleting resolution record:', err)
       toast.error('Failed to delete record: ' + err.message)
