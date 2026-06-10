@@ -5,7 +5,8 @@ export default function ModuleToolbar({
   onFilterChange, 
   filterOptions = [],
   onDateRangeChange,
-  onExport
+  exportData,
+  exportFilename = 'export.xlsx'
 }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [filter, setFilter] = useState('')
@@ -28,6 +29,26 @@ export default function ModuleToolbar({
     setDateStart(start)
     setDateEnd(end)
     if (onDateRangeChange) onDateRangeChange({ start, end })
+  }
+
+  const handleExport = () => {
+    if (!exportData || exportData.length === 0) {
+      alert('No data to export.')
+      return
+    }
+    if (window.XLSX) {
+      // Clean up data for export (remove React-specific or internal fields if necessary)
+      const cleanData = exportData.map(item => {
+        const { id, created_at, updated_at, ...rest } = item;
+        return rest;
+      });
+      const worksheet = window.XLSX.utils.json_to_sheet(cleanData)
+      const workbook = window.XLSX.utils.book_new()
+      window.XLSX.utils.book_append_sheet(workbook, worksheet, "Data")
+      window.XLSX.writeFile(workbook, exportFilename)
+    } else {
+      alert('Export library is not loaded yet. Please check your internet connection and try again.')
+    }
   }
 
   return (
@@ -123,14 +144,14 @@ export default function ModuleToolbar({
       </div>
 
       {/* Export Button */}
-      {onExport && (
+      {exportData && (
         <button 
-          onClick={onExport}
+          onClick={handleExport}
           className="btn-secondary"
           style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
         >
-          <i className="ri-download-2-line"></i>
-          Export
+          <i className="ri-file-excel-2-line"></i>
+          Export to Excel
         </button>
       )}
     </div>

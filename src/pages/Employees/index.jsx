@@ -49,7 +49,7 @@ export default function Employees() {
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
+  const [isViewing, setIsViewing] = useState(false)
   const [selectedEmployee, setSelectedEmployee] = useState(null)
   const [formData, setFormData] = useState(INITIAL_FORM_STATE)
   const [isEditing, setIsEditing] = useState(false)
@@ -81,38 +81,52 @@ export default function Employees() {
     return matchesSearch && matchesFilter && matchesDate
   })
 
-  const handleExport = () => {
-    const headers = ['ID', 'Name', 'Username', 'Designation', 'Contact', 'Status']
-    const csvData = filteredEmployees.map(emp => [
-      `"${emp.employee_id || ''}"`,
-      `"${emp.name || ''}"`,
-      `"${emp.username || ''}"`,
-      `"${emp.designation || ''}"`,
-      `"${emp.contact || ''}"`,
-      `"${emp.duty_status || ''}"`
-    ])
-    const csvContent = [headers.join(','), ...csvData.map(row => row.join(','))].join('\n')
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.setAttribute('href', url)
-    a.setAttribute('download', 'employees_export.csv')
-    a.click()
-  }
-
   const handleViewDetails = (emp) => {
     setSelectedEmployee(emp)
-    setIsViewModalOpen(true)
+    setIsEditing(true)
+    setIsViewing(true)
+    setSelectedId(emp.id)
+    setFormData({
+      employee_id: emp.employee_id || '',
+      name: emp.name || '',
+      username: emp.username || '',
+      designation: emp.designation || '',
+      email: emp.email || '',
+      contact: emp.contact || '',
+      duty_status: emp.duty_status || 'Off Duty',
+      office: emp.office || 'CDRRMO Headquarters',
+      dob: emp.dob || '',
+      pob: emp.pob || '',
+      civil_status: emp.civil_status || 'Single',
+      blood_type: emp.blood_type || '',
+      address: emp.address || '',
+      height: emp.height || '',
+      weight: emp.weight || '',
+      waist: emp.waist || '',
+      shirt_size: emp.shirt_size || '',
+      shoe_size: emp.shoe_size || '',
+      father_name: emp.father_name || '',
+      mother_name: emp.mother_name || '',
+      spouse_name: emp.spouse_name || '',
+      tin: emp.tin || '',
+      pagibig: emp.pagibig || '',
+      sss: emp.sss || '',
+      gsis: emp.gsis || '',
+      philhealth: emp.philhealth || '',
+      remarks: emp.remarks || '',
+      system_role: 'user'
+    })
+    setActiveTab('personal')
+    setIsModalOpen(true)
   }
 
   const handleEditFromView = () => {
-    setIsViewModalOpen(false)
-    handleOpenEdit(selectedEmployee)
+    setIsViewing(false)
   }
 
   const handleDeleteFromView = async () => {
-    const idToDelete = selectedEmployee.id
-    setIsViewModalOpen(false)
+    const idToDelete = selectedId
+    setIsModalOpen(false)
     await handleDelete(idToDelete)
   }
 
@@ -136,6 +150,7 @@ export default function Employees() {
 
   const handleOpenAdd = () => {
     setIsEditing(false)
+    setIsViewing(false)
     setSelectedId(null)
     // Generate a default unique employee ID
     const year = new Date().getFullYear()
@@ -150,6 +165,7 @@ export default function Employees() {
 
   const handleOpenEdit = (emp) => {
     setIsEditing(true)
+    setIsViewing(false)
     setSelectedId(emp.id)
     setFormData({
       employee_id: emp.employee_id || '',
@@ -449,7 +465,8 @@ export default function Employees() {
           onSearch={setSearchTerm}
           onFilterChange={setFilter}
           onDateRangeChange={setDateRange}
-          onExport={handleExport}
+          exportData={filteredEmployees}
+          exportFilename="employees_report.xlsx"
           filterOptions={[
             { label: 'On Duty', value: 'On Duty' },
             { label: 'Off Duty', value: 'Off Duty' },
@@ -518,7 +535,7 @@ export default function Employees() {
       <Modal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        title={isEditing ? 'Edit Employee Record' : 'Add Employee Record'}
+        title={isViewing ? 'Employee Details' : (isEditing ? 'Edit Employee Record' : 'Add Employee Record')}
       >
         <form onSubmit={handleSubmit} className="modal-form">
           <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid var(--border-light)', overflowX: 'auto' }}>
@@ -588,6 +605,7 @@ export default function Employees() {
             </button>
           </div>
 
+          <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
           <div style={{ minHeight: '300px' }}>
             {activeTab === 'personal' && (
               <>
@@ -815,10 +833,11 @@ export default function Employees() {
               </div>
             )}
           </div>
+          </fieldset>
 
           <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              {isEditing && formData.email && isAdmin && (
+              {!isViewing && isEditing && formData.email && isAdmin && (
                 <button 
                   type="button" 
                   className="btn-secondary" 
@@ -831,85 +850,50 @@ export default function Employees() {
                 </button>
               )}
             </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
-                Cancel
-              </button>
-              <button type="submit" className="btn-submit" disabled={isSaving}>
-                {isSaving ? 'Saving...' : 'Save Employee'}
-              </button>
-            </div>
-          </div>
-        </form>
-      </Modal>
-
-      {/* View Modal */}
-      <Modal 
-        isOpen={isViewModalOpen} 
-        onClose={() => setIsViewModalOpen(false)} 
-        title="Employee Details"
-      >
-        {selectedEmployee && (
-          <div className="view-modal-content">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Employee ID</strong><div style={{ fontWeight: '700' }}>{selectedEmployee.employee_id || '-'}</div></div>
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Name</strong><div style={{ fontWeight: '700' }}>{selectedEmployee.name || '-'}</div></div>
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Username</strong><div>{selectedEmployee.username || '-'}</div></div>
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Email</strong><div>{selectedEmployee.email || '-'}</div></div>
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Designation</strong><div>{selectedEmployee.designation || '-'}</div></div>
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Office / Station</strong><div>{selectedEmployee.office || '-'}</div></div>
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Contact</strong><div>{selectedEmployee.contact || '-'}</div></div>
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Duty Status</strong><div>{selectedEmployee.duty_status || '-'}</div></div>
-              
-              <div style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--border-light)', margin: '8px 0' }}></div>
-              
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Date of Birth</strong><div>{selectedEmployee.dob || '-'}</div></div>
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Place of Birth</strong><div>{selectedEmployee.pob || '-'}</div></div>
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Civil Status</strong><div>{selectedEmployee.civil_status || '-'}</div></div>
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Blood Type</strong><div>{selectedEmployee.blood_type || '-'}</div></div>
-              <div style={{ gridColumn: '1 / -1' }}><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Address</strong><div>{selectedEmployee.address || '-'}</div></div>
-              
-              <div style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--border-light)', margin: '8px 0' }}></div>
-              
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Height</strong><div>{selectedEmployee.height || '-'}</div></div>
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Weight</strong><div>{selectedEmployee.weight || '-'}</div></div>
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Shirt Size</strong><div>{selectedEmployee.shirt_size || '-'}</div></div>
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Shoe Size</strong><div>{selectedEmployee.shoe_size || '-'}</div></div>
-              
-              <div style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--border-light)', margin: '8px 0' }}></div>
-              
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>TIN</strong><div>{selectedEmployee.tin || '-'}</div></div>
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>SSS</strong><div>{selectedEmployee.sss || '-'}</div></div>
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>PhilHealth</strong><div>{selectedEmployee.philhealth || '-'}</div></div>
-              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Pag-IBIG</strong><div>{selectedEmployee.pagibig || '-'}</div></div>
-              
-              <div style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--border-light)', margin: '8px 0' }}></div>
-              <div style={{ gridColumn: '1 / -1' }}><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Remarks</strong><div>{selectedEmployee.remarks || '-'}</div></div>
-            </div>
-
-            {isAdmin && (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid var(--border-light)', paddingTop: '16px' }}>
-                <button 
-                  type="button"
-                  className="btn-delete"
-                  onClick={handleDeleteFromView}
-                  style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                >
-                  <i className="ri-delete-bin-line" style={{ marginRight: '6px' }}></i> Delete
+            
+            {isViewing ? (
+              <div style={{ display: 'flex', gap: '12px' }}>
+                {isAdmin && (
+                  <>
+                    <button 
+                      type="button"
+                      className="btn-delete"
+                      onClick={handleDeleteFromView}
+                      style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    >
+                      <i className="ri-delete-bin-line" style={{ marginRight: '6px' }}></i> Delete
+                    </button>
+                    <button 
+                      type="button"
+                      className="btn-submit"
+                      onClick={handleEditFromView}
+                      style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', background: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer' }}
+                    >
+                      <i className="ri-pencil-line" style={{ marginRight: '6px' }}></i> Edit
+                    </button>
+                  </>
+                )}
+                {!isAdmin && (
+                   <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
+                     Close
+                   </button>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
+                  Cancel
                 </button>
-                <button 
-                  type="button"
-                  className="btn-submit"
-                  onClick={handleEditFromView}
-                  style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', background: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer' }}
-                >
-                  <i className="ri-pencil-line" style={{ marginRight: '6px' }}></i> Edit
+                <button type="submit" className="btn-submit" disabled={isSaving}>
+                  {isSaving ? 'Saving...' : 'Save Employee'}
                 </button>
               </div>
             )}
           </div>
-        )}
+        </form>
       </Modal>
+
+
     </div>
   )
 }

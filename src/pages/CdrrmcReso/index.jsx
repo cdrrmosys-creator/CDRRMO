@@ -1,3 +1,4 @@
+import ModuleToolbar from '../../components/ModuleToolbar'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { format } from 'date-fns'
@@ -29,9 +30,41 @@ export default function CdrrmcReso() {
   const toast = useToast()
   const confirm = useConfirm()
 
+
+  // Toolbar states
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filter, setFilter] = useState('')
+  const [dateRange, setDateRange] = useState({ start: '', end: '' })
+
   useEffect(() => {
     loadRecords()
   }, [])
+
+  const filteredRecords = records.filter(item => {
+    let matchesSearch = true
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase()
+      matchesSearch = Object.values(item).some(val => 
+        val && typeof val === 'string' && val.toLowerCase().includes(lowerSearch)
+      )
+    }
+    
+    let matchesFilter = true
+    
+    let matchesDate = true
+    if (dateRange.start && dateRange.end) {
+      const dateStr = item.date_time || item.created_at || item.date || item.start_date || item.date_received || item.date_conducted || item.date_attended
+      if (dateStr) {
+        const created = new Date(dateStr)
+        const start = new Date(dateRange.start)
+        const end = new Date(dateRange.end)
+        end.setHours(23, 59, 59, 999)
+        matchesDate = created >= start && created <= end
+      }
+    }
+
+    return matchesSearch && matchesFilter && matchesDate
+  })
 
   const loadRecords = async () => {
     try {
@@ -98,7 +131,7 @@ export default function CdrrmcReso() {
           .select()
 
         if (error) throw error
-        setRecords(records.map(rec => rec.id === selectedId ? data[0] : rec))
+        setRecords(filteredRecords.map(rec => rec.id === selectedId ? data[0] : rec))
         toast.success('Resolution updated successfully!')
       } else {
         const { data, error } = await supabase
@@ -196,7 +229,18 @@ export default function CdrrmcReso() {
         </button>
       </div>
 
-      {records.length === 0 ? (
+      
+      {records.length > 0 && (
+        <ModuleToolbar 
+          onSearch={setSearchTerm}
+          onFilterChange={setFilter}
+          onDateRangeChange={setDateRange}
+          exportData={filteredRecords}
+          exportFilename="cdrrmcreso_report.xlsx"
+        />
+      )}
+
+{records.length === 0 ? (
         <div className="empty-state">
           <i className="ri-file-list-3-line"></i>
           <h3>No Resolutions Found</h3>
@@ -216,7 +260,7 @@ export default function CdrrmcReso() {
               </tr>
             </thead>
             <tbody>
-              {records.map((record) => (
+              {filteredRecords.map((record) => (
                 <tr key={record.id}>
                   <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
                   <td style={{ fontWeight: '700' }}>{record.resolution_no || '-'}</td>
@@ -271,7 +315,7 @@ export default function CdrrmcReso() {
         color: 'var(--text-muted)',
         textAlign: 'center'
       }}>
-        Total Resolutions: <strong>{records.length}</strong>
+        Showing <strong>{filteredRecords.length}</strong> of <strong>{records.length}</strong>
       </div>
 
       {/* Add/Edit Modal */}

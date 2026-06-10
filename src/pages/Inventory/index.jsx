@@ -5,6 +5,7 @@ import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
+import ModuleToolbar from '../../components/ModuleToolbar'
 
 const INITIAL_FORM_STATE = {
   record_id: '',
@@ -19,7 +20,11 @@ export default function Inventory() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [filter, setFilter] = useState('All')
+  
+  // Toolbar states
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filter, setFilter] = useState('')
+  const [dateRange, setDateRange] = useState({ start: '', end: '' })
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -172,8 +177,37 @@ export default function Inventory() {
     )
   }
 
-  const categories = ['All', ...new Set(items.map(item => item.category).filter(Boolean))]
-  const filteredItems = filter === 'All' ? items : items.filter(item => item.category === filter)
+  const categories = [...new Set(items.map(item => item.category).filter(Boolean))]
+  
+  const filteredItems = items.filter(item => {
+    let matchesSearch = true
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase()
+      matchesSearch = Object.values(item).some(val => 
+        val && typeof val === 'string' && val.toLowerCase().includes(lowerSearch)
+      )
+    }
+    
+    let matchesFilter = true
+    if (filter) {
+      matchesFilter = item.category === filter
+    }
+    
+    let matchesDate = true
+    if (dateRange.start && dateRange.end) {
+      const dateStr = item.date_acquired || item.created_at
+      if (dateStr) {
+        const created = new Date(dateStr)
+        const start = new Date(dateRange.start)
+        const end = new Date(dateRange.end)
+        end.setHours(23, 59, 59, 999)
+        matchesDate = created >= start && created <= end
+      }
+    }
+
+    return matchesSearch && matchesFilter && matchesDate
+  })
+
   const totalItems = filteredItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
 
   if (loading) {
@@ -233,29 +267,15 @@ export default function Inventory() {
         </button>
       </div>
 
-      {/* Category Filter */}
-      {categories.length > 1 && (
-        <div style={{ marginBottom: '24px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setFilter(cat)}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-light)',
-                background: filter === cat ? 'var(--primary)' : 'var(--bg-surface)',
-                color: filter === cat ? '#fff' : 'var(--text-main)',
-                fontSize: '13px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
+      {items.length > 0 && (
+        <ModuleToolbar 
+          onSearch={setSearchTerm}
+          onFilterChange={setFilter}
+          onDateRangeChange={setDateRange}
+          exportData={filteredItems}
+          exportFilename="inventory_report.xlsx"
+          filterOptions={categories.map(cat => ({ label: cat, value: cat }))}
+        />
       )}
 
       {/* Summary */}
