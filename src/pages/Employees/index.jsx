@@ -4,6 +4,7 @@ import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
+import ModuleToolbar from '../../components/ModuleToolbar'
 
 const INITIAL_FORM_STATE = {
   employee_id: '',
@@ -41,8 +42,15 @@ export default function Employees() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   
+  // Toolbar states
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filter, setFilter] = useState('')
+  const [dateRange, setDateRange] = useState({ start: '', end: '' })
+  
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
+  const [selectedEmployee, setSelectedEmployee] = useState(null)
   const [formData, setFormData] = useState(INITIAL_FORM_STATE)
   const [isEditing, setIsEditing] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
@@ -55,6 +63,58 @@ export default function Employees() {
   useEffect(() => {
     loadEmployees()
   }, [])
+
+  const filteredEmployees = employees.filter(emp => {
+    const matchesSearch = (emp.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
+                          (emp.employee_id?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+    const matchesFilter = filter ? emp.duty_status === filter : true
+    
+    let matchesDate = true
+    if (dateRange.start && dateRange.end) {
+      const created = new Date(emp.created_at)
+      const start = new Date(dateRange.start)
+      const end = new Date(dateRange.end)
+      end.setHours(23, 59, 59, 999)
+      matchesDate = created >= start && created <= end
+    }
+
+    return matchesSearch && matchesFilter && matchesDate
+  })
+
+  const handleExport = () => {
+    const headers = ['ID', 'Name', 'Username', 'Designation', 'Contact', 'Status']
+    const csvData = filteredEmployees.map(emp => [
+      `"${emp.employee_id || ''}"`,
+      `"${emp.name || ''}"`,
+      `"${emp.username || ''}"`,
+      `"${emp.designation || ''}"`,
+      `"${emp.contact || ''}"`,
+      `"${emp.duty_status || ''}"`
+    ])
+    const csvContent = [headers.join(','), ...csvData.map(row => row.join(','))].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.setAttribute('href', url)
+    a.setAttribute('download', 'employees_export.csv')
+    a.click()
+  }
+
+  const handleViewDetails = (emp) => {
+    setSelectedEmployee(emp)
+    setIsViewModalOpen(true)
+  }
+
+  const handleEditFromView = () => {
+    setIsViewModalOpen(false)
+    handleOpenEdit(selectedEmployee)
+  }
+
+  const handleDeleteFromView = async () => {
+    const idToDelete = selectedEmployee.id
+    setIsViewModalOpen(false)
+    await handleDelete(idToDelete)
+  }
 
   const loadEmployees = async () => {
     try {
@@ -384,11 +444,32 @@ export default function Employees() {
         </button>
       </div>
 
+      {employees.length > 0 && (
+        <ModuleToolbar 
+          onSearch={setSearchTerm}
+          onFilterChange={setFilter}
+          onDateRangeChange={setDateRange}
+          onExport={handleExport}
+          filterOptions={[
+            { label: 'On Duty', value: 'On Duty' },
+            { label: 'Off Duty', value: 'Off Duty' },
+            { label: 'Standby', value: 'Standby' },
+            { label: 'On Leave', value: 'On Leave' }
+          ]}
+        />
+      )}
+
       {employees.length === 0 ? (
         <div className="empty-state">
           <i className="ri-team-line"></i>
           <h3>No Employees Found</h3>
           <p>Click "Add Employee" to create your first employee record.</p>
+        </div>
+      ) : filteredEmployees.length === 0 ? (
+        <div className="empty-state">
+          <i className="ri-search-line"></i>
+          <h3>No matches found</h3>
+          <p>Try adjusting your search or filters.</p>
         </div>
       ) : (
         <div className="data-table">
@@ -401,38 +482,22 @@ export default function Employees() {
                 <th>Designation</th>
                 <th>Contact</th>
                 <th>Status</th>
-                {isAdmin && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {employees.map((emp) => (
-                <tr key={emp.id}>
+              {filteredEmployees.map((emp) => (
+                <tr 
+                  key={emp.id} 
+                  onClick={() => handleViewDetails(emp)}
+                  style={{ cursor: 'pointer' }}
+                  className="table-row-clickable"
+                >
                   <td><code style={{ fontWeight: '700' }}>{emp.employee_id || '-'}</code></td>
                   <td style={{ fontWeight: '700' }}>{emp.name || '-'}</td>
                   <td>{emp.username || '-'}</td>
                   <td>{emp.designation || '-'}</td>
                   <td>{emp.contact || '-'}</td>
-                  <td>{renderDutyStatus(emp)}</td>
-                  {isAdmin && (
-                  <td>
-                    <div className="table-actions">
-                      <button 
-                        className="btn-icon btn-edit"
-                        onClick={() => handleOpenEdit(emp)}
-                        title="Edit"
-                      >
-                        <i className="ri-pencil-line"></i>
-                      </button>
-                      <button 
-                        className="btn-icon btn-delete"
-                        onClick={() => handleDelete(emp.id)}
-                        title="Delete"
-                      >
-                        <i className="ri-delete-bin-line"></i>
-                      </button>
-                    </div>
-                  </td>
-                  )}
+                  <td onClick={(e) => { if(isAdmin) e.stopPropagation(); }}>{renderDutyStatus(emp)}</td>
                 </tr>
               ))}
             </tbody>
@@ -446,7 +511,7 @@ export default function Employees() {
         color: 'var(--text-muted)',
         textAlign: 'center'
       }}>
-        Total Employees: <strong>{employees.length}</strong>
+        Showing <strong>{filteredEmployees.length}</strong> of <strong>{employees.length}</strong> Employees
       </div>
 
       {/* Add/Edit Modal */}
@@ -776,6 +841,74 @@ export default function Employees() {
             </div>
           </div>
         </form>
+      </Modal>
+
+      {/* View Modal */}
+      <Modal 
+        isOpen={isViewModalOpen} 
+        onClose={() => setIsViewModalOpen(false)} 
+        title="Employee Details"
+      >
+        {selectedEmployee && (
+          <div className="view-modal-content">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Employee ID</strong><div style={{ fontWeight: '700' }}>{selectedEmployee.employee_id || '-'}</div></div>
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Name</strong><div style={{ fontWeight: '700' }}>{selectedEmployee.name || '-'}</div></div>
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Username</strong><div>{selectedEmployee.username || '-'}</div></div>
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Email</strong><div>{selectedEmployee.email || '-'}</div></div>
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Designation</strong><div>{selectedEmployee.designation || '-'}</div></div>
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Office / Station</strong><div>{selectedEmployee.office || '-'}</div></div>
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Contact</strong><div>{selectedEmployee.contact || '-'}</div></div>
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Duty Status</strong><div>{selectedEmployee.duty_status || '-'}</div></div>
+              
+              <div style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--border-light)', margin: '8px 0' }}></div>
+              
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Date of Birth</strong><div>{selectedEmployee.dob || '-'}</div></div>
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Place of Birth</strong><div>{selectedEmployee.pob || '-'}</div></div>
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Civil Status</strong><div>{selectedEmployee.civil_status || '-'}</div></div>
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Blood Type</strong><div>{selectedEmployee.blood_type || '-'}</div></div>
+              <div style={{ gridColumn: '1 / -1' }}><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Address</strong><div>{selectedEmployee.address || '-'}</div></div>
+              
+              <div style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--border-light)', margin: '8px 0' }}></div>
+              
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Height</strong><div>{selectedEmployee.height || '-'}</div></div>
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Weight</strong><div>{selectedEmployee.weight || '-'}</div></div>
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Shirt Size</strong><div>{selectedEmployee.shirt_size || '-'}</div></div>
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Shoe Size</strong><div>{selectedEmployee.shoe_size || '-'}</div></div>
+              
+              <div style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--border-light)', margin: '8px 0' }}></div>
+              
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>TIN</strong><div>{selectedEmployee.tin || '-'}</div></div>
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>SSS</strong><div>{selectedEmployee.sss || '-'}</div></div>
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>PhilHealth</strong><div>{selectedEmployee.philhealth || '-'}</div></div>
+              <div><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Pag-IBIG</strong><div>{selectedEmployee.pagibig || '-'}</div></div>
+              
+              <div style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--border-light)', margin: '8px 0' }}></div>
+              <div style={{ gridColumn: '1 / -1' }}><strong style={{ color: 'var(--text-muted)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Remarks</strong><div>{selectedEmployee.remarks || '-'}</div></div>
+            </div>
+
+            {isAdmin && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid var(--border-light)', paddingTop: '16px' }}>
+                <button 
+                  type="button"
+                  className="btn-delete"
+                  onClick={handleDeleteFromView}
+                  style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                >
+                  <i className="ri-delete-bin-line" style={{ marginRight: '6px' }}></i> Delete
+                </button>
+                <button 
+                  type="button"
+                  className="btn-submit"
+                  onClick={handleEditFromView}
+                  style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', background: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer' }}
+                >
+                  <i className="ri-pencil-line" style={{ marginRight: '6px' }}></i> Edit
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
     </div>
   )
