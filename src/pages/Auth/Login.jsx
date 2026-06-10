@@ -29,10 +29,6 @@ export default function Login() {
     }
   }
 
-  const handleForgotPassword = () => {
-    alert("For security, please contact the CDRRMO System Administrator to reset your password.")
-  }
-
   return (
     <div className="auth-screen">
       {/* Animated background blobs */}
@@ -111,9 +107,6 @@ export default function Login() {
                 </div>
               )}
 
-              <div className="forgot" onClick={handleForgotPassword}>
-                Forgot Password?
-              </div>
 
               <button type="submit" className="btn-primary" disabled={loading} style={{ width: '100%', display: 'block' }}>
                 {loading ? (
