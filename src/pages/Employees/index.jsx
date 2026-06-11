@@ -5,6 +5,8 @@ import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
 import ModuleToolbar from '../../components/ModuleToolbar'
+import ImageCropper from '../../components/ImageCropper'
+import { uploadFile } from '../../services/storage'
 
 const INITIAL_FORM_STATE = {
   employee_id: '',
@@ -34,19 +36,20 @@ const INITIAL_FORM_STATE = {
   gsis: '',
   philhealth: '',
   remarks: '',
-  system_role: 'user'
+  system_role: 'user',
+  avatar_url: ''
 }
 
 export default function Employees() {
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  
+
   // Toolbar states
   const [searchTerm, setSearchTerm] = useState('')
   const [filter, setFilter] = useState('')
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
-  
+
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isViewing, setIsViewing] = useState(false)
@@ -56,6 +59,13 @@ export default function Employees() {
   const [selectedId, setSelectedId] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('personal')
+
+  // Avatar states
+  const [isCropperOpen, setIsCropperOpen] = useState(false)
+  const [selectedImageSrc, setSelectedImageSrc] = useState(null)
+  const [croppedBlob, setCroppedBlob] = useState(null)
+  const [avatarPreview, setAvatarPreview] = useState('')
+
   const isAdmin = useIsAdmin()
   const toast = useToast()
   const confirm = useConfirm()
@@ -65,10 +75,10 @@ export default function Employees() {
   }, [])
 
   const filteredEmployees = employees.filter(emp => {
-    const matchesSearch = (emp.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
-                          (emp.employee_id?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+    const matchesSearch = (emp.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (emp.employee_id?.toLowerCase() || '').includes(searchTerm.toLowerCase())
     const matchesFilter = filter ? emp.duty_status === filter : true
-    
+
     let matchesDate = true
     if (dateRange.start && dateRange.end) {
       const created = new Date(emp.created_at)
@@ -137,7 +147,7 @@ export default function Employees() {
         .from('employees')
         .select('*')
         .order('created_at', { ascending: false })
-      
+
       if (error) throw error
       setEmployees(data || [])
     } catch (err) {
@@ -152,6 +162,8 @@ export default function Employees() {
     setIsEditing(false)
     setIsViewing(false)
     setSelectedId(null)
+    setCroppedBlob(null)
+    setAvatarPreview('')
     // Generate a default unique employee ID
     const year = new Date().getFullYear()
     const rand = Math.floor(1000 + Math.random() * 9000)
@@ -167,6 +179,8 @@ export default function Employees() {
     setIsEditing(true)
     setIsViewing(false)
     setSelectedId(emp.id)
+    setCroppedBlob(null)
+    setAvatarPreview(emp.avatar_url || '')
     setFormData({
       employee_id: emp.employee_id || '',
       name: emp.name || '',
@@ -195,10 +209,32 @@ export default function Employees() {
       gsis: emp.gsis || '',
       philhealth: emp.philhealth || '',
       remarks: emp.remarks || '',
-      system_role: 'user'
+      system_role: 'user',
+      avatar_url: emp.avatar_url || ''
     })
     setActiveTab('personal')
     setIsModalOpen(true)
+  }
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0]
+      const reader = new FileReader()
+      reader.addEventListener('load', () => {
+        setSelectedImageSrc(reader.result)
+        setIsCropperOpen(true)
+      })
+      reader.readAsDataURL(file)
+      // reset input value so the same file can be selected again
+      e.target.value = null
+    }
+  }
+
+  const handleCropComplete = (blob) => {
+    setCroppedBlob(blob)
+    const previewUrl = URL.createObjectURL(blob)
+    setAvatarPreview(previewUrl)
+    setIsCropperOpen(false)
   }
 
   const handleInputChange = (e) => {
@@ -209,17 +245,26 @@ export default function Employees() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsSaving(true)
-    
+
     // Extract system_role to keep it out of the database insert/update payload
     const { system_role, ...employeeData } = formData
-    
+
     // Set empty date to null to prevent postgres syntax error
-    const payload = {
+    let payload = {
       ...employeeData,
       dob: employeeData.dob || null
     }
-    
+
     try {
+      // 1. Upload avatar if there is a newly cropped image blob
+      if (croppedBlob) {
+        // Generate a safe unique filename
+        const ext = croppedBlob.type === 'image/png' ? 'png' : 'jpeg'
+        const filename = `${payload.employee_id || Date.now()}-${Date.now()}.${ext}`
+        const publicUrl = await uploadFile('avatars', filename, croppedBlob)
+        payload.avatar_url = publicUrl
+      }
+
       if (isEditing) {
         const { data, error } = await supabase
           .from('employees')
@@ -235,15 +280,18 @@ export default function Employees() {
         toast.success('Employee updated successfully!')
       } else {
         // If email is provided, auto-create a Supabase Auth login account
+        let accountCreated = false
+        let accountFailed = false
         if (formData.email) {
           if (!supabaseAdmin) {
             toast.warning('VITE_SUPABASE_SERVICE_KEY is not set in .env. Login account was NOT created. Please add the service key and try again.')
+            accountFailed = true
           } else {
             const { error: authError } = await supabaseAdmin.auth.admin.createUser({
               email: formData.email,
               password: '123456',
               email_confirm: true,
-              user_metadata: { 
+              user_metadata: {
                 needs_password_change: true,
                 role: system_role === 'admin' ? 'admin' : undefined,
                 created_via_app: 'true'
@@ -252,6 +300,9 @@ export default function Employees() {
             if (authError && !authError.message.toLowerCase().includes('already registered')) {
               console.warn('Auth account warning:', authError.message)
               toast.warning(`Employee record will be saved, but login account could not be created: ${authError.message}`)
+              accountFailed = true
+            } else {
+              accountCreated = true
             }
           }
         }
@@ -263,7 +314,14 @@ export default function Employees() {
 
         if (error) throw error
         setEmployees([data[0], ...employees])
-        toast.success(formData.email ? 'Employee added! Login account created with default password: 123456' : 'Employee added successfully!')
+
+        if (accountCreated) {
+          toast.success('Employee added! Login account created with default password: 123456')
+        } else if (accountFailed) {
+          toast.success('Employee record added successfully (without login account).')
+        } else {
+          toast.success('Employee added successfully!')
+        }
       }
       setIsModalOpen(false)
     } catch (err) {
@@ -283,9 +341,9 @@ export default function Employees() {
         .from('employees')
         .delete()
         .eq('id', id)
-      
+
       if (error) throw error
-      
+
       setEmployees(employees.filter(emp => emp.id !== id))
       toast.success('Employee record deleted successfully!')
     } catch (err) {
@@ -301,12 +359,12 @@ export default function Employees() {
     }
     const ok = await confirm(`The password for ${formData.email} will be reset to "123456". The user will be required to change it on next login.`, { title: 'Reset Password', confirmText: 'Reset', icon: 'ri-key-2-line', variant: 'warning' })
     if (!ok) return
-    
+
     try {
       setIsSaving(true)
       const { data: usersData, error: listError } = await supabaseAdmin.auth.admin.listUsers()
       if (listError) throw listError
-      
+
       const authUser = usersData.users.find(u => u.email === formData.email)
       if (!authUser) {
         throw new Error('No login account found for this email address in the authentication system.')
@@ -314,12 +372,12 @@ export default function Employees() {
 
       const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
         authUser.id,
-        { 
+        {
           password: '123456',
           user_metadata: { ...authUser.user_metadata, needs_password_change: true }
         }
       )
-      
+
       if (updateError) throw updateError
       toast.success('Password reset to "123456". User will be forced to change it on next login.')
     } catch (err) {
@@ -357,11 +415,11 @@ export default function Employees() {
       'On Leave': { bg: '#fef3c7', color: '#92400e' }
     }
     const style = colors[status] || { bg: '#e5e7eb', color: '#374151' }
-    
+
     if (isAdmin) {
       return (
-        <select 
-          value={status} 
+        <select
+          value={status}
           onChange={(e) => handleStatusChange(emp.id, e.target.value)}
           style={{
             padding: '4px 24px 4px 12px',
@@ -427,7 +485,7 @@ export default function Employees() {
           <i className="ri-error-warning-line" style={{ fontSize: '48px', marginBottom: '16px' }}></i>
           <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Error Loading Employees</h3>
           <p>{error}</p>
-          <button 
+          <button
             onClick={loadEmployees}
             style={{
               marginTop: '16px',
@@ -461,7 +519,7 @@ export default function Employees() {
       </div>
 
       {employees.length > 0 && (
-        <ModuleToolbar 
+        <ModuleToolbar
           onSearch={setSearchTerm}
           onFilterChange={setFilter}
           onDateRangeChange={setDateRange}
@@ -503,18 +561,40 @@ export default function Employees() {
             </thead>
             <tbody>
               {filteredEmployees.map((emp) => (
-                <tr 
-                  key={emp.id} 
+                <tr
+                  key={emp.id}
                   onClick={() => handleViewDetails(emp)}
                   style={{ cursor: 'pointer' }}
                   className="table-row-clickable"
                 >
                   <td><code style={{ fontWeight: '700' }}>{emp.employee_id || '-'}</code></td>
-                  <td style={{ fontWeight: '700' }}>{emp.name || '-'}</td>
+                  <td style={{ fontWeight: '700' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        background: 'var(--bg-app)',
+                        border: '1px solid var(--border-light)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                        flexShrink: 0
+                      }}>
+                        {emp.avatar_url ? (
+                          <img src={emp.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <i className="ri-user-line" style={{ fontSize: '14px', color: 'var(--text-muted)' }}></i>
+                        )}
+                      </div>
+                      {emp.name || '-'}
+                    </div>
+                  </td>
                   <td>{emp.username || '-'}</td>
                   <td>{emp.designation || '-'}</td>
                   <td>{emp.contact || '-'}</td>
-                  <td onClick={(e) => { if(isAdmin) e.stopPropagation(); }}>{renderDutyStatus(emp)}</td>
+                  <td onClick={(e) => { if (isAdmin) e.stopPropagation(); }}>{renderDutyStatus(emp)}</td>
                 </tr>
               ))}
             </tbody>
@@ -532,14 +612,14 @@ export default function Employees() {
       </div>
 
       {/* Add/Edit Modal */}
-      <Modal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
         title={isViewing ? 'Employee Details' : (isEditing ? 'Edit Employee Record' : 'Add Employee Record')}
       >
         <form onSubmit={handleSubmit} className="modal-form">
           <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid var(--border-light)', overflowX: 'auto' }}>
-            <button 
+            <button
               type="button"
               onClick={() => setActiveTab('personal')}
               style={{
@@ -555,7 +635,7 @@ export default function Employees() {
             >
               Personal Info
             </button>
-            <button 
+            <button
               type="button"
               onClick={() => setActiveTab('designation')}
               style={{
@@ -571,7 +651,7 @@ export default function Employees() {
             >
               Designation
             </button>
-            <button 
+            <button
               type="button"
               onClick={() => setActiveTab('other')}
               style={{
@@ -587,7 +667,7 @@ export default function Employees() {
             >
               Other Info
             </button>
-            <button 
+            <button
               type="button"
               onClick={() => setActiveTab('remarks')}
               style={{
@@ -606,241 +686,290 @@ export default function Employees() {
           </div>
 
           <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
-          <div style={{ minHeight: '300px' }}>
-            {activeTab === 'personal' && (
-              <>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Full Name *</label>
-                    <input 
-                      type="text" 
-                      name="name" 
-                      value={formData.name} 
-                      onChange={handleInputChange} 
-                      required 
-                      placeholder="e.g. Juan dela Cruz"
-                    />
+            <div style={{ minHeight: '300px' }}>
+              {activeTab === 'personal' && (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '24px' }}>
+                    <div style={{
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '50%',
+                      background: 'var(--bg-app)',
+                      border: '2px dashed var(--border-light)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                      flexShrink: 0
+                    }}>
+                      {avatarPreview ? (
+                        <img src={avatarPreview} alt="Avatar Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <i className="ri-user-line" style={{ fontSize: '32px', color: 'var(--border-light)' }}></i>
+                      )}
+                    </div>
+                    {!isViewing && (
+                      <div>
+                        <label style={{
+                          display: 'inline-block',
+                          background: 'var(--primary-bg)',
+                          color: 'var(--primary-dark)',
+                          padding: '8px 16px',
+                          borderRadius: '8px',
+                          fontWeight: '700',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                          border: '1px solid var(--primary-light)',
+                          transition: 'all 0.2s'
+                        }}>
+                          <i className="ri-upload-2-line" style={{ marginRight: '6px' }}></i>
+                          Upload Picture
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            style={{ display: 'none' }} 
+                            onChange={handleFileChange}
+                          />
+                        </label>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                          JPEG or PNG. Max 100kb (will be resized).
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="form-group">
-                    <label>Contact Number</label>
-                    <input 
-                      type="text" 
-                      name="contact" 
-                      value={formData.contact} 
-                      onChange={handleInputChange} 
-                      placeholder="e.g. 0917-XXX-XXXX"
-                    />
-                  </div>
-                </div>
 
-                <div className="form-group">
-                  <label>Home Address</label>
-                  <textarea 
-                    name="address" 
-                    value={formData.address} 
-                    onChange={handleInputChange} 
-                    rows={2} 
-                  />
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Date of Birth</label>
-                    <input 
-                      type="date" 
-                      name="dob" 
-                      value={formData.dob} 
-                      onChange={handleInputChange} 
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Place of Birth</label>
-                    <input 
-                      type="text" 
-                      name="pob" 
-                      value={formData.pob} 
-                      onChange={handleInputChange} 
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Civil Status</label>
-                    <select name="civil_status" value={formData.civil_status} onChange={handleInputChange}>
-                      <option value="Single">Single</option>
-                      <option value="Married">Married</option>
-                      <option value="Divorced">Divorced</option>
-                      <option value="Widowed">Widowed</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Blood Type</label>
-                    <input 
-                      type="text" 
-                      name="blood_type" 
-                      value={formData.blood_type} 
-                      onChange={handleInputChange} 
-                      placeholder="e.g. O+, A-"
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-
-            {activeTab === 'designation' && (
-              <>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Employee ID *</label>
-                    <input 
-                      type="text" 
-                      name="employee_id" 
-                      value={formData.employee_id} 
-                      onChange={handleInputChange} 
-                      required 
-                     disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
-                  </div>
-                  <div className="form-group">
-                    <label>Username *</label>
-                    <input 
-                      type="text" 
-                      name="username" 
-                      value={formData.username} 
-                      onChange={handleInputChange} 
-                      required 
-                      placeholder="Unique username"
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Designation</label>
-                    <input 
-                      type="text" 
-                      name="designation" 
-                      value={formData.designation} 
-                      onChange={handleInputChange} 
-                      placeholder="e.g. Responder, Radio Op"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Office / Station</label>
-                    <input 
-                      type="text" 
-                      name="office" 
-                      value={formData.office} 
-                      onChange={handleInputChange} 
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Email Address {isEditing ? '' : '(Used for Login)'}</label>
-                    <input 
-                      type="email" 
-                      name="email" 
-                      value={formData.email} 
-                      onChange={handleInputChange} 
-                      placeholder="juan@cdrrmo.gov.ph"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Duty Status</label>
-                    <select name="duty_status" value={formData.duty_status} onChange={handleInputChange}>
-                      <option value="On Duty">On Duty</option>
-                      <option value="Off Duty">Off Duty</option>
-                      <option value="Standby">Standby</option>
-                      <option value="On Leave">On Leave</option>
-                    </select>
-                  </div>
-                </div>
-
-                {!isEditing && (
                   <div className="form-row">
                     <div className="form-group">
-                      <label>System Role <span style={{ color: 'var(--primary)', fontSize: '12px' }}>(Controls App Permissions)</span></label>
-                      <select name="system_role" value={formData.system_role} onChange={handleInputChange}>
-                        <option value="user">Standard User (Read-only)</option>
-                        <option value="admin">Administrator (Full Access)</option>
+                      <label>Full Name *</label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        required
+                        placeholder="e.g. Juan dela Cruz"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Contact Number</label>
+                      <input
+                        type="text"
+                        name="contact"
+                        value={formData.contact}
+                        onChange={handleInputChange}
+                        placeholder="e.g. 0917-XXX-XXXX"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Home Address</label>
+                    <textarea
+                      name="address"
+                      value={formData.address}
+                      onChange={handleInputChange}
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Date of Birth</label>
+                      <input
+                        type="date"
+                        name="dob"
+                        value={formData.dob}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Place of Birth</label>
+                      <input
+                        type="text"
+                        name="pob"
+                        value={formData.pob}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Civil Status</label>
+                      <select name="civil_status" value={formData.civil_status} onChange={handleInputChange}>
+                        <option value="Single">Single</option>
+                        <option value="Married">Married</option>
+                        <option value="Divorced">Divorced</option>
+                        <option value="Widowed">Widowed</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Blood Type</label>
+                      <input
+                        type="text"
+                        name="blood_type"
+                        value={formData.blood_type}
+                        onChange={handleInputChange}
+                        placeholder="e.g. O+, A-"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'designation' && (
+                <>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Employee ID *</label>
+                      <input
+                        type="text"
+                        name="employee_id"
+                        value={formData.employee_id}
+                        onChange={handleInputChange}
+                        required
+                        disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
+                    </div>
+                    <div className="form-group">
+                      <label>Username *</label>
+                      <input
+                        type="text"
+                        name="username"
+                        value={formData.username}
+                        onChange={handleInputChange}
+                        required
+                        placeholder="Unique username"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Designation</label>
+                      <input
+                        type="text"
+                        name="designation"
+                        value={formData.designation}
+                        onChange={handleInputChange}
+                        placeholder="e.g. Responder, Radio Op"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Office / Station</label>
+                      <input
+                        type="text"
+                        name="office"
+                        value={formData.office}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Email Address {isEditing ? '' : '(Used for Login)'}</label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        placeholder="juan@cdrrmo.gov.ph"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Duty Status</label>
+                      <select name="duty_status" value={formData.duty_status} onChange={handleInputChange}>
+                        <option value="On Duty">On Duty</option>
+                        <option value="Off Duty">Off Duty</option>
+                        <option value="Standby">Standby</option>
+                        <option value="On Leave">On Leave</option>
                       </select>
                     </div>
                   </div>
-                )}
-              </>
-            )}
 
-            {activeTab === 'other' && (
-              <>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Height</label>
-                    <input type="text" name="height" value={formData.height} onChange={handleInputChange} />
-                  </div>
-                  <div className="form-group">
-                    <label>Weight</label>
-                    <input type="text" name="weight" value={formData.weight} onChange={handleInputChange} />
-                  </div>
-                </div>
-                
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Shirt Size</label>
-                    <input type="text" name="shirt_size" value={formData.shirt_size} onChange={handleInputChange} />
-                  </div>
-                  <div className="form-group">
-                    <label>Shoe Size</label>
-                    <input type="text" name="shoe_size" value={formData.shoe_size} onChange={handleInputChange} />
-                  </div>
-                </div>
+                  {!isEditing && (
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>System Role <span style={{ color: 'var(--primary)', fontSize: '12px' }}>(Controls App Permissions)</span></label>
+                        <select name="system_role" value={formData.system_role} onChange={handleInputChange}>
+                          <option value="user">Standard User (Read-only)</option>
+                          <option value="admin">Administrator (Full Access)</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>TIN</label>
-                    <input type="text" name="tin" value={formData.tin} onChange={handleInputChange} />
+              {activeTab === 'other' && (
+                <>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Height</label>
+                      <input type="text" name="height" value={formData.height} onChange={handleInputChange} />
+                    </div>
+                    <div className="form-group">
+                      <label>Weight</label>
+                      <input type="text" name="weight" value={formData.weight} onChange={handleInputChange} />
+                    </div>
                   </div>
-                  <div className="form-group">
-                    <label>SSS</label>
-                    <input type="text" name="sss" value={formData.sss} onChange={handleInputChange} />
-                  </div>
-                </div>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>PhilHealth</label>
-                    <input type="text" name="philhealth" value={formData.philhealth} onChange={handleInputChange} />
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Shirt Size</label>
+                      <input type="text" name="shirt_size" value={formData.shirt_size} onChange={handleInputChange} />
+                    </div>
+                    <div className="form-group">
+                      <label>Shoe Size</label>
+                      <input type="text" name="shoe_size" value={formData.shoe_size} onChange={handleInputChange} />
+                    </div>
                   </div>
-                  <div className="form-group">
-                    <label>Pag-IBIG</label>
-                    <input type="text" name="pagibig" value={formData.pagibig} onChange={handleInputChange} />
-                  </div>
-                </div>
-              </>
-            )}
 
-            {activeTab === 'remarks' && (
-              <div className="form-group">
-                <label>Remarks / Notes</label>
-                <textarea 
-                  name="remarks" 
-                  value={formData.remarks} 
-                  onChange={handleInputChange} 
-                  rows={4} 
-                  placeholder="Additional notes about this employee..."
-                />
-              </div>
-            )}
-          </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>TIN</label>
+                      <input type="text" name="tin" value={formData.tin} onChange={handleInputChange} />
+                    </div>
+                    <div className="form-group">
+                      <label>SSS</label>
+                      <input type="text" name="sss" value={formData.sss} onChange={handleInputChange} />
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>PhilHealth</label>
+                      <input type="text" name="philhealth" value={formData.philhealth} onChange={handleInputChange} />
+                    </div>
+                    <div className="form-group">
+                      <label>Pag-IBIG</label>
+                      <input type="text" name="pagibig" value={formData.pagibig} onChange={handleInputChange} />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'remarks' && (
+                <div className="form-group">
+                  <label>Remarks / Notes</label>
+                  <textarea
+                    name="remarks"
+                    value={formData.remarks}
+                    onChange={handleInputChange}
+                    rows={4}
+                    placeholder="Additional notes about this employee..."
+                  />
+                </div>
+              )}
+            </div>
           </fieldset>
 
           <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               {!isViewing && isEditing && formData.email && isAdmin && (
-                <button 
-                  type="button" 
-                  className="btn-secondary" 
+                <button
+                  type="button"
+                  className="btn-secondary"
                   onClick={handleResetPassword}
                   style={{ color: '#991b1b', borderColor: '#fecaca', background: '#fef2f2' }}
                   disabled={isSaving}
@@ -850,12 +979,12 @@ export default function Employees() {
                 </button>
               )}
             </div>
-            
+
             {isViewing ? (
               <div style={{ display: 'flex', gap: '12px' }}>
                 {isAdmin && (
                   <>
-                    <button 
+                    <button
                       type="button"
                       className="btn-delete"
                       onClick={handleDeleteFromView}
@@ -863,7 +992,7 @@ export default function Employees() {
                     >
                       <i className="ri-delete-bin-line" style={{ marginRight: '6px' }}></i> Delete
                     </button>
-                    <button 
+                    <button
                       type="button"
                       className="btn-submit"
                       onClick={handleEditFromView}
@@ -874,9 +1003,9 @@ export default function Employees() {
                   </>
                 )}
                 {!isAdmin && (
-                   <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
-                     Close
-                   </button>
+                  <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
+                    Close
+                  </button>
                 )}
               </div>
             ) : (
@@ -893,6 +1022,18 @@ export default function Employees() {
         </form>
       </Modal>
 
+      {/* Image Cropper Modal */}
+      {isCropperOpen && selectedImageSrc && (
+        <ImageCropper
+          isOpen={isCropperOpen}
+          onClose={() => {
+            setIsCropperOpen(false)
+            setSelectedImageSrc(null)
+          }}
+          imageSrc={selectedImageSrc}
+          onCropComplete={handleCropComplete}
+        />
+      )}
 
     </div>
   )

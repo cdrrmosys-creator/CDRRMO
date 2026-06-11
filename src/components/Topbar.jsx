@@ -87,6 +87,108 @@ export default function Topbar() {
     }
   }
 
+  const [currentEmployee, setCurrentEmployee] = useState(null)
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+  const [isCropperOpen, setIsCropperOpen] = useState(false)
+  const [selectedImageSrc, setSelectedImageSrc] = useState(null)
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
+
+  // Profile Form State
+  const [profileName, setProfileName] = useState('')
+  const [profileAvatar, setProfileAvatar] = useState('')
+
+  useEffect(() => {
+    if (user?.email) {
+      fetchCurrentEmployee()
+    }
+  }, [user])
+
+  const fetchCurrentEmployee = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*')
+        .eq('email', user.email)
+        .single()
+      
+      if (!error && data) {
+        setCurrentEmployee(data)
+        setProfileName(data.name || '')
+        setProfileAvatar(data.avatar_url || '')
+      }
+    } catch (err) {
+      console.error('Error fetching employee record:', err)
+    }
+  }
+
+  const handleProfileClick = () => {
+    if (currentEmployee) {
+      setProfileName(currentEmployee.name || '')
+      setProfileAvatar(currentEmployee.avatar_url || '')
+      setIsProfileModalOpen(true)
+    }
+  }
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0]
+      const reader = new FileReader()
+      reader.addEventListener('load', () => {
+        setSelectedImageSrc(reader.result)
+        setIsCropperOpen(true)
+      })
+      reader.readAsDataURL(file)
+      e.target.value = null
+    }
+  }
+
+  const handleCropComplete = async (blob) => {
+    setIsCropperOpen(false)
+    setIsSavingProfile(true)
+    try {
+      // Lazy load uploadFile
+      const { uploadFile } = await import('../services/storage')
+      const ext = blob.type === 'image/png' ? 'png' : 'jpeg'
+      const filename = `${currentEmployee.employee_id || Date.now()}-profile-${Date.now()}.${ext}`
+      const publicUrl = await uploadFile('avatars', filename, blob)
+      
+      // Update DB immediately
+      const { error } = await supabase
+        .from('employees')
+        .update({ avatar_url: publicUrl })
+        .eq('id', currentEmployee.id)
+      
+      if (!error) {
+        setProfileAvatar(publicUrl)
+        setCurrentEmployee(prev => ({ ...prev, avatar_url: publicUrl }))
+      }
+    } catch (err) {
+      console.error('Error updating profile picture:', err)
+    } finally {
+      setIsSavingProfile(false)
+    }
+  }
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault()
+    setIsSavingProfile(true)
+    try {
+      const { error } = await supabase
+        .from('employees')
+        .update({ name: profileName })
+        .eq('id', currentEmployee.id)
+      
+      if (!error) {
+        setCurrentEmployee(prev => ({ ...prev, name: profileName }))
+        setIsProfileModalOpen(false)
+      }
+    } catch (err) {
+      console.error('Error updating profile:', err)
+    } finally {
+      setIsSavingProfile(false)
+    }
+  }
+
   return (
     <div className="topbar">
       <div className="topbar-search" ref={searchRef} style={{ position: 'relative' }}>
@@ -182,19 +284,169 @@ export default function Topbar() {
       </div>
 
       <div className="topbar-actions">
-        <div style={{
-          fontSize: '14px',
-          fontWeight: '600',
-          color: 'var(--text-main)',
-          marginRight: '8px'
-        }}>
-          {user?.email || 'User'}
-        </div>
+        {currentEmployee ? (
+          <div 
+            onClick={handleProfileClick}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '6px 12px',
+              borderRadius: '24px',
+              cursor: 'pointer',
+              transition: 'background 0.2s',
+              marginRight: '8px'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.05)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+          >
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: 'var(--bg-app)',
+              border: '1px solid var(--border-light)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden'
+            }}>
+              {currentEmployee.avatar_url ? (
+                <img src={currentEmployee.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <i className="ri-user-line" style={{ fontSize: '16px', color: 'var(--text-muted)' }}></i>
+              )}
+            </div>
+            <div style={{
+              fontSize: '13px',
+              fontWeight: '700',
+              color: 'var(--text-main)'
+            }}>
+              {currentEmployee.name || currentEmployee.email}
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            fontSize: '14px',
+            fontWeight: '600',
+            color: 'var(--text-main)',
+            marginRight: '8px'
+          }}>
+            {user?.email || 'User'}
+          </div>
+        )}
         <button className="btn-logout" onClick={handleLogout}>
           <i className="ri-logout-box-line"></i>
           Logout
         </button>
       </div>
+
+      {/* My Profile Modal */}
+      {isProfileModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsProfileModalOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ width: '400px' }}>
+            <div className="modal-header">
+              <h3>My Profile</h3>
+              <button className="modal-close" onClick={() => setIsProfileModalOpen(false)}>
+                <i className="ri-close-line"></i>
+              </button>
+            </div>
+            <div className="modal-body">
+              <form onSubmit={handleSaveProfile} className="modal-form">
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+                  <div style={{
+                    width: '100px',
+                    height: '100px',
+                    borderRadius: '50%',
+                    background: 'var(--bg-app)',
+                    border: '2px dashed var(--border-light)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    position: 'relative'
+                  }}>
+                    {isSavingProfile && !profileName ? (
+                      <i className="ri-loader-4-line ri-spin" style={{ fontSize: '32px', color: 'var(--primary)' }}></i>
+                    ) : profileAvatar ? (
+                      <img src={profileAvatar} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <i className="ri-user-line" style={{ fontSize: '40px', color: 'var(--border-light)' }}></i>
+                    )}
+                  </div>
+                  
+                  <label style={{
+                    background: 'var(--bg-app)',
+                    color: 'var(--text-main)',
+                    padding: '6px 16px',
+                    borderRadius: '20px',
+                    fontWeight: '700',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    border: '1px solid var(--border-light)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    <i className="ri-camera-line"></i> Change Picture
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      style={{ display: 'none' }} 
+                      onChange={handleFileChange}
+                      disabled={isSavingProfile}
+                    />
+                  </label>
+                </div>
+
+                <div className="form-group">
+                  <label>Name</label>
+                  <input 
+                    type="text" 
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    required
+                  />
+                </div>
+                
+                <div className="form-actions">
+                  <button type="submit" className="btn-submit" disabled={isSavingProfile}>
+                    {isSavingProfile ? 'Saving...' : 'Save Profile'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Profile Image Cropper (Lazy Loaded) */}
+      {isCropperOpen && selectedImageSrc && (
+        <ImageCropperLoader 
+          imageSrc={selectedImageSrc}
+          onCropComplete={handleCropComplete}
+          onClose={() => {
+            setIsCropperOpen(false)
+            setSelectedImageSrc(null)
+          }}
+        />
+      )}
+
     </div>
   )
 }
+
+// Wrapper to lazy load ImageCropper so Topbar doesn't bundle Cropper unconditionally
+function ImageCropperLoader({ imageSrc, onCropComplete, onClose }) {
+  const [Component, setComponent] = useState(null)
+  
+  useEffect(() => {
+    import('./ImageCropper').then(mod => {
+      setComponent(() => mod.default)
+    })
+  }, [])
+
+  if (!Component) return null
+  return <Component isOpen={true} onClose={onClose} imageSrc={imageSrc} onCropComplete={onCropComplete} />
+}
+

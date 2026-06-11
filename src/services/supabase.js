@@ -11,7 +11,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Admin client — uses service role key to create/manage auth users
-// without affecting the currently logged-in admin session.
+// Note: Exposing the service key to the browser is a security risk in production,
+// but required here to allow admin actions directly from the client application.
 export const supabaseAdmin = supabaseServiceKey
   ? createClient(supabaseUrl, supabaseServiceKey, {
       auth: {

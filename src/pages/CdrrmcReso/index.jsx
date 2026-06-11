@@ -1,6 +1,7 @@
 import ModuleToolbar from '../../components/ModuleToolbar'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
+import { logAudit } from '../../services/audit'
 import { format } from 'date-fns'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
@@ -22,6 +23,7 @@ export default function CdrrmcReso() {
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isViewing, setIsViewing] = useState(false)
   const [formData, setFormData] = useState(INITIAL_FORM_STATE)
   const [isEditing, setIsEditing] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
@@ -85,8 +87,25 @@ export default function CdrrmcReso() {
     }
   }
 
-  const handleOpenAdd = () => {
+  
+  const handleViewDetails = (rec) => {
+    handleOpenEdit(rec)
+    setIsViewing(true)
+  }
+
+  const handleEditFromView = () => {
+    setIsViewing(false)
+  }
+
+  const handleDeleteFromView = async () => {
+    const idToDelete = selectedId
+    setIsModalOpen(false)
+    await handleDelete(idToDelete)
+  }
+
+const handleOpenAdd = () => {
     setIsEditing(false)
+    setIsViewing(false)
     setSelectedId(null)
     const year = new Date().getFullYear()
     const rand = Math.floor(1000 + Math.random() * 9000)
@@ -102,6 +121,7 @@ export default function CdrrmcReso() {
 
   const handleOpenEdit = (rec) => {
     setIsEditing(true)
+    setIsViewing(false)
     setSelectedId(rec.id)
     setFormData({
       record_id: rec.record_id || '',
@@ -132,6 +152,7 @@ export default function CdrrmcReso() {
 
         if (error) throw error
         setRecords(filteredRecords.map(rec => rec.id === selectedId ? data[0] : rec))
+        await logAudit('Updated', 'CdrrmcReso', formData.record_id || formData.id || selectedId, 'Updated record details')
         toast.success('Resolution updated successfully!')
       } else {
         const { data, error } = await supabase
@@ -165,6 +186,7 @@ export default function CdrrmcReso() {
       if (error) throw error
       
       setRecords(records.filter(rec => rec.id !== id))
+      await logAudit('Deleted', 'CdrrmcReso', id, 'Deleted record')
       toast.success('Resolution record deleted successfully!')
     } catch (err) {
       console.error('Error deleting resolution record:', err)
@@ -256,12 +278,17 @@ export default function CdrrmcReso() {
                 <th>Title</th>
                 <th>Date Passed</th>
                 <th>Description</th>
-                {isAdmin && <th>Actions</th>}
+                
               </tr>
             </thead>
             <tbody>
               {filteredRecords.map((record) => (
-                <tr key={record.id}>
+                <tr 
+                  key={record.id}
+                  onClick={() => handleViewDetails(record)}
+                  style={{ cursor: 'pointer' }}
+                  className="table-row-clickable"
+                >
                   <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
                   <td style={{ fontWeight: '700' }}>{record.resolution_no || '-'}</td>
                   <td>{record.title || '-'}</td>
@@ -282,26 +309,7 @@ export default function CdrrmcReso() {
                       {record.description || '-'}
                     </div>
                   </td>
-                  {isAdmin && (
-                  <td>
-                    <div className="table-actions">
-                      <button 
-                        className="btn-icon btn-edit"
-                        onClick={() => handleOpenEdit(record)}
-                        title="Edit Details"
-                      >
-                        <i className="ri-pencil-line"></i>
-                      </button>
-                      <button 
-                        className="btn-icon btn-delete"
-                        onClick={() => handleDelete(record.id)}
-                        title="Delete"
-                      >
-                        <i className="ri-delete-bin-line"></i>
-                      </button>
-                    </div>
-                  </td>
-                  )}
+                  
                 </tr>
               ))}
             </tbody>
@@ -322,9 +330,10 @@ export default function CdrrmcReso() {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={isEditing ? 'Edit CDRRMC Resolution' : 'Add CDRRMC Resolution'}
+        title={isViewing ? 'View Details' : (isEditing ? 'Edit CDRRMC Resolution' : 'Add CDRRMC Resolution')}
       >
         <form onSubmit={handleSubmit} className="modal-form">
+          <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
           <div className="form-row">
             <div className="form-group">
               <label>Record ID *</label>
@@ -385,13 +394,48 @@ export default function CdrrmcReso() {
             />
           </div>
 
-          <div className="form-actions">
-            <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </button>
-            <button type="submit" className="btn-submit" disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save'}
-            </button>
+          </fieldset>
+
+          <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div></div>
+            {isViewing ? (
+              <div style={{ display: 'flex', gap: '12px' }}>
+                {isAdmin && (
+                  <>
+                    <button 
+                      type="button"
+                      className="btn-delete"
+                      onClick={handleDeleteFromView}
+                      style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    >
+                      <i className="ri-delete-bin-line" style={{ marginRight: '6px' }}></i> Delete
+                    </button>
+                    <button 
+                      type="button"
+                      className="btn-submit"
+                      onClick={handleEditFromView}
+                      style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', background: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer' }}
+                    >
+                      <i className="ri-pencil-line" style={{ marginRight: '6px' }}></i> Edit
+                    </button>
+                  </>
+                )}
+                {!isAdmin && (
+                   <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
+                     Close
+                   </button>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-submit" disabled={isSaving}>
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            )}
           </div>
         </form>
       </Modal>

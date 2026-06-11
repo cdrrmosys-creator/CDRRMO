@@ -1,6 +1,7 @@
 import ModuleToolbar from '../../components/ModuleToolbar'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
+import { logAudit } from '../../services/audit'
 import { format } from 'date-fns'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
@@ -23,6 +24,7 @@ export default function Vouchers() {
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isViewing, setIsViewing] = useState(false)
   const [formData, setFormData] = useState(INITIAL_FORM_STATE)
   const [isEditing, setIsEditing] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
@@ -30,7 +32,6 @@ export default function Vouchers() {
   const isAdmin = useIsAdmin()
   const toast = useToast()
   const confirm = useConfirm()
-
 
   // Toolbar states
   const [searchTerm, setSearchTerm] = useState('')
@@ -54,7 +55,7 @@ export default function Vouchers() {
     
     let matchesDate = true
     if (dateRange.start && dateRange.end) {
-      const dateStr = item.date_time || item.created_at || item.date || item.start_date || item.date_received || item.date_conducted || item.date_attended
+      const dateStr = item.date_time || item.created_at || item.date || item.start_date
       if (dateStr) {
         const created = new Date(dateStr)
         const start = new Date(dateRange.start)
@@ -86,13 +87,27 @@ export default function Vouchers() {
     }
   }
 
+  const handleViewDetails = (rec) => {
+    handleOpenEdit(rec)
+    setIsViewing(true)
+  }
+
+  const handleEditFromView = () => {
+    setIsViewing(false)
+  }
+
+  const handleDeleteFromView = async () => {
+    const idToDelete = selectedId
+    setIsModalOpen(false)
+    await handleDelete(idToDelete)
+  }
+
   const handleOpenAdd = () => {
     setIsEditing(false)
+    setIsViewing(false)
     setSelectedId(null)
-    // Generate voucher ID
     const year = new Date().getFullYear()
     const rand = Math.floor(1000 + Math.random() * 9000)
-    // Local date string (YYYY-MM-DD)
     const todayStr = new Date().toISOString().split('T')[0]
     
     setFormData({
@@ -105,6 +120,7 @@ export default function Vouchers() {
 
   const handleOpenEdit = (v) => {
     setIsEditing(true)
+    setIsViewing(false)
     setSelectedId(v.id)
     setFormData({
       record_id: v.record_id || '',
@@ -140,7 +156,8 @@ export default function Vouchers() {
           .select()
 
         if (error) throw error
-        setVouchers(filteredRecords.map(v => v.id === selectedId ? data[0] : v))
+        setVouchers(vouchers.map(v => v.id === selectedId ? data[0] : v))
+        await logAudit('Updated', 'Vouchers', formData.record_id || selectedId, 'Updated record details')
         toast.success('Voucher updated successfully!')
       } else {
         const { data, error } = await supabase
@@ -150,6 +167,7 @@ export default function Vouchers() {
 
         if (error) throw error
         setVouchers([data[0], ...vouchers])
+        await logAudit('Added', 'Vouchers', formData.record_id || data[0].record_id || data[0].id, 'Created new record')
         toast.success('Voucher created successfully!')
       }
       setIsModalOpen(false)
@@ -174,6 +192,7 @@ export default function Vouchers() {
       if (error) throw error
       
       setVouchers(vouchers.filter(v => v.id !== id))
+      await logAudit('Deleted', 'Vouchers', id, 'Deleted record')
       toast.success('Voucher deleted successfully!')
     } catch (err) {
       console.error('Error deleting voucher:', err)
@@ -303,7 +322,6 @@ export default function Vouchers() {
         </div>
       </div>
 
-      
       {vouchers.length > 0 && (
         <ModuleToolbar 
           onSearch={setSearchTerm}
@@ -314,7 +332,7 @@ export default function Vouchers() {
         />
       )}
 
-{vouchers.length === 0 ? (
+      {vouchers.length === 0 ? (
         <div className="empty-state">
           <i className="ri-file-text-line"></i>
           <h3>No Vouchers Found</h3>
@@ -331,12 +349,16 @@ export default function Vouchers() {
                 <th>Purpose</th>
                 <th>Amount</th>
                 <th>Status</th>
-                {isAdmin && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
               {filteredRecords.map((voucher) => (
-                <tr key={voucher.id}>
+                <tr 
+                  key={voucher.id}
+                  onClick={() => handleViewDetails(voucher)}
+                  style={{ cursor: 'pointer' }}
+                  className="table-row-clickable"
+                >
                   <td><code style={{ fontWeight: '700' }}>{voucher.record_id || '-'}</code></td>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
                     {voucher.date 
@@ -359,26 +381,6 @@ export default function Vouchers() {
                     {formatCurrency(voucher.amount)}
                   </td>
                   <td>{getStatusBadge(voucher.status)}</td>
-                  {isAdmin && (
-                  <td>
-                    <div className="table-actions">
-                      <button 
-                        className="btn-icon btn-edit"
-                        onClick={() => handleOpenEdit(voucher)}
-                        title="Edit"
-                      >
-                        <i className="ri-pencil-line"></i>
-                      </button>
-                      <button 
-                        className="btn-icon btn-delete"
-                        onClick={() => handleDelete(voucher.id)}
-                        title="Delete"
-                      >
-                        <i className="ri-delete-bin-line"></i>
-                      </button>
-                    </div>
-                  </td>
-                  )}
                 </tr>
               ))}
             </tbody>
@@ -386,13 +388,23 @@ export default function Vouchers() {
         </div>
       )}
 
+      <div style={{
+        marginTop: '16px',
+        fontSize: '14px',
+        color: 'var(--text-muted)',
+        textAlign: 'center'
+      }}>
+        Showing <strong>{filteredRecords.length}</strong> of <strong>{vouchers.length}</strong>
+      </div>
+
       {/* Add/Edit Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={isEditing ? 'Edit Voucher Record' : 'Create Voucher Record'}
+        title={isViewing ? 'View Voucher Details' : (isEditing ? 'Edit Voucher Record' : 'Create Voucher Record')}
       >
         <form onSubmit={handleSubmit} className="modal-form">
+          <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
           <div className="form-row">
             <div className="form-group">
               <label>Record ID *</label>
@@ -464,13 +476,48 @@ export default function Vouchers() {
             />
           </div>
 
-          <div className="form-actions">
-            <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </button>
-            <button type="submit" className="btn-submit" disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save'}
-            </button>
+          </fieldset>
+
+          <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div></div>
+            {isViewing ? (
+              <div style={{ display: 'flex', gap: '12px' }}>
+                {isAdmin && (
+                  <>
+                    <button 
+                      type="button"
+                      className="btn-delete"
+                      onClick={handleDeleteFromView}
+                      style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    >
+                      <i className="ri-delete-bin-line" style={{ marginRight: '6px' }}></i> Delete
+                    </button>
+                    <button 
+                      type="button"
+                      className="btn-submit"
+                      onClick={handleEditFromView}
+                      style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', background: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer' }}
+                    >
+                      <i className="ri-pencil-line" style={{ marginRight: '6px' }}></i> Edit
+                    </button>
+                  </>
+                )}
+                {!isAdmin && (
+                   <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
+                     Close
+                   </button>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-submit" disabled={isSaving}>
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            )}
           </div>
         </form>
       </Modal>

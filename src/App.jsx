@@ -28,6 +28,7 @@ import Pruning from './pages/Pruning'
 import History from './pages/History'
 import Documentation from './pages/Documentation'
 import CalendarEvents from './pages/CalendarEvents'
+import AuditTrail from './pages/AuditTrail'
 import Layout from './components/Layout'
 
 function App() {
@@ -95,6 +96,7 @@ function App() {
               <Route path="history" element={<History />} />
               <Route path="documentation" element={<Documentation />} />
               <Route path="calendar" element={<CalendarEvents />} />
+              <Route path="audit-trail" element={<AuditTrail />} />
             </Route>
 
             {/* Fallback */}

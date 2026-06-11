@@ -1,6 +1,8 @@
 import { NavLink } from 'react-router-dom'
+import { useIsAdmin } from '../hooks/useIsAdmin'
 
 export default function Sidebar() {
+  const isAdmin = useIsAdmin()
   const navItems = [
     { label: 'Dashboard', icon: 'ri-dashboard-line', path: '/' },
     { section: 'Personnel' },
@@ -31,6 +33,10 @@ export default function Sidebar() {
     { label: 'History', icon: 'ri-history-line', path: '/history' },
     { label: 'Documentation', icon: 'ri-folder-line', path: '/documentation' },
     { label: 'Calendar Events', icon: 'ri-calendar-line', path: '/calendar' },
+    ...(isAdmin ? [
+      { section: 'System Logs' },
+      { label: 'Audit Trail', icon: 'ri-shield-keyhole-line', path: '/audit-trail' }
+    ] : [])
   ]
 
   return (

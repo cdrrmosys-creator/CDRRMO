@@ -666,6 +666,11 @@ tbody tr:hover {
   background: var(--bg-app);
 }
 
+.table-row-clickable:hover {
+  background: var(--primary-bg) !important;
+  cursor: pointer;
+}
+
 tbody td {
   padding: 16px;
   font-size: 14px;

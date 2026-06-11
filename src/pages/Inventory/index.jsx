@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
+import { logAudit } from '../../services/audit'
 import { format } from 'date-fns'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
@@ -28,6 +29,7 @@ export default function Inventory() {
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isViewing, setIsViewing] = useState(false)
   const [formData, setFormData] = useState(INITIAL_FORM_STATE)
   const [isEditing, setIsEditing] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
@@ -59,8 +61,25 @@ export default function Inventory() {
     }
   }
 
-  const handleOpenAdd = () => {
+  
+  const handleViewDetails = (rec) => {
+    handleOpenEdit(rec)
+    setIsViewing(true)
+  }
+
+  const handleEditFromView = () => {
+    setIsViewing(false)
+  }
+
+  const handleDeleteFromView = async () => {
+    const idToDelete = selectedId
+    setIsModalOpen(false)
+    await handleDelete(idToDelete)
+  }
+
+const handleOpenAdd = () => {
     setIsEditing(false)
+    setIsViewing(false)
     setSelectedId(null)
     const year = new Date().getFullYear()
     const rand = Math.floor(1000 + Math.random() * 9000)
@@ -76,6 +95,7 @@ export default function Inventory() {
 
   const handleOpenEdit = (item) => {
     setIsEditing(true)
+    setIsViewing(false)
     setSelectedId(item.id)
     setFormData({
       record_id: item.record_id || '',
@@ -112,6 +132,7 @@ export default function Inventory() {
 
         if (error) throw error
         setItems(items.map(item => item.id === selectedId ? data[0] : item))
+        await logAudit('Updated', 'Inventory', formData.record_id || formData.id || selectedId, 'Updated record details')
         toast.success('Item updated successfully!')
       } else {
         const { data, error } = await supabase
@@ -121,6 +142,7 @@ export default function Inventory() {
 
         if (error) throw error
         setItems([data[0], ...items])
+        await logAudit('Added', 'Inventory', formData.record_id || data[0].record_id || data[0].id, 'Created new record')
         toast.success('Item added successfully!')
       }
       setIsModalOpen(false)
@@ -145,6 +167,7 @@ export default function Inventory() {
       if (error) throw error
       
       setItems(items.filter(item => item.id !== id))
+      await logAudit('Deleted', 'Inventory', id, 'Deleted record')
       toast.success('Inventory item deleted successfully!')
     } catch (err) {
       console.error('Error deleting item:', err)
@@ -324,12 +347,17 @@ export default function Inventory() {
                 <th>Quantity</th>
                 <th>Condition</th>
                 <th>Date Acquired</th>
-                {isAdmin && <th>Actions</th>}
+                
               </tr>
             </thead>
             <tbody>
               {filteredItems.map((item) => (
-                <tr key={item.id}>
+                <tr 
+                  key={item.id}
+                  onClick={() => handleViewDetails(item)}
+                  style={{ cursor: 'pointer' }}
+                  className="table-row-clickable"
+                >
                   <td><code style={{ fontWeight: '700' }}>{item.record_id || '-'}</code></td>
                   <td style={{ fontWeight: '700' }}>{item.item_name || '-'}</td>
                   <td>
@@ -354,26 +382,7 @@ export default function Inventory() {
                       ? format(new Date(item.date_acquired), 'MMM dd, yyyy')
                       : 'Not recorded'}
                   </td>
-                  {isAdmin && (
-                  <td>
-                    <div className="table-actions">
-                      <button 
-                        className="btn-icon btn-edit"
-                        onClick={() => handleOpenEdit(item)}
-                        title="Edit"
-                      >
-                        <i className="ri-pencil-line"></i>
-                      </button>
-                      <button 
-                        className="btn-icon btn-delete"
-                        onClick={() => handleDelete(item.id)}
-                        title="Delete"
-                      >
-                        <i className="ri-delete-bin-line"></i>
-                      </button>
-                    </div>
-                  </td>
-                  )}
+                  
                 </tr>
               ))}
             </tbody>
@@ -385,9 +394,10 @@ export default function Inventory() {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={isEditing ? 'Edit Inventory Item' : 'Add Inventory Item'}
+        title={isViewing ? 'View Details' : (isEditing ? 'Edit Inventory Item' : 'Add Inventory Item')}
       >
         <form onSubmit={handleSubmit} className="modal-form">
+          <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
           <div className="form-row">
             <div className="form-group">
               <label>Record ID *</label>
@@ -460,13 +470,48 @@ export default function Inventory() {
             </div>
           </div>
 
-          <div className="form-actions">
-            <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </button>
-            <button type="submit" className="btn-submit" disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save'}
-            </button>
+          </fieldset>
+
+          <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div></div>
+            {isViewing ? (
+              <div style={{ display: 'flex', gap: '12px' }}>
+                {isAdmin && (
+                  <>
+                    <button 
+                      type="button"
+                      className="btn-delete"
+                      onClick={handleDeleteFromView}
+                      style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    >
+                      <i className="ri-delete-bin-line" style={{ marginRight: '6px' }}></i> Delete
+                    </button>
+                    <button 
+                      type="button"
+                      className="btn-submit"
+                      onClick={handleEditFromView}
+                      style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', background: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer' }}
+                    >
+                      <i className="ri-pencil-line" style={{ marginRight: '6px' }}></i> Edit
+                    </button>
+                  </>
+                )}
+                {!isAdmin && (
+                   <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
+                     Close
+                   </button>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-submit" disabled={isSaving}>
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            )}
           </div>
         </form>
       </Modal>
