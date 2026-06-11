@@ -5,6 +5,7 @@ export default function Sidebar() {
   const isAdmin = useIsAdmin()
   const navItems = [
     { label: 'Dashboard', icon: 'ri-dashboard-line', path: '/' },
+    { label: 'Kloudtrack', icon: 'ri-cloud-windy-line', path: '/kloudtrack' },
     { section: 'Personnel' },
     { label: 'Employees', icon: 'ri-team-line', path: '/employees' },
     { section: 'Operations' },

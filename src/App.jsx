@@ -29,6 +29,7 @@ import History from './pages/History'
 import Documentation from './pages/Documentation'
 import CalendarEvents from './pages/CalendarEvents'
 import AuditTrail from './pages/AuditTrail'
+import Kloudtrack from './pages/Kloudtrack'
 import Layout from './components/Layout'
 
 function App() {
@@ -77,6 +78,7 @@ function App() {
             }>
               <Route index element={<Dashboard />} />
               <Route path="employees" element={<Employees />} />
+              <Route path="kloudtrack" element={<Kloudtrack />} />
               <Route path="incidents" element={<Incidents />} />
               <Route path="vouchers" element={<Vouchers />} />
               <Route path="inventory" element={<Inventory />} />

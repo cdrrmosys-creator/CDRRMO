@@ -27,9 +27,6 @@ const INITIAL_FORM_STATE = {
   waist: '',
   shirt_size: '',
   shoe_size: '',
-  father_name: '',
-  mother_name: '',
-  spouse_name: '',
   tin: '',
   pagibig: '',
   sss: '',
@@ -96,6 +93,8 @@ export default function Employees() {
     setIsEditing(true)
     setIsViewing(true)
     setSelectedId(emp.id)
+    setAvatarPreview(emp.avatar_url || '')
+    setCroppedBlob(null)
     setFormData({
       employee_id: emp.employee_id || '',
       name: emp.name || '',
@@ -115,9 +114,6 @@ export default function Employees() {
       waist: emp.waist || '',
       shirt_size: emp.shirt_size || '',
       shoe_size: emp.shoe_size || '',
-      father_name: emp.father_name || '',
-      mother_name: emp.mother_name || '',
-      spouse_name: emp.spouse_name || '',
       tin: emp.tin || '',
       pagibig: emp.pagibig || '',
       sss: emp.sss || '',
@@ -200,9 +196,6 @@ export default function Employees() {
       waist: emp.waist || '',
       shirt_size: emp.shirt_size || '',
       shoe_size: emp.shoe_size || '',
-      father_name: emp.father_name || '',
-      mother_name: emp.mother_name || '',
-      spouse_name: emp.spouse_name || '',
       tin: emp.tin || '',
       pagibig: emp.pagibig || '',
       sss: emp.sss || '',
