@@ -1,0 +1,47 @@
+•	Team
+o	Dropdown (Alpha, Bravo, Charlie. Delta)
+•	Date
+o	Calendar (mm/dd/yyyy)
+•	TimeOfCall
+o	HH:MM AM/PM
+•	TimeOfArrivalAtScene
+o	HH:MM AM/PM
+•	TimeOfDepartureAtScene
+o	HH:MM AM/PM
+•	TimeOfArrivalAtHosp
+o	HH:MM AM/PM
+•	TimeOfDepartureAtHosp
+o	HH:MM AM/PM
+•	backToBase
+o	HH:MM AM/PM
+•	placeOfIncident
+o	tfBarangay
+•	natureOfIncident
+o	tfNature
+•	name
+o	tfName
+•	age
+o	tfAge
+•	address
+o	tfAddress
+•	injuryIllnessComplaint
+o	tbInjury
+•	vehicle
+o	dropdown (N/A, Single Motor, Tricycle, Kolong kolong, Other)
+o	if selected other, show tfOther
+•	helmet
+o	cbHelmet (Positive, Negative)
+•	liquor
+o	cbLiquor (Positive, Negative)
+•	actionGiven
+o	tbAction
+•	transferFrom
+o	tfFrom
+•	transferTo
+o	tfTo (if possible, use dropdown of hospitals, and other that when selected; tfOther will show)
+•	ambulance
+o	tfAmbu (if possible, dropdown using plate number of ambulances)
+•	refusedTransfer
+o	cbTransfer (Refused)
+•	exactPlace
+o	tfExactPlace

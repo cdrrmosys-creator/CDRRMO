@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../services/supabase'
-import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
+import { format, subMonths, startOfMonth, endOfMonth, subDays, startOfDay, endOfDay, subWeeks, startOfWeek, endOfWeek } from 'date-fns'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   PieChart, Pie, Cell, Tooltip as PieTooltip,
@@ -35,7 +35,7 @@ function groupBy(arr, key) {
 }
 
 // ── Shared card ───────────────────────────────────────────────────────────────
-function Card({ title, icon, children, style = {} }) {
+function Card({ title, icon, children, style = {}, rightElement }) {
   return (
     <div style={{
       background: 'var(--bg-surface)',
@@ -45,10 +45,15 @@ function Card({ title, icon, children, style = {} }) {
       boxShadow: 'var(--shadow-sm)',
       ...style
     }}>
-      {title && (
-        <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'20px' }}>
-          {icon && <i className={icon} style={{ fontSize:'18px', color:'var(--primary)' }} />}
-          <span style={{ fontSize:'14px', fontWeight:'800', letterSpacing:'-0.2px' }}>{title}</span>
+      {(title || rightElement) && (
+        <div style={{ display:'flex', alignItems:'center', justifyContent: 'space-between', marginBottom:'20px' }}>
+          {title && (
+            <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+              {icon && <i className={icon} style={{ fontSize:'18px', color:'var(--primary)' }} />}
+              <span style={{ fontSize:'14px', fontWeight:'800', letterSpacing:'-0.2px' }}>{title}</span>
+            </div>
+          )}
+          {rightElement && <div>{rightElement}</div>}
         </div>
       )}
       {children}
@@ -131,10 +136,72 @@ export default function Dashboard() {
   const [vehStatusData, setVehStatus] = useState([])
   const [volStatusData, setVolStatus] = useState([])
   const [invCondData, setInvCond]     = useState([])
-  const [monthlyInc, setMonthlyInc]   = useState([])
+  const [chartData, setChartData]     = useState([])
+  const [trendPeriod, setTrendPeriod] = useState('month') // 'day', 'week', 'month'
+  const [allIncidents, setAllIncidents] = useState([])
+  const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'))
+  const [selectedYear, setSelectedYear] = useState(() => format(new Date(), 'yyyy'))
   const [recentInc, setRecentInc]     = useState([])
 
   useEffect(() => { fetchAll() }, [])
+
+  useEffect(() => {
+    if (!allIncidents) return;
+
+    let start, end;
+    if (trendPeriod === 'day') {
+      const [y, m] = selectedMonth.split('-');
+      start = new Date(y, m - 1, 1);
+      end = new Date(y, m, 0); // last day of month
+    } else if (trendPeriod === 'week') {
+      const [y, m] = selectedMonth.split('-');
+      start = new Date(y, m - 1, 1);
+      end = new Date(y, m - 1 + 3, 0); // last day of 3rd month
+    } else if (trendPeriod === 'month') {
+      start = new Date(selectedYear, 0, 1);
+      end = new Date(selectedYear, 11, 31);
+    }
+
+    start.setHours(0,0,0,0);
+    end.setHours(23,59,59,999);
+
+    if (start > end) return;
+
+    const data = [];
+    
+    if (trendPeriod === 'day') {
+      let curr = new Date(start);
+      while (curr <= end) {
+        const e = new Date(curr); e.setHours(23,59,59,999);
+        data.push({ label: format(curr, 'MMM dd'), start: curr.getTime(), end: e.getTime(), count: 0 });
+        curr.setDate(curr.getDate() + 1);
+      }
+    } else if (trendPeriod === 'week') {
+      let curr = startOfWeek(start, { weekStartsOn: 1 });
+      while (curr <= end) {
+        const e = endOfWeek(curr, { weekStartsOn: 1 });
+        data.push({ label: format(curr, 'MMM dd'), start: curr.getTime(), end: e.getTime(), count: 0 });
+        curr.setDate(curr.getDate() + 7);
+      }
+    } else if (trendPeriod === 'month') {
+      let curr = startOfMonth(start);
+      while (curr <= end) {
+        const e = endOfMonth(curr);
+        data.push({ label: format(curr, 'MMM'), start: curr.getTime(), end: e.getTime(), count: 0 });
+        curr.setMonth(curr.getMonth() + 1);
+      }
+    }
+
+    if (allIncidents.length > 0) {
+      allIncidents.forEach(inc => {
+        if (!inc.date_time) return;
+        const t = new Date(inc.date_time).getTime();
+        data.forEach(m => { if (t >= m.start && t <= m.end) m.count++ })
+      })
+    }
+
+    setChartData(data.map(m => ({ label: m.label, Incidents: m.count })))
+  }, [allIncidents, trendPeriod, selectedMonth, selectedYear])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -183,26 +250,7 @@ export default function Dashboard() {
 
       // Recent incidents
       setRecentInc((incD.data || []).slice(0, 5))
-
-      // Monthly incidents (last 6 months)
-      const now = new Date()
-      const months = Array.from({ length: 6 }, (_, i) => {
-        const d = subMonths(now, 5 - i)
-        return {
-          month: format(d, 'MMM'),
-          start: startOfMonth(d).toISOString(),
-          end:   endOfMonth(d).toISOString(),
-          count: 0
-        }
-      });
-      (incD.data || []).forEach(inc => {
-        if (!inc.date_time) return
-        const dt = new Date(inc.date_time)
-        months.forEach(m => {
-          if (dt >= new Date(m.start) && dt <= new Date(m.end)) m.count++
-        })
-      })
-      setMonthlyInc(months.map(m => ({ month: m.month, Incidents: m.count })))
+      setAllIncidents(incD.data || [])
 
       // Vehicle status
       const vg = groupBy(vehD.data, 'status')
@@ -307,11 +355,61 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* ── Row: Monthly Incidents area chart (wide) ──────────────────────── */}
-      <Card title="Incident Trend — Last 6 Months" icon="ri-line-chart-line" style={{ marginBottom:'20px' }}>
+      {/* ── Row: Incident Trend area chart (wide) ──────────────────────── */}
+      <Card 
+        title="Incident Trend" 
+        icon="ri-line-chart-line" 
+        style={{ marginBottom:'20px' }}
+        rightElement={
+          <div style={{ display:'flex', alignItems:'center', gap:'16px', flexWrap:'wrap', justifyContent:'flex-end' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'8px', fontSize: '12px', fontWeight: '600' }}>
+              {trendPeriod === 'day' && (
+                <>
+                  <span style={{ color:'var(--text-muted)' }}>Month:</span>
+                  <input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} 
+                    style={{ background:'var(--bg-app)', border:'1px solid var(--border-light)', borderRadius:'6px', padding:'2px 6px', color:'var(--text)', fontSize:'12px', fontFamily:'inherit' }} />
+                </>
+              )}
+              {trendPeriod === 'week' && (
+                <>
+                  <span style={{ color:'var(--text-muted)' }}>Start Month:</span>
+                  <input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} 
+                    style={{ background:'var(--bg-app)', border:'1px solid var(--border-light)', borderRadius:'6px', padding:'2px 6px', color:'var(--text)', fontSize:'12px', fontFamily:'inherit' }} />
+                  <span style={{ color:'var(--text-muted)', marginLeft:'4px', fontWeight:'500' }}>(Shows 3 Months)</span>
+                </>
+              )}
+              {trendPeriod === 'month' && (
+                <>
+                  <span style={{ color:'var(--text-muted)' }}>Year:</span>
+                  <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)} 
+                    style={{ background:'var(--bg-app)', border:'1px solid var(--border-light)', borderRadius:'6px', padding:'2px 6px', color:'var(--text)', fontSize:'12px', fontFamily:'inherit', cursor:'pointer' }}>
+                    <option value="2026">2026</option>
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                  </select>
+                </>
+              )}
+            </div>
+            <div style={{ width:'1px', height:'24px', background:'var(--border-light)', display: 'block' }} />
+            <div style={{ display:'flex', gap:'8px' }}>
+              {['day', 'week', 'month'].map(period => (
+                <button key={period} onClick={() => setTrendPeriod(period)} style={{
+                  padding: '4px 12px', fontSize: '12px', fontWeight: '700', borderRadius: '6px',
+                  background: trendPeriod === period ? 'var(--primary)' : 'var(--bg-app)',
+                  color: trendPeriod === period ? '#fff' : 'var(--text-muted)',
+                  border: `1px solid ${trendPeriod === period ? 'var(--primary)' : 'var(--border-light)'}`,
+                  cursor: 'pointer', textTransform: 'capitalize', transition: 'all 0.2s'
+                }}>
+                  {period === 'day' ? 'Daily' : period === 'week' ? 'Weekly' : 'Monthly'}
+                </button>
+              ))}
+            </div>
+          </div>
+        }
+      >
         {loading ? <Skeleton h="220px" /> : (
           <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={monthlyInc} margin={{ top:8, right:16, left:-20, bottom:0 }}>
+            <AreaChart data={chartData} margin={{ top:8, right:16, left:-20, bottom:0 }}>
               <defs>
                 <linearGradient id="incGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor={PRIMARY} stopOpacity={0.25} />
@@ -319,7 +417,7 @@ export default function Dashboard() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize:12, fontWeight:600 }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="label" tick={{ fontSize:12, fontWeight:600 }} axisLine={false} tickLine={false} />
               <YAxis allowDecimals={false} tick={{ fontSize:11 }} axisLine={false} tickLine={false} />
               <Tooltip content={<CustomTooltip />} />
               <Area type="monotone" dataKey="Incidents" stroke={PRIMARY} strokeWidth={2.5} fill="url(#incGrad)" dot={{ r:4, fill:PRIMARY, strokeWidth:0 }} activeDot={{ r:6 }} />

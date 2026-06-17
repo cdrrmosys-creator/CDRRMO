@@ -1,6 +1,6 @@
 import React from 'react'
 
-export default function Modal({ isOpen, onClose, title, children }) {
+export default function Modal({ isOpen, onClose, title, children, maxWidth }) {
   if (!isOpen) return null
 
   // Close when clicking the backdrop
@@ -12,7 +12,7 @@ export default function Modal({ isOpen, onClose, title, children }) {
 
   return (
     <div className="modal-backdrop" onClick={handleBackdropClick}>
-      <div className="modal-content">
+      <div className="modal-content" style={maxWidth ? { maxWidth } : {}}>
         <div className="modal-header">
           <h3>{title}</h3>
           <button className="modal-close" onClick={onClose} aria-label="Close modal">
