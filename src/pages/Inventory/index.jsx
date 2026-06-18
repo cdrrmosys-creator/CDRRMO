@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
+import { uploadFile, deleteFiles } from '../../services/storage'
+import { compressImage } from '../../utils/imageCompression'
 import { format } from 'date-fns'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
@@ -10,11 +12,20 @@ import ModuleToolbar from '../../components/ModuleToolbar'
 
 const INITIAL_FORM_STATE = {
   record_id: '',
+  stock_number: '',
+  property_no: '',
+  serial_no: '',
   item_name: '',
   category: '',
   quantity: '',
+  unit: '',
   condition: 'Good',
-  date_acquired: ''
+  acquisition_cost: '',
+  date_acquired: '',
+  property_custodian: '',
+  serviceable: true,
+  remarks: '',
+  photos: []
 }
 
 export default function Inventory() {
@@ -34,6 +45,9 @@ export default function Inventory() {
   const [isEditing, setIsEditing] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+  const [pendingPhotos, setPendingPhotos] = useState([])
+  const [activeTab, setActiveTab] = useState('details')
   const isAdmin = useIsAdmin()
   const toast = useToast()
   const confirm = useConfirm()
@@ -81,6 +95,7 @@ const handleOpenAdd = () => {
     setIsEditing(false)
     setIsViewing(false)
     setSelectedId(null)
+    setActiveTab('details')
     const year = new Date().getFullYear()
     const rand = Math.floor(1000 + Math.random() * 9000)
     const todayStr = new Date().toISOString().split('T')[0]
@@ -97,20 +112,51 @@ const handleOpenAdd = () => {
     setIsEditing(true)
     setIsViewing(false)
     setSelectedId(item.id)
+    setActiveTab('details')
+    setPendingPhotos([])
     setFormData({
       record_id: item.record_id || '',
+      stock_number: item.stock_number || '',
+      property_no: item.property_no || '',
+      serial_no: item.serial_no || '',
       item_name: item.item_name || '',
       category: item.category || '',
       quantity: item.quantity || '',
+      unit: item.unit || '',
       condition: item.condition || 'Good',
-      date_acquired: item.date_acquired || ''
+      acquisition_cost: item.acquisition_cost || '',
+      date_acquired: item.date_acquired || '',
+      property_custodian: item.property_custodian || '',
+      serviceable: item.serviceable !== false, // default true
+      remarks: item.remarks || '',
+      photos: item.photos || []
     })
     setIsModalOpen(true)
   }
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+    const { name, value, type, checked } = e.target
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: type === 'checkbox' ? checked : value 
+    }))
+  }
+
+  const handleFileUpload = (e) => {
+    const files = Array.from(e.target.files)
+    if (!files || files.length === 0) return
+    setPendingPhotos(prev => [...prev, ...files])
+  }
+
+  const removeExistingPhoto = (indexToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      photos: prev.photos.filter((_, idx) => idx !== indexToRemove)
+    }))
+  }
+
+  const removePendingPhoto = (indexToRemove) => {
+    setPendingPhotos(prev => prev.filter((_, idx) => idx !== indexToRemove))
   }
 
   const handleSubmit = async (e) => {
@@ -118,9 +164,32 @@ const handleOpenAdd = () => {
     setIsSaving(true)
 
     try {
+      let newPhotoUrls = []
+      
+      // Upload pending photos first
+      if (pendingPhotos.length > 0) {
+        setIsUploading(true)
+        try {
+          for (const file of pendingPhotos) {
+            const compressedFile = await compressImage(file, 800, 0.6)
+            const path = `inventory-photos/${Date.now()}-${compressedFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+            const url = await uploadFile('inventory', path, compressedFile)
+            newPhotoUrls.push(url)
+          }
+        } catch (error) {
+          console.error('Upload error:', error)
+          toast.error('Failed to upload some photos. Did you create the public "inventory" bucket in Supabase?')
+          throw error // Abort save if uploads fail
+        } finally {
+          setIsUploading(false)
+        }
+      }
+
       const payload = {
         ...formData,
-        quantity: parseInt(formData.quantity)
+        quantity: formData.quantity ? parseInt(formData.quantity) : 0,
+        acquisition_cost: formData.acquisition_cost ? parseFloat(formData.acquisition_cost) : null,
+        photos: [...(formData.photos || []), ...newPhotoUrls]
       }
 
       if (isEditing) {
@@ -159,6 +228,21 @@ const handleOpenAdd = () => {
     if (!ok) return
 
     try {
+      // Find the record to get its photos
+      const recordToDelete = items.find(item => item.id === id)
+      if (recordToDelete && recordToDelete.photos && recordToDelete.photos.length > 0) {
+        const pathsToDelete = recordToDelete.photos
+          .map(url => {
+            const idx = url.indexOf('inventory-photos/')
+            return idx !== -1 ? url.substring(idx) : null
+          })
+          .filter(Boolean)
+        
+        if (pathsToDelete.length > 0) {
+          await deleteFiles('inventory', pathsToDelete)
+        }
+      }
+
       const { error } = await supabase
         .from('inventory')
         .delete()
@@ -345,7 +429,7 @@ const handleOpenAdd = () => {
                 <th>Item Name</th>
                 <th>Category</th>
                 <th>Quantity</th>
-                <th>Condition</th>
+                <th>Status</th>
                 <th>Date Acquired</th>
                 
               </tr>
@@ -376,7 +460,11 @@ const handleOpenAdd = () => {
                   <td style={{ fontFamily: 'monospace', fontWeight: '700', fontSize: '16px' }}>
                     {item.quantity || 0}
                   </td>
-                  <td>{getConditionBadge(item.condition)}</td>
+                  <td>{item.serviceable !== false ? (
+                    <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: '#d1fae5', color: '#065f46' }}>Serviceable</span>
+                  ) : (
+                    <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: '#fee2e2', color: '#991b1b' }}>Not Serviceable</span>
+                  )}</td>
                   <td>
                     {item.date_acquired 
                       ? format(new Date(item.date_acquired), 'MMM dd, yyyy')
@@ -395,84 +483,272 @@ const handleOpenAdd = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={isViewing ? 'View Details' : (isEditing ? 'Edit Inventory Item' : 'Add Inventory Item')}
+        maxWidth="800px"
       >
         <form onSubmit={handleSubmit} className="modal-form">
+          {/* Tabs Navigation */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', overflowX: 'auto', paddingBottom: '8px', borderBottom: '2px solid var(--border-light)' }}>
+              {[
+                { id: 'details', label: 'Item Details' },
+                { id: 'photos', label: 'Photos' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontWeight: '700',
+                    fontSize: '13px',
+                    whiteSpace: 'nowrap',
+                    background: activeTab === tab.id ? 'var(--primary)' : '#f3f4f6',
+                    color: activeTab === tab.id ? '#fff' : 'var(--text-muted)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+          </div>
+
           <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Record ID *</label>
-              <input 
-                type="text" 
-                name="record_id" 
-                value={formData.record_id} 
-                onChange={handleInputChange} 
-                required 
-               disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
-            </div>
-            <div className="form-group">
-              <label>Item Name *</label>
-              <input 
-                type="text" 
-                name="item_name" 
-                value={formData.item_name} 
-                onChange={handleInputChange} 
-                required 
-                placeholder="e.g. VHF Handheld Radio, Rescue Rope"
-              />
-            </div>
-          </div>
+            {activeTab === 'details' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="form-row" style={{ gap: '12px' }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Record ID *</label>
+                  <input type="text" name="record_id" value={formData.record_id} onChange={handleInputChange} required disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280', padding: '8px' }} />
+                </div>
+                <div className="form-group" style={{ flex: 2 }}>
+                  <label>Item Name *</label>
+                  <input type="text" name="item_name" value={formData.item_name} onChange={handleInputChange} required placeholder="e.g. VHF Handheld Radio, Rescue Rope" style={{ padding: '8px' }} />
+                </div>
+              </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label>Category *</label>
-              <input 
-                type="text" 
-                name="category" 
-                value={formData.category} 
-                onChange={handleInputChange} 
-                required 
-                placeholder="e.g. Communications, Rescue Gear"
-              />
-            </div>
-            <div className="form-group">
-              <label>Quantity *</label>
-              <input 
-                type="number" 
-                name="quantity" 
-                value={formData.quantity} 
-                onChange={handleInputChange} 
-                required 
-                placeholder="0"
-              />
-            </div>
-          </div>
+              <div className="form-row" style={{ gap: '12px' }}>
+                <div className="form-group">
+                  <label>Category *</label>
+                  <input type="text" name="category" value={formData.category} onChange={handleInputChange} required placeholder="e.g. Communications, Rescue Gear" style={{ padding: '8px' }} />
+                </div>
+                <div className="form-group">
+                  <label>Condition *</label>
+                  <select name="condition" value={formData.condition} onChange={handleInputChange} required style={{ padding: '8px' }}>
+                    <option value="New">New</option>
+                    <option value="Good">Good</option>
+                    <option value="Fair">Fair</option>
+                    <option value="Poor">Poor</option>
+                    <option value="Damaged">Damaged</option>
+                  </select>
+                </div>
+              </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label>Condition *</label>
-              <select name="condition" value={formData.condition} onChange={handleInputChange} required>
-                <option value="New">New</option>
-                <option value="Good">Good</option>
-                <option value="Fair">Fair</option>
-                <option value="Poor">Poor</option>
-                <option value="Damaged">Damaged</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Date Acquired *</label>
-              <input 
-                type="date" 
-                name="date_acquired" 
-                value={formData.date_acquired} 
-                onChange={handleInputChange} 
-                required 
-              />
-            </div>
-          </div>
+              <div className="form-row" style={{ gap: '12px' }}>
+                <div className="form-group">
+                  <label>Stock Number</label>
+                  <input type="text" name="stock_number" value={formData.stock_number} onChange={handleInputChange} style={{ padding: '8px' }} />
+                </div>
+                <div className="form-group">
+                  <label>Property No.</label>
+                  <input type="text" name="property_no" value={formData.property_no} onChange={handleInputChange} style={{ padding: '8px' }} />
+                </div>
+              </div>
 
+              <div className="form-row" style={{ gap: '12px' }}>
+                <div className="form-group">
+                  <label>Serial No.</label>
+                  <input type="text" name="serial_no" value={formData.serial_no} onChange={handleInputChange} style={{ padding: '8px' }} />
+                </div>
+                <div className="form-group">
+                  <label>Property Custodian</label>
+                  <input type="text" name="property_custodian" value={formData.property_custodian} onChange={handleInputChange} style={{ padding: '8px' }} />
+                </div>
+              </div>
+
+              <div className="form-row" style={{ gap: '12px' }}>
+                <div className="form-group">
+                  <label>Quantity *</label>
+                  <input type="number" name="quantity" value={formData.quantity} onChange={handleInputChange} required placeholder="0" style={{ padding: '8px' }} />
+                </div>
+                <div className="form-group">
+                  <label>Unit *</label>
+                  <input type="text" name="unit" value={formData.unit} onChange={handleInputChange} placeholder="e.g. pcs, boxes" required style={{ padding: '8px' }} />
+                </div>
+              </div>
+
+              <div className="form-row" style={{ gap: '12px' }}>
+                <div className="form-group">
+                  <label>Acquisition Cost</label>
+                  <input type="number" name="acquisition_cost" value={formData.acquisition_cost} onChange={handleInputChange} step="0.01" min="0" placeholder="0.00" style={{ padding: '8px' }} />
+                </div>
+                <div className="form-group">
+                  <label>Date Acquired *</label>
+                  <input type="date" name="date_acquired" value={formData.date_acquired} onChange={handleInputChange} required style={{ padding: '8px' }} />
+                </div>
+              </div>
+
+              <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '8px', padding: '8px 0' }}>
+                <input type="checkbox" id="serviceable" name="serviceable" checked={formData.serviceable} onChange={handleInputChange} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+                <label htmlFor="serviceable" style={{ marginBottom: 0, fontWeight: '700', cursor: 'pointer' }}>Serviceable</label>
+              </div>
+
+              <div className="form-group">
+                <label>Remarks</label>
+                <textarea name="remarks" value={formData.remarks} onChange={handleInputChange} rows={3} style={{ padding: '8px' }}></textarea>
+              </div>
+            </div>
+            )}
           </fieldset>
 
-          <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {/* Photos Section */}
+          {activeTab === 'photos' && (
+          <div style={{ marginTop: '8px', minHeight: '350px' }}>
+            <h4 style={{ margin: '0 0 12px 0', color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              Item Photos
+              {!isViewing && (
+                <div style={{ position: 'relative' }}>
+                  <input 
+                    type="file" 
+                    multiple 
+                    accept="image/*" 
+                    onChange={handleFileUpload}
+                    disabled={isUploading || isSaving}
+                    style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: 10 }} 
+                  />
+                  <button 
+                    type="button" 
+                    className="btn-primary" 
+                    disabled={isUploading || isSaving}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    {(isUploading || isSaving) ? <i className="ri-loader-4-line ri-spin" style={{ fontSize: '16px' }}></i> : <i className="ri-camera-line" style={{ fontSize: '16px' }}></i>}
+                    {(isUploading || isSaving) ? 'Uploading...' : 'Add Photos'}
+                  </button>
+                </div>
+              )}
+            </h4>
+            
+            {(!formData.photos || formData.photos.length === 0) && pendingPhotos.length === 0 ? (
+              <div style={{
+                padding: '40px 20px',
+                textAlign: 'center',
+                background: '#f8fafc',
+                borderRadius: '8px',
+                border: '2px dashed var(--border-light)',
+                color: 'var(--text-muted)'
+              }}>
+                <i className="ri-image-line" style={{ fontSize: '48px', color: 'var(--border-dark)' }}></i>
+                <p style={{ marginTop: '12px', fontWeight: '600' }}>No photos uploaded for this item yet.</p>
+              </div>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+                gap: '16px'
+              }}>
+                {/* Existing Photos */}
+                {formData.photos && formData.photos.map((url, idx) => (
+                  <div key={`existing-${idx}`} style={{ 
+                    position: 'relative', 
+                    aspectRatio: '1', 
+                    borderRadius: '8px', 
+                    overflow: 'hidden',
+                    border: '1px solid var(--border-light)'
+                  }}>
+                    <a href={url} target="_blank" rel="noopener noreferrer">
+                      <img 
+                        src={url} 
+                        alt={`Item photo ${idx + 1}`} 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                      />
+                    </a>
+                    {!isViewing && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); removeExistingPhoto(idx); }}
+                        style={{
+                          position: 'absolute',
+                          top: '6px',
+                          right: '6px',
+                          background: 'rgba(239, 68, 68, 0.9)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: '24px',
+                          height: '24px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                        }}
+                        title="Remove photo"
+                      >
+                        <i className="ri-close-line" style={{ fontSize: '14px' }}></i>
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                {/* Pending Photos */}
+                {pendingPhotos.map((file, idx) => {
+                  const objectUrl = URL.createObjectURL(file);
+                  return (
+                    <div key={`pending-${idx}`} style={{ 
+                      position: 'relative', 
+                      aspectRatio: '1', 
+                      borderRadius: '8px', 
+                      overflow: 'hidden',
+                      border: '1px solid var(--primary)',
+                      opacity: isUploading ? 0.6 : 1
+                    }}>
+                      <img 
+                        src={objectUrl} 
+                        alt={`Pending photo ${idx + 1}`} 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                        onLoad={() => URL.revokeObjectURL(objectUrl)}
+                      />
+                      {!isViewing && !isUploading && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); removePendingPhoto(idx); }}
+                          style={{
+                            position: 'absolute',
+                            top: '6px',
+                            right: '6px',
+                            background: 'rgba(239, 68, 68, 0.9)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: '24px',
+                            height: '24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                          }}
+                          title="Remove photo"
+                        >
+                          <i className="ri-close-line" style={{ fontSize: '14px' }}></i>
+                        </button>
+                      )}
+                      {isUploading && (
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', color: 'white' }}>
+                          <i className="ri-loader-4-line ri-spin" style={{ fontSize: '24px' }}></i>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          )}
+
+          <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
             <div></div>
             {isViewing ? (
               <div style={{ display: 'flex', gap: '12px' }}>
