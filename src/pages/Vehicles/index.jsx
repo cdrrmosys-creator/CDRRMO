@@ -7,6 +7,8 @@ import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
+import { uploadFile, deleteFiles } from '../../services/storage'
+import { compressImage } from '../../utils/imageCompression'
 
 const INITIAL_FORM_STATE = {
   vehicle_id: '',
@@ -18,7 +20,9 @@ const INITIAL_FORM_STATE = {
   capacity: '',
   status: 'Available',
   last_maintenance: '',
-  notes: ''
+  notes: '',
+  orcr: '',
+  photos: []
 }
 
 export default function Vehicles() {
@@ -33,6 +37,10 @@ export default function Vehicles() {
   const [isEditing, setIsEditing] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+  const [pendingPhotos, setPendingPhotos] = useState([])
+  const [activeTab, setActiveTab] = useState('details')
+  const [isDragging, setIsDragging] = useState(false)
   const isAdmin = useIsAdmin()
   const toast = useToast()
   const confirm = useConfirm()
@@ -112,6 +120,8 @@ const handleOpenAdd = () => {
     setIsEditing(false)
     setIsViewing(false)
     setSelectedId(null)
+    setActiveTab('details')
+    setPendingPhotos([])
     const year = new Date().getFullYear()
     const rand = Math.floor(1000 + Math.random() * 9000)
     setFormData({
@@ -125,6 +135,8 @@ const handleOpenAdd = () => {
     setIsEditing(true)
     setIsViewing(false)
     setSelectedId(v.id)
+    setActiveTab('details')
+    setPendingPhotos([])
     setFormData({
       vehicle_id: v.vehicle_id || '',
       plate: v.plate || '',
@@ -135,7 +147,9 @@ const handleOpenAdd = () => {
       capacity: v.capacity || '',
       status: v.status || 'Available',
       last_maintenance: v.last_maintenance || '',
-      notes: v.notes || ''
+      notes: v.notes || '',
+      orcr: v.orcr || '',
+      photos: v.photos || []
     })
     setIsModalOpen(true)
   }
@@ -145,14 +159,77 @@ const handleOpenAdd = () => {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
+  const handleDragOver = (e) => {
+    if (isViewing) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    if (isViewing) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e) => {
+    if (isViewing) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileUpload({ target: { files: e.dataTransfer.files } });
+    }
+  };
+
+  const handleFileUpload = (e) => {
+    const files = Array.from(e.target.files)
+    if (!files || files.length === 0) return
+    setPendingPhotos(prev => [...prev, ...files])
+  }
+
+  const removeExistingPhoto = (indexToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      photos: prev.photos.filter((_, idx) => idx !== indexToRemove)
+    }))
+  }
+
+  const removePendingPhoto = (indexToRemove) => {
+    setPendingPhotos(prev => prev.filter((_, idx) => idx !== indexToRemove))
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsSaving(true)
 
     try {
+      let newPhotoUrls = []
+      
+      if (pendingPhotos.length > 0) {
+        setIsUploading(true)
+        try {
+          for (const file of pendingPhotos) {
+            const compressedFile = await compressImage(file, 800, 0.6)
+            const path = `vehicle-photos/${Date.now()}-${compressedFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+            const url = await uploadFile('vehicles', path, compressedFile)
+            newPhotoUrls.push(url)
+          }
+        } catch (error) {
+          console.error('Upload error:', error)
+          toast.error('Failed to upload some photos. Did you create the public "vehicles" bucket in Supabase?')
+          throw error 
+        } finally {
+          setIsUploading(false)
+        }
+      }
+
       const payload = {
         ...formData,
-        last_maintenance: formData.last_maintenance || null
+        last_maintenance: formData.last_maintenance || null,
+        photos: [...(formData.photos || []), ...newPhotoUrls]
       }
 
       if (isEditing) {
@@ -191,6 +268,20 @@ const handleOpenAdd = () => {
     if (!ok) return
 
     try {
+      const recordToDelete = vehicles.find(item => item.id === id)
+      if (recordToDelete && recordToDelete.photos && recordToDelete.photos.length > 0) {
+        const pathsToDelete = recordToDelete.photos
+          .map(url => {
+            const idx = url.indexOf('vehicle-photos/')
+            return idx !== -1 ? url.substring(idx) : null
+          })
+          .filter(Boolean)
+        
+        if (pathsToDelete.length > 0) {
+          await deleteFiles('vehicles', pathsToDelete)
+        }
+      }
+
       const { error } = await supabase
         .from('vehicles')
         .delete()
@@ -204,6 +295,27 @@ const handleOpenAdd = () => {
     } catch (err) {
       console.error('Error deleting vehicle:', err)
       toast.error('Failed to delete vehicle: ' + err.message)
+    }
+  }
+
+  const handleStatusChange = async (e, id) => {
+    e.stopPropagation()
+    const newStatus = e.target.value
+    
+    try {
+      const { error } = await supabase
+        .from('vehicles')
+        .update({ status: newStatus })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setVehicles(vehicles.map(v => v.id === id ? { ...v, status: newStatus } : v))
+      toast.success('Status updated successfully!')
+      await logAudit('Updated', 'Vehicles', id, `Updated status to ${newStatus}`)
+    } catch (err) {
+      console.error('Error updating status:', err)
+      toast.error('Failed to update status: ' + err.message)
     }
   }
 
@@ -340,7 +452,32 @@ const handleOpenAdd = () => {
                   </td>
                   <td>{vehicle.type || '-'}</td>
                   <td>{vehicle.capacity || '-'}</td>
-                  <td>{getStatusBadge(vehicle.status)}</td>
+                  <td onClick={e => isAdmin ? e.stopPropagation() : undefined}>
+                    {isAdmin ? (
+                      <select
+                        value={vehicle.status || 'Available'}
+                        onChange={(e) => handleStatusChange(e, vehicle.id)}
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          border: '1px solid var(--border-light)',
+                          background: vehicle.status === 'Available' ? '#d1fae5' : vehicle.status === 'In Use' ? '#fef3c7' : vehicle.status === 'Maintenance' ? '#fee2e2' : '#f3f4f6',
+                          color: vehicle.status === 'Available' ? '#065f46' : vehicle.status === 'In Use' ? '#92400e' : vehicle.status === 'Maintenance' ? '#991b1b' : '#374151',
+                          cursor: 'pointer',
+                          outline: 'none'
+                        }}
+                      >
+                        <option value="Available">Available</option>
+                        <option value="In Use">In Use</option>
+                        <option value="Maintenance">Maintenance</option>
+                        <option value="Unavailable">Unavailable</option>
+                      </select>
+                    ) : (
+                      getStatusBadge(vehicle.status)
+                    )}
+                  </td>
                   <td>
                     {vehicle.last_maintenance 
                       ? format(new Date(vehicle.last_maintenance), 'MMM dd, yyyy')
@@ -368,9 +505,42 @@ const handleOpenAdd = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={isViewing ? 'View Details' : (isEditing ? 'Edit Vehicle Record' : 'Register Vehicle')}
+        maxWidth="1000px"
       >
+        <style>{`
+          .vehicle-form-layout {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 32px;
+          }
+          .vehicle-details-col {
+            flex: 1 1 450px;
+            min-width: 0;
+          }
+          .vehicle-photos-col {
+            flex: 1 1 350px;
+            min-width: 0;
+            border-left: 2px solid var(--border-light);
+            padding-left: 32px;
+          }
+          @media (max-width: 1050px) {
+            .vehicle-form-layout {
+              flex-direction: column;
+              gap: 24px;
+            }
+            .vehicle-photos-col {
+              border-left: none;
+              padding-left: 0;
+              border-top: 2px solid var(--border-light);
+              padding-top: 24px;
+            }
+          }
+        `}</style>
         <form onSubmit={handleSubmit} className="modal-form">
-          <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
+          <div className="vehicle-form-layout">
+            <div className="vehicle-details-col">
+              <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div className="form-row">
             <div className="form-group">
               <label>Vehicle ID *</label>
@@ -397,6 +567,17 @@ const handleOpenAdd = () => {
 
           <div className="form-row">
             <div className="form-group">
+              <label>ORCR *</label>
+              <input 
+                type="text" 
+                name="orcr" 
+                value={formData.orcr} 
+                onChange={handleInputChange} 
+                required
+                placeholder="Enter ORCR details"
+              />
+            </div>
+            <div className="form-group">
               <label>Model *</label>
               <input 
                 type="text" 
@@ -407,52 +588,59 @@ const handleOpenAdd = () => {
                 placeholder="e.g. Hilux, Urvan"
               />
             </div>
+          </div>
+
+          <div className="form-row">
             <div className="form-group">
-              <label>Manufacturer</label>
+              <label>Manufacturer *</label>
               <input 
                 type="text" 
                 name="manufacturer" 
                 value={formData.manufacturer} 
                 onChange={handleInputChange} 
+                required
                 placeholder="e.g. Toyota, Nissan"
               />
             </div>
-          </div>
-
-          <div className="form-row">
             <div className="form-group">
-              <label>Year</label>
+              <label>Year *</label>
               <input 
                 type="text" 
                 name="year" 
                 value={formData.year} 
                 onChange={handleInputChange} 
+                required
                 placeholder="e.g. 2023"
-              />
-            </div>
-            <div className="form-group">
-              <label>Type / Classification</label>
-              <input 
-                type="text" 
-                name="type" 
-                value={formData.type} 
-                onChange={handleInputChange} 
-                placeholder="e.g. Ambulance, Rescue Truck"
               />
             </div>
           </div>
 
           <div className="form-row">
             <div className="form-group">
-              <label>Capacity</label>
+              <label>Type / Classification *</label>
+              <input 
+                type="text" 
+                name="type" 
+                value={formData.type} 
+                onChange={handleInputChange} 
+                required
+                placeholder="e.g. Ambulance, Rescue Truck"
+              />
+            </div>
+            <div className="form-group">
+              <label>Capacity *</label>
               <input 
                 type="text" 
                 name="capacity" 
                 value={formData.capacity} 
                 onChange={handleInputChange} 
+                required
                 placeholder="e.g. 5 pax, 2 tons"
               />
             </div>
+          </div>
+
+          <div className="form-row">
             <div className="form-group">
               <label>Status</label>
               <select name="status" value={formData.status} onChange={handleInputChange}>
@@ -462,16 +650,15 @@ const handleOpenAdd = () => {
                 <option value="Unavailable">Unavailable</option>
               </select>
             </div>
-          </div>
-
-          <div className="form-group">
-            <label>Last Maintenance Date</label>
-            <input 
-              type="date" 
-              name="last_maintenance" 
-              value={formData.last_maintenance} 
-              onChange={handleInputChange} 
-            />
+            <div className="form-group">
+              <label>Last Maintenance Date</label>
+              <input 
+                type="date" 
+                name="last_maintenance" 
+                value={formData.last_maintenance} 
+                onChange={handleInputChange} 
+              />
+            </div>
           </div>
 
           <div className="form-group">
@@ -484,10 +671,175 @@ const handleOpenAdd = () => {
               placeholder="e.g. Equipped with stretcher, trauma kit, VHF radio"
             />
           </div>
+                </div>
+              </fieldset>
+            </div>
 
-          </fieldset>
+            <div className="vehicle-photos-col">
+              <div style={{ minHeight: '350px', display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <h4 style={{ margin: '0 0 12px 0', color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              Vehicle Photos
+              {!isViewing && (
+                <div style={{ position: 'relative' }}>
+                  <input 
+                    type="file" 
+                    multiple 
+                    accept="image/*" 
+                    onChange={handleFileUpload}
+                    disabled={isUploading || isSaving}
+                    style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: 10 }} 
+                  />
+                  <button 
+                    type="button" 
+                    className="btn-primary" 
+                    disabled={isUploading || isSaving}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    {(isUploading || isSaving) ? <i className="ri-loader-4-line ri-spin" style={{ fontSize: '16px' }}></i> : <i className="ri-camera-line" style={{ fontSize: '16px' }}></i>}
+                    {(isUploading || isSaving) ? 'Uploading...' : 'Add Photos'}
+                  </button>
+                </div>
+              )}
+            </h4>
+            
+            {(!formData.photos || formData.photos.length === 0) && pendingPhotos.length === 0 ? (
+              <div 
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '40px 20px',
+                  textAlign: 'center',
+                  background: isDragging ? 'var(--primary-bg)' : '#f8fafc',
+                  borderRadius: '8px',
+                  border: `2px dashed ${isDragging ? 'var(--primary)' : 'var(--border-light)'}`,
+                  color: isDragging ? 'var(--primary)' : 'var(--text-muted)',
+                  transition: 'all 0.2s',
+                  position: 'relative'
+                }}>
+                {!isViewing && (
+                  <input 
+                    type="file" 
+                    multiple 
+                    accept="image/*" 
+                    onChange={handleFileUpload}
+                    disabled={isUploading || isSaving}
+                    style={{ position: 'absolute', inset: 0, opacity: 0, cursor: isDragging ? 'copy' : 'pointer', zIndex: 10 }} 
+                  />
+                )}
+                <i className="ri-image-line" style={{ fontSize: '48px', color: isDragging ? 'var(--primary)' : 'var(--border-light)', transition: 'all 0.2s' }}></i>
+                <p style={{ marginTop: '12px', fontWeight: '600' }}>{isDragging ? 'Drop photos here' : 'No photos uploaded for this vehicle yet.'}</p>
+                {!isViewing && <p style={{ fontSize: '12px', marginTop: '4px', opacity: 0.7 }}>Drag and drop or click to upload</p>}
+              </div>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+                gap: '16px'
+              }}>
+                {formData.photos && formData.photos.map((url, idx) => (
+                  <div key={`existing-${idx}`} style={{ 
+                    position: 'relative', 
+                    aspectRatio: '1', 
+                    borderRadius: '8px', 
+                    overflow: 'hidden',
+                    border: '1px solid var(--border-light)'
+                  }}>
+                    <a href={url} target="_blank" rel="noopener noreferrer">
+                      <img 
+                        src={url} 
+                        alt={`Vehicle photo ${idx + 1}`} 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                      />
+                    </a>
+                    {!isViewing && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); removeExistingPhoto(idx); }}
+                        style={{
+                          position: 'absolute',
+                          top: '6px',
+                          right: '6px',
+                          background: 'rgba(239, 68, 68, 0.9)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: '24px',
+                          height: '24px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                        }}
+                      >
+                        <i className="ri-close-line" style={{ fontSize: '14px' }}></i>
+                      </button>
+                    )}
+                  </div>
+                ))}
 
-          <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {pendingPhotos.map((file, idx) => {
+                  const objectUrl = URL.createObjectURL(file);
+                  return (
+                    <div key={`pending-${idx}`} style={{ 
+                      position: 'relative', 
+                      aspectRatio: '1', 
+                      borderRadius: '8px', 
+                      overflow: 'hidden',
+                      border: '1px solid var(--primary)',
+                      opacity: isUploading ? 0.6 : 1
+                    }}>
+                      <img 
+                        src={objectUrl} 
+                        alt={`Pending photo ${idx + 1}`} 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                        onLoad={() => URL.revokeObjectURL(objectUrl)}
+                      />
+                      {!isViewing && !isUploading && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); removePendingPhoto(idx); }}
+                          style={{
+                            position: 'absolute',
+                            top: '6px',
+                            right: '6px',
+                            background: 'rgba(239, 68, 68, 0.9)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: '24px',
+                            height: '24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                          }}
+                        >
+                          <i className="ri-close-line" style={{ fontSize: '14px' }}></i>
+                        </button>
+                      )}
+                      {isUploading && (
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', color: 'white' }}>
+                          <i className="ri-loader-4-line ri-spin" style={{ fontSize: '24px' }}></i>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+              </div>
+            </div>
+          </div>
+
+          <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
             <div></div>
             {isViewing ? (
               <div style={{ display: 'flex', gap: '12px' }}>

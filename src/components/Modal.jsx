@@ -12,7 +12,7 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth }) {
 
   return (
     <div className="modal-backdrop" onClick={handleBackdropClick}>
-      <div className="modal-content" style={maxWidth ? { maxWidth } : {}}>
+      <div className="modal-content" style={maxWidth ? { width: maxWidth, maxWidth: '95%' } : {}}>
         <div className="modal-header">
           <h3>{title}</h3>
           <button className="modal-close" onClick={onClose} aria-label="Close modal">

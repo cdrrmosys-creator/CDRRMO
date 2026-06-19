@@ -47,7 +47,7 @@ export default function Inventory() {
   const [isSaving, setIsSaving] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [pendingPhotos, setPendingPhotos] = useState([])
-  const [activeTab, setActiveTab] = useState('details')
+  const [isDragging, setIsDragging] = useState(false)
   const isAdmin = useIsAdmin()
   const toast = useToast()
   const confirm = useConfirm()
@@ -95,7 +95,7 @@ const handleOpenAdd = () => {
     setIsEditing(false)
     setIsViewing(false)
     setSelectedId(null)
-    setActiveTab('details')
+    setPendingPhotos([])
     const year = new Date().getFullYear()
     const rand = Math.floor(1000 + Math.random() * 9000)
     const todayStr = new Date().toISOString().split('T')[0]
@@ -112,7 +112,6 @@ const handleOpenAdd = () => {
     setIsEditing(true)
     setIsViewing(false)
     setSelectedId(item.id)
-    setActiveTab('details')
     setPendingPhotos([])
     setFormData({
       record_id: item.record_id || '',
@@ -147,6 +146,30 @@ const handleOpenAdd = () => {
     if (!files || files.length === 0) return
     setPendingPhotos(prev => [...prev, ...files])
   }
+
+  const handleDragOver = (e) => {
+    if (isViewing) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    if (isViewing) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    if (isViewing) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileUpload({ target: { files: e.dataTransfer.files } });
+    }
+  };
 
   const removeExistingPhoto = (indexToRemove) => {
     setFormData(prev => ({
@@ -483,270 +506,243 @@ const handleOpenAdd = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={isViewing ? 'View Details' : (isEditing ? 'Edit Inventory Item' : 'Add Inventory Item')}
-        maxWidth="800px"
+        maxWidth="1000px"
       >
+        <style>{`
+          .inventory-form-layout {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 32px;
+          }
+          .inventory-details-col {
+            flex: 1 1 450px;
+            min-width: 0;
+          }
+          .inventory-photos-col {
+            flex: 1 1 350px;
+            min-width: 0;
+            border-left: 2px solid var(--border-light);
+            padding-left: 32px;
+          }
+          @media (max-width: 1050px) {
+            .inventory-form-layout {
+              flex-direction: column;
+              gap: 24px;
+            }
+            .inventory-photos-col {
+              border-left: none;
+              padding-left: 0;
+              border-top: 2px solid var(--border-light);
+              padding-top: 24px;
+            }
+          }
+        `}</style>
         <form onSubmit={handleSubmit} className="modal-form">
-          {/* Tabs Navigation */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', overflowX: 'auto', paddingBottom: '8px', borderBottom: '2px solid var(--border-light)' }}>
-              {[
-                { id: 'details', label: 'Item Details' },
-                { id: 'photos', label: 'Photos' }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    fontWeight: '700',
-                    fontSize: '13px',
-                    whiteSpace: 'nowrap',
-                    background: activeTab === tab.id ? 'var(--primary)' : '#f3f4f6',
-                    color: activeTab === tab.id ? '#fff' : 'var(--text-muted)',
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  {tab.label}
-                </button>
-              ))}
-          </div>
+          <div className="inventory-form-layout">
 
-          <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
-            {activeTab === 'details' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div className="form-row" style={{ gap: '12px' }}>
-                <div className="form-group" style={{ flex: 1 }}>
-                  <label>Record ID *</label>
-                  <input type="text" name="record_id" value={formData.record_id} onChange={handleInputChange} required disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280', padding: '8px' }} />
-                </div>
-                <div className="form-group" style={{ flex: 2 }}>
-                  <label>Item Name *</label>
-                  <input type="text" name="item_name" value={formData.item_name} onChange={handleInputChange} required placeholder="e.g. VHF Handheld Radio, Rescue Rope" style={{ padding: '8px' }} />
-                </div>
-              </div>
+            {/* Left: Item Details */}
+            <div className="inventory-details-col">
+              <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
-              <div className="form-row" style={{ gap: '12px' }}>
-                <div className="form-group">
-                  <label>Category *</label>
-                  <input type="text" name="category" value={formData.category} onChange={handleInputChange} required placeholder="e.g. Communications, Rescue Gear" style={{ padding: '8px' }} />
-                </div>
-                <div className="form-group">
-                  <label>Condition *</label>
-                  <select name="condition" value={formData.condition} onChange={handleInputChange} required style={{ padding: '8px' }}>
-                    <option value="New">New</option>
-                    <option value="Good">Good</option>
-                    <option value="Fair">Fair</option>
-                    <option value="Poor">Poor</option>
-                    <option value="Damaged">Damaged</option>
-                  </select>
-                </div>
-              </div>
+                  <div className="form-row" style={{ gap: '12px' }}>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label>Record ID *</label>
+                      <input type="text" name="record_id" value={formData.record_id} onChange={handleInputChange} required disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280', padding: '8px' }} />
+                    </div>
+                    <div className="form-group" style={{ flex: 2 }}>
+                      <label>Item Name *</label>
+                      <input type="text" name="item_name" value={formData.item_name} onChange={handleInputChange} required placeholder="e.g. VHF Handheld Radio, Rescue Rope" style={{ padding: '8px' }} />
+                    </div>
+                  </div>
 
-              <div className="form-row" style={{ gap: '12px' }}>
-                <div className="form-group">
-                  <label>Stock Number</label>
-                  <input type="text" name="stock_number" value={formData.stock_number} onChange={handleInputChange} style={{ padding: '8px' }} />
-                </div>
-                <div className="form-group">
-                  <label>Property No.</label>
-                  <input type="text" name="property_no" value={formData.property_no} onChange={handleInputChange} style={{ padding: '8px' }} />
-                </div>
-              </div>
+                  <div className="form-row" style={{ gap: '12px' }}>
+                    <div className="form-group">
+                      <label>Category *</label>
+                      <input type="text" name="category" value={formData.category} onChange={handleInputChange} required placeholder="e.g. Communications, Rescue Gear" style={{ padding: '8px' }} />
+                    </div>
+                    <div className="form-group">
+                      <label>Condition *</label>
+                      <select name="condition" value={formData.condition} onChange={handleInputChange} required style={{ padding: '8px' }}>
+                        <option value="New">New</option>
+                        <option value="Good">Good</option>
+                        <option value="Fair">Fair</option>
+                        <option value="Poor">Poor</option>
+                        <option value="Damaged">Damaged</option>
+                      </select>
+                    </div>
+                  </div>
 
-              <div className="form-row" style={{ gap: '12px' }}>
-                <div className="form-group">
-                  <label>Serial No.</label>
-                  <input type="text" name="serial_no" value={formData.serial_no} onChange={handleInputChange} style={{ padding: '8px' }} />
-                </div>
-                <div className="form-group">
-                  <label>Property Custodian</label>
-                  <input type="text" name="property_custodian" value={formData.property_custodian} onChange={handleInputChange} style={{ padding: '8px' }} />
-                </div>
-              </div>
+                  <div className="form-row" style={{ gap: '12px' }}>
+                    <div className="form-group">
+                      <label>Stock Number</label>
+                      <input type="text" name="stock_number" value={formData.stock_number} onChange={handleInputChange} style={{ padding: '8px' }} />
+                    </div>
+                    <div className="form-group">
+                      <label>Property No.</label>
+                      <input type="text" name="property_no" value={formData.property_no} onChange={handleInputChange} style={{ padding: '8px' }} />
+                    </div>
+                  </div>
 
-              <div className="form-row" style={{ gap: '12px' }}>
-                <div className="form-group">
-                  <label>Quantity *</label>
-                  <input type="number" name="quantity" value={formData.quantity} onChange={handleInputChange} required placeholder="0" style={{ padding: '8px' }} />
-                </div>
-                <div className="form-group">
-                  <label>Unit *</label>
-                  <input type="text" name="unit" value={formData.unit} onChange={handleInputChange} placeholder="e.g. pcs, boxes" required style={{ padding: '8px' }} />
-                </div>
-              </div>
+                  <div className="form-row" style={{ gap: '12px' }}>
+                    <div className="form-group">
+                      <label>Serial No.</label>
+                      <input type="text" name="serial_no" value={formData.serial_no} onChange={handleInputChange} style={{ padding: '8px' }} />
+                    </div>
+                    <div className="form-group">
+                      <label>Property Custodian</label>
+                      <input type="text" name="property_custodian" value={formData.property_custodian} onChange={handleInputChange} style={{ padding: '8px' }} />
+                    </div>
+                  </div>
 
-              <div className="form-row" style={{ gap: '12px' }}>
-                <div className="form-group">
-                  <label>Acquisition Cost</label>
-                  <input type="number" name="acquisition_cost" value={formData.acquisition_cost} onChange={handleInputChange} step="0.01" min="0" placeholder="0.00" style={{ padding: '8px' }} />
-                </div>
-                <div className="form-group">
-                  <label>Date Acquired *</label>
-                  <input type="date" name="date_acquired" value={formData.date_acquired} onChange={handleInputChange} required style={{ padding: '8px' }} />
-                </div>
-              </div>
+                  <div className="form-row" style={{ gap: '12px' }}>
+                    <div className="form-group">
+                      <label>Quantity *</label>
+                      <input type="number" name="quantity" value={formData.quantity} onChange={handleInputChange} required placeholder="0" style={{ padding: '8px' }} />
+                    </div>
+                    <div className="form-group">
+                      <label>Unit *</label>
+                      <input type="text" name="unit" value={formData.unit} onChange={handleInputChange} placeholder="e.g. pcs, boxes" required style={{ padding: '8px' }} />
+                    </div>
+                  </div>
 
-              <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '8px', padding: '8px 0' }}>
-                <input type="checkbox" id="serviceable" name="serviceable" checked={formData.serviceable} onChange={handleInputChange} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
-                <label htmlFor="serviceable" style={{ marginBottom: 0, fontWeight: '700', cursor: 'pointer' }}>Serviceable</label>
-              </div>
+                  <div className="form-row" style={{ gap: '12px' }}>
+                    <div className="form-group">
+                      <label>Acquisition Cost</label>
+                      <input type="number" name="acquisition_cost" value={formData.acquisition_cost} onChange={handleInputChange} step="0.01" min="0" placeholder="0.00" style={{ padding: '8px' }} />
+                    </div>
+                    <div className="form-group">
+                      <label>Date Acquired *</label>
+                      <input type="date" name="date_acquired" value={formData.date_acquired} onChange={handleInputChange} required style={{ padding: '8px' }} />
+                    </div>
+                  </div>
 
-              <div className="form-group">
-                <label>Remarks</label>
-                <textarea name="remarks" value={formData.remarks} onChange={handleInputChange} rows={3} style={{ padding: '8px' }}></textarea>
-              </div>
+                  <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '8px', padding: '8px 0' }}>
+                    <input type="checkbox" id="serviceable" name="serviceable" checked={formData.serviceable} onChange={handleInputChange} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+                    <label htmlFor="serviceable" style={{ marginBottom: 0, fontWeight: '700', cursor: 'pointer' }}>Serviceable</label>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Remarks</label>
+                    <textarea name="remarks" value={formData.remarks} onChange={handleInputChange} rows={2} style={{ padding: '8px' }}></textarea>
+                  </div>
+
+                </div>
+              </fieldset>
             </div>
-            )}
-          </fieldset>
 
-          {/* Photos Section */}
-          {activeTab === 'photos' && (
-          <div style={{ marginTop: '8px', minHeight: '350px' }}>
-            <h4 style={{ margin: '0 0 12px 0', color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              Item Photos
-              {!isViewing && (
-                <div style={{ position: 'relative' }}>
-                  <input 
-                    type="file" 
-                    multiple 
-                    accept="image/*" 
-                    onChange={handleFileUpload}
-                    disabled={isUploading || isSaving}
-                    style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: 10 }} 
-                  />
-                  <button 
-                    type="button" 
-                    className="btn-primary" 
-                    disabled={isUploading || isSaving}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                  >
-                    {(isUploading || isSaving) ? <i className="ri-loader-4-line ri-spin" style={{ fontSize: '16px' }}></i> : <i className="ri-camera-line" style={{ fontSize: '16px' }}></i>}
-                    {(isUploading || isSaving) ? 'Uploading...' : 'Add Photos'}
-                  </button>
-                </div>
-              )}
-            </h4>
-            
-            {(!formData.photos || formData.photos.length === 0) && pendingPhotos.length === 0 ? (
-              <div style={{
-                padding: '40px 20px',
-                textAlign: 'center',
-                background: '#f8fafc',
-                borderRadius: '8px',
-                border: '2px dashed var(--border-light)',
-                color: 'var(--text-muted)'
-              }}>
-                <i className="ri-image-line" style={{ fontSize: '48px', color: 'var(--border-dark)' }}></i>
-                <p style={{ marginTop: '12px', fontWeight: '600' }}>No photos uploaded for this item yet.</p>
-              </div>
-            ) : (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-                gap: '16px'
-              }}>
-                {/* Existing Photos */}
-                {formData.photos && formData.photos.map((url, idx) => (
-                  <div key={`existing-${idx}`} style={{ 
-                    position: 'relative', 
-                    aspectRatio: '1', 
-                    borderRadius: '8px', 
-                    overflow: 'hidden',
-                    border: '1px solid var(--border-light)'
-                  }}>
-                    <a href={url} target="_blank" rel="noopener noreferrer">
-                      <img 
-                        src={url} 
-                        alt={`Item photo ${idx + 1}`} 
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+            {/* Right: Photos */}
+            <div className="inventory-photos-col">
+              <div style={{ minHeight: '350px', display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <h4 style={{ margin: '0 0 12px 0', color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  Item Photos
+                  {!isViewing && (
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        disabled={isUploading || isSaving}
+                        style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: 10 }}
                       />
-                    </a>
-                    {!isViewing && (
                       <button
                         type="button"
-                        onClick={(e) => { e.preventDefault(); removeExistingPhoto(idx); }}
-                        style={{
-                          position: 'absolute',
-                          top: '6px',
-                          right: '6px',
-                          background: 'rgba(239, 68, 68, 0.9)',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '50%',
-                          width: '24px',
-                          height: '24px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                        }}
-                        title="Remove photo"
+                        className="btn-primary"
+                        disabled={isUploading || isSaving}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                       >
-                        <i className="ri-close-line" style={{ fontSize: '14px' }}></i>
+                        {(isUploading || isSaving) ? <i className="ri-loader-4-line ri-spin" style={{ fontSize: '16px' }}></i> : <i className="ri-camera-line" style={{ fontSize: '16px' }}></i>}
+                        {(isUploading || isSaving) ? 'Uploading...' : 'Add Photos'}
                       </button>
-                    )}
-                  </div>
-                ))}
-
-                {/* Pending Photos */}
-                {pendingPhotos.map((file, idx) => {
-                  const objectUrl = URL.createObjectURL(file);
-                  return (
-                    <div key={`pending-${idx}`} style={{ 
-                      position: 'relative', 
-                      aspectRatio: '1', 
-                      borderRadius: '8px', 
-                      overflow: 'hidden',
-                      border: '1px solid var(--primary)',
-                      opacity: isUploading ? 0.6 : 1
-                    }}>
-                      <img 
-                        src={objectUrl} 
-                        alt={`Pending photo ${idx + 1}`} 
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                        onLoad={() => URL.revokeObjectURL(objectUrl)}
-                      />
-                      {!isViewing && !isUploading && (
-                        <button
-                          type="button"
-                          onClick={(e) => { e.preventDefault(); removePendingPhoto(idx); }}
-                          style={{
-                            position: 'absolute',
-                            top: '6px',
-                            right: '6px',
-                            background: 'rgba(239, 68, 68, 0.9)',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '50%',
-                            width: '24px',
-                            height: '24px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                          }}
-                          title="Remove photo"
-                        >
-                          <i className="ri-close-line" style={{ fontSize: '14px' }}></i>
-                        </button>
-                      )}
-                      {isUploading && (
-                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', color: 'white' }}>
-                          <i className="ri-loader-4-line ri-spin" style={{ fontSize: '24px' }}></i>
-                        </div>
-                      )}
                     </div>
-                  );
-                })}
+                  )}
+                </h4>
+
+                {(!formData.photos || formData.photos.length === 0) && pendingPhotos.length === 0 ? (
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '40px 20px',
+                      textAlign: 'center',
+                      background: isDragging ? 'var(--primary-bg)' : '#f8fafc',
+                      borderRadius: '8px',
+                      border: `2px dashed ${isDragging ? 'var(--primary)' : 'var(--border-light)'}`,
+                      color: isDragging ? 'var(--primary)' : 'var(--text-muted)',
+                      transition: 'all 0.2s',
+                      position: 'relative'
+                    }}
+                  >
+                    {!isViewing && (
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        disabled={isUploading || isSaving}
+                        style={{ position: 'absolute', inset: 0, opacity: 0, cursor: isDragging ? 'copy' : 'pointer', zIndex: 10 }}
+                      />
+                    )}
+                    <i className="ri-image-line" style={{ fontSize: '48px', color: isDragging ? 'var(--primary)' : 'var(--border-light)', transition: 'all 0.2s' }}></i>
+                    <p style={{ marginTop: '12px', fontWeight: '600' }}>{isDragging ? 'Drop photos here' : 'No photos uploaded for this item yet.'}</p>
+                    {!isViewing && <p style={{ fontSize: '12px', marginTop: '4px', opacity: 0.7 }}>Drag and drop or click to upload</p>}
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '12px' }}>
+                    {/* Existing Photos */}
+                    {formData.photos && formData.photos.map((url, idx) => (
+                      <div key={`existing-${idx}`} style={{ position: 'relative', aspectRatio: '1', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
+                        <a href={url} target="_blank" rel="noopener noreferrer">
+                          <img src={url} alt={`Item photo ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </a>
+                        {!isViewing && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); removeExistingPhoto(idx); }}
+                            style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(239, 68, 68, 0.9)', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
+                            title="Remove photo"
+                          >
+                            <i className="ri-close-line" style={{ fontSize: '14px' }}></i>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {/* Pending Photos */}
+                    {pendingPhotos.map((file, idx) => {
+                      const objectUrl = URL.createObjectURL(file);
+                      return (
+                        <div key={`pending-${idx}`} style={{ position: 'relative', aspectRatio: '1', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--primary)', opacity: isUploading ? 0.6 : 1 }}>
+                          <img src={objectUrl} alt={`Pending ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onLoad={() => URL.revokeObjectURL(objectUrl)} />
+                          {!isViewing && !isUploading && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); removePendingPhoto(idx); }}
+                              style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(239, 68, 68, 0.9)', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
+                            >
+                              <i className="ri-close-line" style={{ fontSize: '14px' }}></i>
+                            </button>
+                          )}
+                          {isUploading && (
+                            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', color: 'white' }}>
+                              <i className="ri-loader-4-line ri-spin" style={{ fontSize: '24px' }}></i>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+
           </div>
-          )}
 
           <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
             <div></div>
@@ -754,7 +750,7 @@ const handleOpenAdd = () => {
               <div style={{ display: 'flex', gap: '12px' }}>
                 {isAdmin && (
                   <>
-                    <button 
+                    <button
                       type="button"
                       className="btn-delete"
                       onClick={handleDeleteFromView}
@@ -762,7 +758,7 @@ const handleOpenAdd = () => {
                     >
                       <i className="ri-delete-bin-line" style={{ marginRight: '6px' }}></i> Delete
                     </button>
-                    <button 
+                    <button
                       type="button"
                       className="btn-submit"
                       onClick={handleEditFromView}
@@ -773,16 +769,12 @@ const handleOpenAdd = () => {
                   </>
                 )}
                 {!isAdmin && (
-                   <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
-                     Close
-                   </button>
+                  <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>Close</button>
                 )}
               </div>
             ) : (
               <div style={{ display: 'flex', gap: '12px' }}>
-                <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
-                  Cancel
-                </button>
+                <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>Cancel</button>
                 <button type="submit" className="btn-submit" disabled={isSaving}>
                   {isSaving ? 'Saving...' : 'Save'}
                 </button>
