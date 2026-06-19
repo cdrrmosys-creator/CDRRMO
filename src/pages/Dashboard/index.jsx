@@ -23,7 +23,7 @@ const SEVERITY_PALETTE = ['#16a34a','#d97706','#ea580c','#dc2626']
 const DUTY_PALETTE     = ['#16a34a','#dc2626','#2563eb','#d97706']
 const VEH_PALETTE      = ['#16a34a','#d97706','#dc2626','#6b7280']
 const VOL_PALETTE      = ['#16a34a','#dc2626','#6b7280']
-const INV_PALETTE      = ['#16a34a','#d97706','#dc2626','#6b7280']
+const INV_PALETTE      = ['#16a34a','#dc2626']
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function groupBy(arr, key) {
@@ -227,7 +227,7 @@ export default function Dashboard() {
         supabase.from('incidents').select('severity, incident_type, date_time, location, record_id').order('date_time', { ascending:false }),
         supabase.from('vehicles').select('status'),
         supabase.from('volunteers').select('status'),
-        supabase.from('inventory').select('condition'),
+        supabase.from('inventory').select('serviceable'),
       ])
 
       // Employee duty status
@@ -270,12 +270,14 @@ export default function Dashboard() {
       ])
 
       // Inventory condition
-      const nc = groupBy(invD.data, 'condition')
+      const invCounts = (invD.data || []).reduce((acc, item) => {
+        if (item.serviceable !== false) acc['Serviceable'] = (acc['Serviceable'] || 0) + 1;
+        else acc['Not Serviceable'] = (acc['Not Serviceable'] || 0) + 1;
+        return acc;
+      }, {})
       setInvCond([
-        { name:'Good',      value: nc['Good']      || 0 },
-        { name:'Fair',      value: nc['Fair']      || 0 },
-        { name:'Poor',      value: nc['Poor']      || 0 },
-        { name:'Condemned', value: nc['Condemned'] || 0 },
+        { name:'Serviceable',     value: invCounts['Serviceable']     || 0 },
+        { name:'Not Serviceable', value: invCounts['Not Serviceable'] || 0 },
       ])
     } catch (err) {
       console.error('Dashboard error:', err)
@@ -533,20 +535,26 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* Inventory Condition — bar */}
+        {/* Inventory Condition — pie */}
         <Card title="Inventory Condition" icon="ri-archive-drawer-line">
           {loading ? <Skeleton /> : (
             <>
               <ResponsiveContainer width="100%" height={170}>
-                <BarChart data={invCondData} margin={{ top:4, right:4, left:-28, bottom:0 }} barSize={26}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize:10, fontWeight:600 }} axisLine={false} tickLine={false} />
-                  <YAxis allowDecimals={false} tick={{ fontSize:10 }} axisLine={false} tickLine={false} />
+                <PieChart>
+                  <Pie
+                    data={invCondData.some(d => d.value > 0) ? invCondData : [{ name:'No data', value:1 }]}
+                    cx="50%" cy="50%"
+                    innerRadius={42} outerRadius={70}
+                    paddingAngle={3} dataKey="value"
+                    labelLine={false} label={renderPieLabel}
+                  >
+                    {invCondData.some(d => d.value > 0)
+                      ? invCondData.map((_, i) => <Cell key={i} fill={INV_PALETTE[i % INV_PALETTE.length]} />)
+                      : <Cell fill="var(--border-light)" />
+                    }
+                  </Pie>
                   <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="value" name="Items" radius={[5,5,0,0]}>
-                    {invCondData.map((_, i) => <Cell key={i} fill={INV_PALETTE[i % INV_PALETTE.length]} />)}
-                  </Bar>
-                </BarChart>
+                </PieChart>
               </ResponsiveContainer>
               <LegendPills items={invCondData.map((d, i) => ({ name:d.name, value:d.value, color:INV_PALETTE[i] }))} />
             </>

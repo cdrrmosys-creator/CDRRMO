@@ -14,7 +14,10 @@ const INITIAL_FORM_STATE = {
   amount: '',
   purpose: '',
   date: '',
-  status: 'Pending'
+  status: 'Pending',
+  has_insurance: false,
+  insurance_number: '',
+  insurance_id: ''
 }
 
 export default function Vouchers() {
@@ -128,14 +131,20 @@ export default function Vouchers() {
       amount: v.amount || '',
       purpose: v.purpose || '',
       date: v.date || '',
-      status: v.status || 'Pending'
+      status: v.status || 'Pending',
+      has_insurance: v.has_insurance || false,
+      insurance_number: v.insurance_number || '',
+      insurance_id: v.insurance_id || ''
     })
     setIsModalOpen(true)
   }
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+    const { name, value, type, checked } = e.target
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: type === 'checkbox' ? checked : value 
+    }))
   }
 
   const handleSubmit = async (e) => {
@@ -145,7 +154,9 @@ export default function Vouchers() {
     try {
       const payload = {
         ...formData,
-        amount: parseFloat(formData.amount)
+        amount: parseFloat(formData.amount),
+        insurance_number: formData.has_insurance ? formData.insurance_number : null,
+        insurance_id: formData.has_insurance ? formData.insurance_id : null
       }
 
       if (isEditing) {
@@ -197,6 +208,27 @@ export default function Vouchers() {
     } catch (err) {
       console.error('Error deleting voucher:', err)
       toast.error('Failed to delete voucher: ' + err.message)
+    }
+  }
+
+  const handleStatusChange = async (e, id) => {
+    e.stopPropagation()
+    const newStatus = e.target.value
+    
+    try {
+      const { error } = await supabase
+        .from('vouchers')
+        .update({ status: newStatus })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setVouchers(vouchers.map(v => v.id === id ? { ...v, status: newStatus } : v))
+      toast.success('Status updated successfully!')
+      await logAudit('Updated', 'Vouchers', id, `Updated status to ${newStatus}`)
+    } catch (err) {
+      console.error('Error updating status:', err)
+      toast.error('Failed to update status: ' + err.message)
     }
   }
 
@@ -348,6 +380,7 @@ export default function Vouchers() {
                 <th>Beneficiary</th>
                 <th>Purpose</th>
                 <th>Amount</th>
+                <th>Insurance</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -380,7 +413,48 @@ export default function Vouchers() {
                   <td style={{ fontFamily: 'monospace', fontWeight: '700', color: '#16a34a' }}>
                     {formatCurrency(voucher.amount)}
                   </td>
-                  <td>{getStatusBadge(voucher.status)}</td>
+                  <td>
+                    {voucher.has_insurance ? (
+                      <span style={{ padding: '4px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: '700', background: '#dbeafe', color: '#1e40af' }}>
+                        With Insurance
+                      </span>
+                    ) : (
+                      <span style={{ padding: '4px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: '700', background: '#f3f4f6', color: '#4b5563' }}>
+                        Without Insurance
+                      </span>
+                    )}
+                  </td>
+                  <td onClick={(e) => isAdmin ? e.stopPropagation() : undefined}>
+                    {isAdmin ? (
+                      <select 
+                        value={voucher.status || 'Pending'}
+                        onChange={(e) => handleStatusChange(e, voucher.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          border: '1px solid var(--border-light)',
+                          background: voucher.status === 'Approved' ? '#d1fae5' :
+                                      voucher.status === 'Paid' ? '#dbeafe' :
+                                      voucher.status === 'Rejected' ? '#fee2e2' : '#fef3c7',
+                          color: voucher.status === 'Approved' ? '#065f46' :
+                                 voucher.status === 'Paid' ? '#1e40af' :
+                                 voucher.status === 'Rejected' ? '#991b1b' : '#92400e',
+                          cursor: 'pointer',
+                          outline: 'none'
+                        }}
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="Approved">Approved</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Rejected">Rejected</option>
+                      </select>
+                    ) : (
+                      getStatusBadge(voucher.status)
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -462,6 +536,56 @@ export default function Vouchers() {
               <option value="Paid">Paid</option>
               <option value="Rejected">Rejected</option>
             </select>
+          </div>
+
+          <div style={{
+            background: 'var(--bg-app)',
+            border: '1px solid var(--border-light)',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: '16px',
+            marginTop: '8px'
+          }}>
+            <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '8px', padding: formData.has_insurance ? '0 0 16px 0' : '0', marginBottom: formData.has_insurance ? '16px' : '0', borderBottom: formData.has_insurance ? '1px solid var(--border-light)' : 'none' }}>
+              <input 
+                type="checkbox" 
+                id="has_insurance" 
+                name="has_insurance" 
+                checked={formData.has_insurance} 
+                onChange={handleInputChange} 
+                style={{ width: '16px', height: '16px', cursor: 'pointer' }} 
+              />
+              <label htmlFor="has_insurance" style={{ marginBottom: 0, fontWeight: '700', cursor: 'pointer', color: 'var(--text)' }}>With Insurance</label>
+            </div>
+
+            {formData.has_insurance && (
+              <div className="form-row" style={{ marginBottom: 0 }}>
+                <div className="form-group">
+                  <label>Insurance Number *</label>
+                  <input 
+                    type="text" 
+                    name="insurance_number" 
+                    value={formData.insurance_number} 
+                    onChange={handleInputChange} 
+                    required={formData.has_insurance} 
+                    placeholder="Enter Insurance Number"
+                    style={{ background: 'var(--bg-surface)' }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Insurance ID *</label>
+                  <input 
+                    type="text" 
+                    name="insurance_id" 
+                    value={formData.insurance_id} 
+                    onChange={handleInputChange} 
+                    required={formData.has_insurance} 
+                    placeholder="Enter Insurance ID"
+                    style={{ background: 'var(--bg-surface)' }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="form-group">
