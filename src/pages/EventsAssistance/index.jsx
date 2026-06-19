@@ -1,12 +1,15 @@
 import ModuleToolbar from '../../components/ModuleToolbar'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+} from 'recharts'
 
 const INITIAL_FORM_STATE = {
   record_id: '',
@@ -38,6 +41,7 @@ export default function EventsAssistance() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filter, setFilter] = useState('')
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
 
   useEffect(() => {
     loadRecords()
@@ -68,6 +72,38 @@ export default function EventsAssistance() {
 
     return matchesSearch && matchesFilter && matchesDate
   })
+
+  // Available years derived from records
+  const availableYears = useMemo(() => {
+    const years = new Set()
+    records.forEach(rec => {
+      if (rec.date) years.add(parseISO(rec.date).getFullYear())
+    })
+    years.add(new Date().getFullYear())
+    return Array.from(years).sort((a, b) => b - a)
+  }, [records])
+
+  // Build monthly trend data for selected year
+  const monthlyTrend = useMemo(() => {
+    const months = []
+    for (let m = 0; m < 12; m++) {
+      const d = new Date(selectedYear, m, 1)
+      months.push({
+        key: `${selectedYear}-${String(m + 1).padStart(2, '0')}`,
+        label: format(d, 'MMM'),
+        count: 0
+      })
+    }
+    records.forEach(rec => {
+      if (!rec.date) return
+      const d = parseISO(rec.date)
+      if (d.getFullYear() !== selectedYear) return
+      const key = `${selectedYear}-${String(d.getMonth() + 1).padStart(2, '00')}`
+      const m = months.find(x => x.key === key)
+      if (m) m.count++
+    })
+    return months
+  }, [records, selectedYear])
 
   const loadRecords = async () => {
     try {
@@ -255,6 +291,73 @@ const handleOpenAdd = () => {
       </div>
 
       
+      {/* Monthly Trend Line Chart */}
+      {records.length > 0 && (
+        <div style={{
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border-light)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '20px 24px',
+          marginBottom: '24px',
+          boxShadow: 'var(--shadow-sm)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                <i className="ri-line-chart-line" style={{ marginRight: '8px', color: 'var(--primary)' }}></i>
+                Events Needing Assistance per Month
+              </h3>
+              <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>Monthly breakdown for selected year</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <select
+                value={selectedYear}
+                onChange={e => setSelectedYear(Number(e.target.value))}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-light)',
+                  background: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  fontWeight: '700',
+                  fontSize: '14px',
+                  cursor: 'pointer'
+                }}
+              >
+                {availableYears.map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '28px', fontWeight: '800', color: 'var(--primary)' }}>
+                  {monthlyTrend.reduce((s, m) => s + m.count, 0)}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>TOTAL IN {selectedYear}</div>
+              </div>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={monthlyTrend} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} />
+              <Tooltip
+                contentStyle={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '13px' }}
+                formatter={(value) => [value, 'Events']}
+              />
+              <Line
+                type="monotone"
+                dataKey="count"
+                stroke="var(--primary)"
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: 'var(--primary)', strokeWidth: 2, stroke: '#fff' }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
       {records.length > 0 && (
         <ModuleToolbar 
           onSearch={setSearchTerm}

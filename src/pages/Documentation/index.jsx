@@ -7,6 +7,7 @@ import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
+import TrainingRegistrations from './TrainingRegistrations'
 
 const INITIAL_FORM_STATE = {
   record_id: '',
@@ -32,6 +33,7 @@ const DOC_TYPES = [
 ]
 
 export default function Documentation() {
+  const [activeTab, setActiveTab] = useState('archive')
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -283,6 +285,47 @@ const handleOpenAdd = () => {
 
   return (
     <div>
+      {/* Tab Bar */}
+      <div style={{
+        display: 'flex',
+        gap: '4px',
+        borderBottom: '2px solid var(--border-light)',
+        marginBottom: '24px',
+        paddingBottom: '0'
+      }}>
+        {[
+          { key: 'archive', label: 'Documentation Archive', icon: 'ri-folder-line' },
+          { key: 'registrations', label: 'Training Registrations', icon: 'ri-user-add-line' }
+        ].map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            style={{
+              padding: '10px 20px',
+              border: 'none',
+              borderBottom: activeTab === tab.key ? '3px solid var(--primary)' : '3px solid transparent',
+              background: 'none',
+              cursor: 'pointer',
+              fontWeight: activeTab === tab.key ? '700' : '500',
+              color: activeTab === tab.key ? 'var(--primary)' : 'var(--text-muted)',
+              fontSize: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.15s',
+              marginBottom: '-2px'
+            }}
+          >
+            <i className={tab.icon}></i>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'registrations' ? (
+        <TrainingRegistrations />
+      ) : (
+      <div>
       <div className="page-header">
         <h2>
           <i className="ri-folder-line" style={{ marginRight: '12px' }}></i>
@@ -503,6 +546,8 @@ const handleOpenAdd = () => {
           </div>
         </form>
       </Modal>
+    </div>
+    )}
     </div>
   )
 }
