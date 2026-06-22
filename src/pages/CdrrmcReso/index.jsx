@@ -7,13 +7,15 @@ import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
+import { uploadFile, deleteFiles } from '../../services/storage'
 
 const INITIAL_FORM_STATE = {
   record_id: '',
   resolution_no: '',
   title: '',
   date_passed: '',
-  description: ''
+  description: '',
+  files: []
 }
 
 export default function CdrrmcReso() {
@@ -28,10 +30,15 @@ export default function CdrrmcReso() {
   const [isEditing, setIsEditing] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
+
+  // File states
+  const [isUploading, setIsUploading] = useState(false)
+  const [pendingFiles, setPendingFiles] = useState([])
+  const [isDragging, setIsDragging] = useState(false)
+
   const isAdmin = useIsAdmin()
   const toast = useToast()
   const confirm = useConfirm()
-
 
   // Toolbar states
   const [searchTerm, setSearchTerm] = useState('')
@@ -107,6 +114,7 @@ const handleOpenAdd = () => {
     setIsEditing(false)
     setIsViewing(false)
     setSelectedId(null)
+    setPendingFiles([])
     const year = new Date().getFullYear()
     const rand = Math.floor(1000 + Math.random() * 9000)
     const todayStr = new Date().toISOString().split('T')[0]
@@ -123,12 +131,14 @@ const handleOpenAdd = () => {
     setIsEditing(true)
     setIsViewing(false)
     setSelectedId(rec.id)
+    setPendingFiles([])
     setFormData({
       record_id: rec.record_id || '',
       resolution_no: rec.resolution_no || '',
       title: rec.title || '',
       date_passed: rec.date_passed || '',
-      description: rec.description || ''
+      description: rec.description || '',
+      files: rec.files || []
     })
     setIsModalOpen(true)
   }
@@ -138,15 +148,82 @@ const handleOpenAdd = () => {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
+  const handleDragOver = (e) => {
+    if (isViewing) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    if (isViewing) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e) => {
+    if (isViewing) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileUpload({ target: { files: e.dataTransfer.files } });
+    }
+  };
+
+  const handleFileUpload = (e) => {
+    const files = Array.from(e.target.files)
+    if (!files || files.length === 0) return
+    setPendingFiles(prev => [...prev, ...files])
+  }
+
+  const removeExistingFile = (indexToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      files: prev.files.filter((_, idx) => idx !== indexToRemove)
+    }))
+  }
+
+  const removePendingFile = (indexToRemove) => {
+    setPendingFiles(prev => prev.filter((_, idx) => idx !== indexToRemove))
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsSaving(true)
 
     try {
+      let newFileUrls = []
+      
+      if (pendingFiles.length > 0) {
+        setIsUploading(true)
+        try {
+          for (const file of pendingFiles) {
+            // Note: We do NOT compress images here to preserve documents
+            const path = `reso-files/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+            const url = await uploadFile('reso-files', path, file)
+            newFileUrls.push(url)
+          }
+        } catch (error) {
+          console.error('Upload error:', error)
+          toast.error('Failed to upload some files. Did you run the Supabase storage script?')
+          throw error 
+        } finally {
+          setIsUploading(false)
+        }
+      }
+
+      const payload = {
+        ...formData,
+        files: [...(formData.files || []), ...newFileUrls]
+      }
+
       if (isEditing) {
         const { data, error } = await supabase
           .from('cdrrmc_reso')
-          .update(formData)
+          .update(payload)
           .eq('id', selectedId)
           .select()
 
@@ -157,7 +234,7 @@ const handleOpenAdd = () => {
       } else {
         const { data, error } = await supabase
           .from('cdrrmc_reso')
-          .insert([formData])
+          .insert([payload])
           .select()
 
         if (error) throw error
@@ -178,6 +255,20 @@ const handleOpenAdd = () => {
     if (!ok) return
 
     try {
+      const recordToDelete = records.find(item => item.id === id)
+      if (recordToDelete && recordToDelete.files && recordToDelete.files.length > 0) {
+        const pathsToDelete = recordToDelete.files
+          .map(url => {
+            const idx = url.indexOf('reso-files/')
+            return idx !== -1 ? url.substring(idx) : null
+          })
+          .filter(Boolean)
+        
+        if (pathsToDelete.length > 0) {
+          await deleteFiles('reso-files', pathsToDelete)
+        }
+      }
+
       const { error } = await supabase
         .from('cdrrmc_reso')
         .delete()
@@ -192,6 +283,28 @@ const handleOpenAdd = () => {
       console.error('Error deleting resolution record:', err)
       toast.error('Failed to delete record: ' + err.message)
     }
+  }
+
+  // Helper to get a clean filename from a URL or File object
+  const getDisplayFilename = (fileOrUrl) => {
+    if (typeof fileOrUrl === 'string') {
+      const parts = fileOrUrl.split('/');
+      const filenameWithTime = parts[parts.length - 1];
+      // remove the timestamp prefix (e.g., 1718223452-my_doc.pdf)
+      return filenameWithTime.replace(/^\d+-/, '');
+    } else {
+      return fileOrUrl.name;
+    }
+  }
+
+  // Helper to determine icon based on filename
+  const getFileIcon = (filename) => {
+    const ext = filename.split('.').pop().toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext)) return 'ri-image-line';
+    if (['pdf'].includes(ext)) return 'ri-file-pdf-line';
+    if (['doc', 'docx'].includes(ext)) return 'ri-file-word-line';
+    if (['xls', 'xlsx'].includes(ext)) return 'ri-file-excel-line';
+    return 'ri-file-text-line';
   }
 
   if (loading) {
@@ -331,72 +444,266 @@ const handleOpenAdd = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={isViewing ? 'View Details' : (isEditing ? 'Edit CDRRMC Resolution' : 'Add CDRRMC Resolution')}
+        maxWidth="1000px"
       >
+        <style>{`
+          .reso-form-layout {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 32px;
+          }
+          .reso-details-col {
+            flex: 1 1 450px;
+            min-width: 0;
+          }
+          .reso-files-col {
+            flex: 1 1 350px;
+            min-width: 0;
+            border-left: 2px solid var(--border-light);
+            padding-left: 32px;
+          }
+          .file-item-card {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            background: #fff;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            gap: 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+          }
+          .file-item-card:hover {
+            border-color: var(--primary);
+          }
+          .file-item-icon {
+            font-size: 20px;
+            color: var(--primary);
+            flex-shrink: 0;
+          }
+          .file-item-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text);
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .file-item-delete {
+            color: #ef4444;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .file-item-delete:hover {
+            background: #fee2e2;
+          }
+          @media (max-width: 1050px) {
+            .reso-form-layout {
+              flex-direction: column;
+              gap: 24px;
+            }
+            .reso-files-col {
+              border-left: none;
+              padding-left: 0;
+              border-top: 2px solid var(--border-light);
+              padding-top: 24px;
+            }
+          }
+        `}</style>
         <form onSubmit={handleSubmit} className="modal-form">
-          <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Record ID *</label>
-              <input 
-                type="text" 
-                name="record_id" 
-                value={formData.record_id} 
-                onChange={handleInputChange} 
-                required 
-               disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
+          <div className="reso-form-layout">
+            <div className="reso-details-col">
+              <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Record ID *</label>
+                      <input 
+                        type="text" 
+                        name="record_id" 
+                        value={formData.record_id} 
+                        onChange={handleInputChange} 
+                        required 
+                        disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
+                    </div>
+                    <div className="form-group">
+                      <label>Resolution No. *</label>
+                      <input 
+                        type="text" 
+                        name="resolution_no" 
+                        value={formData.resolution_no} 
+                        onChange={handleInputChange} 
+                        required 
+                        placeholder="e.g. Res. No. 12, S-2026"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                      <label>Resolution Title *</label>
+                      <input 
+                        type="text" 
+                        name="title" 
+                        value={formData.title} 
+                        onChange={handleInputChange} 
+                        required 
+                        placeholder="e.g. Declaration of State of Calamity"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Date Passed *</label>
+                    <input 
+                      type="date" 
+                      name="date_passed" 
+                      value={formData.date_passed} 
+                      onChange={handleInputChange} 
+                      required 
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Description / Notes</label>
+                    <textarea 
+                      name="description" 
+                      value={formData.description} 
+                      onChange={handleInputChange} 
+                      rows={5} 
+                      placeholder="State the resolution details..."
+                    />
+                  </div>
+                </div>
+              </fieldset>
             </div>
-            <div className="form-group">
-              <label>Resolution No. *</label>
-              <input 
-                type="text" 
-                name="resolution_no" 
-                value={formData.resolution_no} 
-                onChange={handleInputChange} 
-                required 
-                placeholder="e.g. Res. No. 12, S-2026"
-              />
+
+            <div className="reso-files-col">
+              <div style={{ minHeight: '350px', display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <h4 style={{ margin: '0 0 12px 0', color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  Attachments
+                  {!isViewing && (
+                    <div style={{ position: 'relative' }}>
+                      <input 
+                        type="file" 
+                        multiple 
+                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" 
+                        onChange={handleFileUpload}
+                        disabled={isUploading || isSaving}
+                        style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: 10 }} 
+                      />
+                      <button 
+                        type="button" 
+                        className="btn-primary" 
+                        disabled={isUploading || isSaving}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                      >
+                        {(isUploading || isSaving) ? <i className="ri-loader-4-line ri-spin" style={{ fontSize: '16px' }}></i> : <i className="ri-attachment-line" style={{ fontSize: '16px' }}></i>}
+                        {(isUploading || isSaving) ? 'Uploading...' : 'Add Files'}
+                      </button>
+                    </div>
+                  )}
+                </h4>
+                
+                {(!formData.files || formData.files.length === 0) && pendingFiles.length === 0 ? (
+                  <div 
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '40px 20px',
+                      textAlign: 'center',
+                      background: isDragging ? 'var(--primary-bg)' : '#f8fafc',
+                      borderRadius: '8px',
+                      border: `2px dashed ${isDragging ? 'var(--primary)' : 'var(--border-light)'}`,
+                      color: isDragging ? 'var(--primary)' : 'var(--text-muted)',
+                      transition: 'all 0.2s',
+                      position: 'relative'
+                    }}>
+                    {!isViewing && (
+                      <input 
+                        type="file" 
+                        multiple 
+                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" 
+                        onChange={handleFileUpload}
+                        disabled={isUploading || isSaving}
+                        style={{ position: 'absolute', inset: 0, opacity: 0, cursor: isDragging ? 'copy' : 'pointer', zIndex: 10 }} 
+                      />
+                    )}
+                    <i className="ri-file-upload-line" style={{ fontSize: '48px', color: isDragging ? 'var(--primary)' : 'var(--border-light)', transition: 'all 0.2s' }}></i>
+                    <p style={{ marginTop: '12px', fontWeight: '600' }}>{isDragging ? 'Drop files here' : 'No files attached yet.'}</p>
+                    {!isViewing && <p style={{ fontSize: '12px', marginTop: '4px', opacity: 0.7 }}>Drag and drop documents or click to upload</p>}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    {formData.files && formData.files.map((url, idx) => (
+                      <div key={`existing-${idx}`} className="file-item-card">
+                        <i className={`${getFileIcon(getDisplayFilename(url))} file-item-icon`}></i>
+                        <a 
+                          href={url} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="file-item-name"
+                          style={{ textDecoration: 'none' }}
+                          title={getDisplayFilename(url)}
+                        >
+                          {getDisplayFilename(url)}
+                        </a>
+                        {!isViewing && (
+                          <button
+                            type="button"
+                            className="file-item-delete"
+                            onClick={(e) => { e.preventDefault(); removeExistingFile(idx); }}
+                            title="Remove file"
+                          >
+                            <i className="ri-delete-bin-line"></i>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+
+                    {pendingFiles.map((file, idx) => (
+                      <div key={`pending-${idx}`} className="file-item-card" style={{ opacity: isUploading ? 0.6 : 1, borderColor: isUploading ? 'var(--border-light)' : 'var(--primary)' }}>
+                        {isUploading ? (
+                          <i className="ri-loader-4-line ri-spin file-item-icon"></i>
+                        ) : (
+                          <i className={`${getFileIcon(getDisplayFilename(file))} file-item-icon`}></i>
+                        )}
+                        <span className="file-item-name" title={getDisplayFilename(file)}>
+                          {getDisplayFilename(file)}
+                        </span>
+                        {!isViewing && !isUploading && (
+                          <button
+                            type="button"
+                            className="file-item-delete"
+                            onClick={(e) => { e.preventDefault(); removePendingFile(idx); }}
+                            title="Remove file"
+                          >
+                            <i className="ri-close-line"></i>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="form-row">
-            <div className="form-group" style={{ gridColumn: 'span 2' }}>
-              <label>Resolution Title *</label>
-              <input 
-                type="text" 
-                name="title" 
-                value={formData.title} 
-                onChange={handleInputChange} 
-                required 
-                placeholder="e.g. Declaration of State of Calamity"
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>Date Passed *</label>
-            <input 
-              type="date" 
-              name="date_passed" 
-              value={formData.date_passed} 
-              onChange={handleInputChange} 
-              required 
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Description / Notes</label>
-            <textarea 
-              name="description" 
-              value={formData.description} 
-              onChange={handleInputChange} 
-              rows={3} 
-              placeholder="State the resolution details..."
-            />
-          </div>
-
-          </fieldset>
-
-          <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
             <div></div>
             {isViewing ? (
               <div style={{ display: 'flex', gap: '12px' }}>
@@ -431,8 +738,8 @@ const handleOpenAdd = () => {
                 <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-submit" disabled={isSaving}>
-                  {isSaving ? 'Saving...' : 'Save'}
+                <button type="submit" className="btn-submit" disabled={isSaving || isUploading}>
+                  {isSaving || isUploading ? 'Saving...' : 'Save'}
                 </button>
               </div>
             )}

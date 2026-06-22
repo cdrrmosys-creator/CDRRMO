@@ -2,11 +2,14 @@ import ModuleToolbar from '../../components/ModuleToolbar'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
-import { format } from 'date-fns'
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
+
+const PRIMARY = '#dc2626'
 
 const INITIAL_FORM_STATE = {
   record_id: '',
@@ -15,7 +18,55 @@ const INITIAL_FORM_STATE = {
   start_time: '',
   end_time: '',
   purpose: '',
-  booked_by: ''
+  booked_by: '',
+  contact_number: ''
+}
+
+// Custom tooltip for chart
+function CustomTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{
+      background:'var(--bg-surface)', border:'1px solid var(--border-light)',
+      borderRadius:'10px', padding:'10px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.12)',
+      fontSize:'13px'
+    }}>
+      {label && <div style={{ fontWeight:'700', marginBottom:'6px', color:'var(--text)' }}>{label}</div>}
+      {payload.map((p, i) => (
+        <div key={i} style={{ display:'flex', alignItems:'center', gap:'6px', color: p.color }}>
+          <span style={{ width:'8px', height:'8px', borderRadius:'50%', background:p.color, display:'inline-block' }} />
+          <span style={{ color:'var(--text-muted)' }}>{p.name}:</span>
+          <span style={{ fontWeight:'700', color:'var(--text)' }}>{p.value}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function Card({ title, icon, children, style = {}, rightElement }) {
+  return (
+    <div style={{
+      background: 'var(--bg-surface)',
+      border: '1px solid var(--border-light)',
+      borderRadius: 'var(--radius-lg)',
+      padding: '24px',
+      boxShadow: 'var(--shadow-sm)',
+      ...style
+    }}>
+      {(title || rightElement) && (
+        <div style={{ display:'flex', alignItems:'center', justifyContent: 'space-between', marginBottom:'20px' }}>
+          {title && (
+            <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+              {icon && <i className={icon} style={{ fontSize:'18px', color:'var(--primary)' }} />}
+              <span style={{ fontSize:'14px', fontWeight:'800', letterSpacing:'-0.2px' }}>{title}</span>
+            </div>
+          )}
+          {rightElement && <div>{rightElement}</div>}
+        </div>
+      )}
+      {children}
+    </div>
+  )
 }
 
 export default function Venues() {
@@ -30,10 +81,16 @@ export default function Venues() {
   const [isEditing, setIsEditing] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
+
+  // Chart states
+  const [trendPeriod, setTrendPeriod] = useState('month')
+  const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'))
+  const [selectedYear, setSelectedYear] = useState(() => format(new Date(), 'yyyy'))
+  const [chartData, setChartData] = useState([])
+
   const isAdmin = useIsAdmin()
   const toast = useToast()
   const confirm = useConfirm()
-
 
   // Toolbar states
   const [searchTerm, setSearchTerm] = useState('')
@@ -43,6 +100,64 @@ export default function Venues() {
   useEffect(() => {
     loadRecords()
   }, [])
+
+  useEffect(() => {
+    if (!records) return;
+
+    let start, end;
+    if (trendPeriod === 'day') {
+      const [y, m] = selectedMonth.split('-');
+      start = new Date(y, m - 1, 1);
+      end = new Date(y, m, 0); 
+    } else if (trendPeriod === 'week') {
+      const [y, m] = selectedMonth.split('-');
+      start = new Date(y, m - 1, 1);
+      end = new Date(y, m - 1 + 3, 0); 
+    } else if (trendPeriod === 'month') {
+      start = new Date(selectedYear, 0, 1);
+      end = new Date(selectedYear, 11, 31);
+    }
+
+    start.setHours(0,0,0,0);
+    end.setHours(23,59,59,999);
+
+    if (start > end) return;
+
+    const data = [];
+    
+    if (trendPeriod === 'day') {
+      let curr = new Date(start);
+      while (curr <= end) {
+        const e = new Date(curr); e.setHours(23,59,59,999);
+        data.push({ label: format(curr, 'MMM dd'), start: curr.getTime(), end: e.getTime(), count: 0 });
+        curr.setDate(curr.getDate() + 1);
+      }
+    } else if (trendPeriod === 'week') {
+      let curr = startOfWeek(start, { weekStartsOn: 1 });
+      while (curr <= end) {
+        const e = endOfWeek(curr, { weekStartsOn: 1 });
+        data.push({ label: format(curr, 'MMM dd'), start: curr.getTime(), end: e.getTime(), count: 0 });
+        curr.setDate(curr.getDate() + 7);
+      }
+    } else if (trendPeriod === 'month') {
+      let curr = startOfMonth(start);
+      while (curr <= end) {
+        const e = endOfMonth(curr);
+        data.push({ label: format(curr, 'MMM'), start: curr.getTime(), end: e.getTime(), count: 0 });
+        curr.setMonth(curr.getMonth() + 1);
+      }
+    }
+
+    if (records.length > 0) {
+      records.forEach(rec => {
+        if (!rec.date) return;
+        const t = new Date(rec.date).getTime();
+        data.forEach(m => { if (t >= m.start && t <= m.end) m.count++ })
+      })
+    }
+
+    setChartData(data.map(m => ({ label: m.label, Bookings: m.count })))
+  }, [records, trendPeriod, selectedMonth, selectedYear])
 
   const filteredRecords = records.filter(item => {
     let matchesSearch = true
@@ -89,7 +204,6 @@ export default function Venues() {
     }
   }
 
-  
   const handleViewDetails = (rec) => {
     handleOpenEdit(rec)
     setIsViewing(true)
@@ -105,7 +219,7 @@ export default function Venues() {
     await handleDelete(idToDelete)
   }
 
-const handleOpenAdd = () => {
+  const handleOpenAdd = () => {
     setIsEditing(false)
     setIsViewing(false)
     setSelectedId(null)
@@ -132,7 +246,8 @@ const handleOpenAdd = () => {
       start_time: rec.start_time || '',
       end_time: rec.end_time || '',
       purpose: rec.purpose || '',
-      booked_by: rec.booked_by || ''
+      booked_by: rec.booked_by || '',
+      contact_number: rec.contact_number || ''
     })
     setIsModalOpen(true)
   }
@@ -255,6 +370,73 @@ const handleOpenAdd = () => {
         </button>
       </div>
 
+      <Card 
+        title="Booking Trend" 
+        icon="ri-line-chart-line" 
+        style={{ marginBottom:'20px' }}
+        rightElement={
+          <div style={{ display:'flex', alignItems:'center', gap:'16px', flexWrap:'wrap', justifyContent:'flex-end' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'8px', fontSize: '12px', fontWeight: '600' }}>
+              {trendPeriod === 'day' && (
+                <>
+                  <span style={{ color:'var(--text-muted)' }}>Month:</span>
+                  <input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} 
+                    style={{ background:'var(--bg-app)', border:'1px solid var(--border-light)', borderRadius:'6px', padding:'2px 6px', color:'var(--text)', fontSize:'12px', fontFamily:'inherit' }} />
+                </>
+              )}
+              {trendPeriod === 'week' && (
+                <>
+                  <span style={{ color:'var(--text-muted)' }}>Start Month:</span>
+                  <input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} 
+                    style={{ background:'var(--bg-app)', border:'1px solid var(--border-light)', borderRadius:'6px', padding:'2px 6px', color:'var(--text)', fontSize:'12px', fontFamily:'inherit' }} />
+                  <span style={{ color:'var(--text-muted)', marginLeft:'4px', fontWeight:'500' }}>(Shows 3 Months)</span>
+                </>
+              )}
+              {trendPeriod === 'month' && (
+                <>
+                  <span style={{ color:'var(--text-muted)' }}>Year:</span>
+                  <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)} 
+                    style={{ background:'var(--bg-app)', border:'1px solid var(--border-light)', borderRadius:'6px', padding:'2px 6px', color:'var(--text)', fontSize:'12px', fontFamily:'inherit', cursor:'pointer' }}>
+                    <option value="2026">2026</option>
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                  </select>
+                </>
+              )}
+            </div>
+            <div style={{ width:'1px', height:'24px', background:'var(--border-light)', display: 'block' }} />
+            <div style={{ display:'flex', gap:'8px' }}>
+              {['day', 'week', 'month'].map(period => (
+                <button key={period} onClick={() => setTrendPeriod(period)} style={{
+                  padding: '4px 12px', fontSize: '12px', fontWeight: '700', borderRadius: '6px',
+                  background: trendPeriod === period ? 'var(--primary)' : 'var(--bg-app)',
+                  color: trendPeriod === period ? '#fff' : 'var(--text-muted)',
+                  border: `1px solid ${trendPeriod === period ? 'var(--primary)' : 'var(--border-light)'}`,
+                  cursor: 'pointer', textTransform: 'capitalize', transition: 'all 0.2s'
+                }}>
+                  {period === 'day' ? 'Daily' : period === 'week' ? 'Weekly' : 'Monthly'}
+                </button>
+              ))}
+            </div>
+          </div>
+        }
+      >
+        <ResponsiveContainer width="100%" height={220}>
+          <AreaChart data={chartData} margin={{ top:8, right:16, left:-20, bottom:0 }}>
+            <defs>
+              <linearGradient id="bookingGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor={PRIMARY} stopOpacity={0.25} />
+                <stop offset="95%" stopColor={PRIMARY} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" vertical={false} />
+            <XAxis dataKey="label" tick={{ fontSize:12, fontWeight:600 }} axisLine={false} tickLine={false} />
+            <YAxis allowDecimals={false} tick={{ fontSize:11 }} axisLine={false} tickLine={false} />
+            <RechartsTooltip content={<CustomTooltip />} />
+            <Area type="monotone" dataKey="Bookings" stroke={PRIMARY} strokeWidth={2.5} fill="url(#bookingGrad)" dot={{ r:4, fill:PRIMARY, strokeWidth:0 }} activeDot={{ r:6 }} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </Card>
       
       {records.length > 0 && (
         <ModuleToolbar 
@@ -266,7 +448,7 @@ const handleOpenAdd = () => {
         />
       )}
 
-{records.length === 0 ? (
+      {records.length === 0 ? (
         <div className="empty-state">
           <i className="ri-building-line"></i>
           <h3>No Venue Bookings</h3>
@@ -283,7 +465,7 @@ const handleOpenAdd = () => {
                 <th>Time</th>
                 <th>Purpose</th>
                 <th>Booked By</th>
-                
+                <th>Contact No.</th>
               </tr>
             </thead>
             <tbody>
@@ -315,7 +497,7 @@ const handleOpenAdd = () => {
                     </div>
                   </td>
                   <td>{record.booked_by || '-'}</td>
-                  
+                  <td>{record.contact_number || '-'}</td>
                 </tr>
               ))}
             </tbody>
@@ -349,7 +531,7 @@ const handleOpenAdd = () => {
                 value={formData.record_id} 
                 onChange={handleInputChange} 
                 required 
-               disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
+                disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
             </div>
             <div className="form-group">
               <label>Facility Name *</label>
@@ -358,6 +540,10 @@ const handleOpenAdd = () => {
                 <option value="Training Room 1">Training Room 1</option>
                 <option value="Training Room 2">Training Room 2</option>
                 <option value="DRRM Academy">DRRM Academy</option>
+                <option value="ACCOMMODATION ROOM - ROOM NUMBER 1">ACCOMMODATION ROOM - ROOM NUMBER 1</option>
+                <option value="ACCOMMODATION ROOM - ROOM NUMBER 2">ACCOMMODATION ROOM - ROOM NUMBER 2</option>
+                <option value="ACCOMMODATION ROOM - ROOM NUMBER 3">ACCOMMODATION ROOM - ROOM NUMBER 3</option>
+                <option value="ACCOMMODATION ROOM - ROOM NUMBER 4">ACCOMMODATION ROOM - ROOM NUMBER 4</option>
               </select>
             </div>
           </div>
@@ -409,20 +595,32 @@ const handleOpenAdd = () => {
             </div>
           </div>
 
-          <div className="form-group">
-            <label>Purpose</label>
-            <textarea 
-              name="purpose" 
-              value={formData.purpose} 
-              onChange={handleInputChange} 
-              rows={2} 
-              placeholder="e.g. Basic Life Support Training Seminar"
-            />
+          <div className="form-row">
+            <div className="form-group">
+              <label>Contact Number</label>
+              <input 
+                type="text" 
+                name="contact_number" 
+                value={formData.contact_number} 
+                onChange={handleInputChange} 
+                placeholder="e.g. 09123456789"
+              />
+            </div>
+            <div className="form-group">
+              <label>Purpose</label>
+              <input 
+                type="text" 
+                name="purpose" 
+                value={formData.purpose} 
+                onChange={handleInputChange} 
+                placeholder="e.g. Basic Life Support Training Seminar"
+              />
+            </div>
           </div>
 
           </fieldset>
 
-          <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
             <div></div>
             {isViewing ? (
               <div style={{ display: 'flex', gap: '12px' }}>
