@@ -2,11 +2,12 @@ import ModuleToolbar from '../../components/ModuleToolbar'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
-import { format } from 'date-fns'
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts'
 
 const INITIAL_FORM_STATE = {
   record_id: '',
@@ -14,6 +15,7 @@ const INITIAL_FORM_STATE = {
   gender: '',
   age: '',
   contact_number: '',
+  address: '',
   office_name: '',
   service_provided: '',
   date: '',
@@ -46,6 +48,73 @@ const QUESTIONS = [
   { key: 'q6_competence', label: '6. Naibigay ang serbisyo nang may sapat na kakayahan at kaalaman.' },
   { key: 'q7_overall', label: '7. Nakamit ang kabuuang serbisyong inaasahan.' }
 ]
+
+const PRIMARY = '#f59e0b' // amber color for ratings
+
+// Custom tooltip for chart
+function CustomTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  const avgPayload = payload.find(p => p.dataKey === 'avg')
+  const bars = payload.filter(p => p.dataKey !== 'avg')
+
+  return (
+    <div style={{
+      background:'var(--bg-surface)', border:'1px solid var(--border-light)',
+      borderRadius:'10px', padding:'10px 14px', boxShadow:'0 4px 20px rgba(0,0,0,0.12)',
+      fontSize:'13px'
+    }}>
+      {label && <div style={{ fontWeight:'700', marginBottom:'6px', color:'var(--text)' }}>{label}</div>}
+      <div style={{ fontWeight: '600', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid var(--border-light)' }}>
+        Average Rating: <span style={{ color: PRIMARY }}>{avgPayload ? avgPayload.value : '-'} / 5</span>
+      </div>
+      {bars.map((p, i) => (
+        <div key={i} style={{ display:'flex', alignItems:'center', gap:'6px', color: p.color, marginBottom:'4px' }}>
+          <span style={{ width:'8px', height:'8px', borderRadius:'2px', background:p.color, display:'inline-block' }} />
+          <span style={{ color:'var(--text-muted)' }}>{p.name}:</span>
+          <span style={{ fontWeight:'700', color:'var(--text)' }}>{p.value} {p.value === 1 ? 'vote' : 'votes'}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function Card({ title, icon, children, style = {}, rightElement }) {
+  return (
+    <div style={{
+      background: 'var(--bg-surface)',
+      border: '1px solid var(--border-light)',
+      borderRadius: 'var(--radius-lg)',
+      padding: '24px',
+      boxShadow: 'var(--shadow-sm)',
+      ...style
+    }}>
+      {(title || rightElement) && (
+        <div style={{ display:'flex', alignItems:'center', justifyContent: 'space-between', marginBottom:'20px' }}>
+          {title && (
+            <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+              {icon && <i className={icon} style={{ fontSize:'18px', color:'var(--primary)' }} />}
+              <span style={{ fontSize:'14px', fontWeight:'800', letterSpacing:'-0.2px' }}>{title}</span>
+            </div>
+          )}
+          {rightElement && <div>{rightElement}</div>}
+        </div>
+      )}
+      {children}
+    </div>
+  )
+}
+
+const getAverageScore = (rec) => {
+  const scores = [
+    rec.q1_timeliness, rec.q2_expectation, rec.q3_facilities,
+    rec.q4_information, rec.q5_integrity, rec.q6_competence, rec.q7_overall
+  ].filter(v => v !== null && v !== undefined && v !== '')
+  
+  if (scores.length === 0) return '-'
+  
+  const sum = scores.reduce((a, b) => a + parseInt(b, 10), 0)
+  return +(sum / scores.length).toFixed(2)
+}
 
 export default function ClientSatisfaction() {
   const [records, setRecords] = useState([])
@@ -97,6 +166,62 @@ export default function ClientSatisfaction() {
     }
 
     return matchesSearch && matchesFilter && matchesDate
+  })
+
+  // Calculate stacked bar chart data based on filtered records
+  const chartData = [
+    { key: 'q1_timeliness', name: 'Q1 (Timeliness)' },
+    { key: 'q2_expectation', name: 'Q2 (Expectation)' },
+    { key: 'q3_facilities', name: 'Q3 (Facilities)' },
+    { key: 'q4_information', name: 'Q4 (Information)' },
+    { key: 'q5_integrity', name: 'Q5 (Integrity)' },
+    { key: 'q6_competence', name: 'Q6 (Competence)' },
+    { key: 'q7_overall', name: 'Q7 (Overall)' }
+  ].map(q => {
+    const counts = { '5 Stars': 0, '4 Stars': 0, '3 Stars': 0, '2 Stars': 0, '1 Star': 0, total: 0, sum: 0 }
+    filteredRecords.forEach(rec => {
+      const val = parseInt(rec[q.key], 10)
+      if (val >= 1 && val <= 5) {
+        if (val === 1) counts['1 Star']++
+        else counts[`${val} Stars`]++
+        counts.total++
+        counts.sum += val
+      }
+    })
+    return {
+      name: q.name,
+      '5 Stars': counts['5 Stars'],
+      '4 Stars': counts['4 Stars'],
+      '3 Stars': counts['3 Stars'],
+      '2 Stars': counts['2 Stars'],
+      '1 Star': counts['1 Star'],
+      avg: counts.total > 0 ? +(counts.sum / counts.total).toFixed(2) : 0
+    }
+  })
+
+  const overallCounts = { '5 Stars': 0, '4 Stars': 0, '3 Stars': 0, '2 Stars': 0, '1 Star': 0, total: 0, sum: 0 }
+  filteredRecords.forEach(rec => {
+    const avgStr = getAverageScore(rec)
+    if (avgStr !== '-') {
+      const avg = parseFloat(avgStr)
+      const rounded = Math.round(avg)
+      if (rounded >= 1 && rounded <= 5) {
+        if (rounded === 1) overallCounts['1 Star']++
+        else overallCounts[`${rounded} Stars`]++
+        overallCounts.total++
+        overallCounts.sum += avg
+      }
+    }
+  })
+  
+  chartData.push({
+    name: 'Total Average',
+    '5 Stars': overallCounts['5 Stars'],
+    '4 Stars': overallCounts['4 Stars'],
+    '3 Stars': overallCounts['3 Stars'],
+    '2 Stars': overallCounts['2 Stars'],
+    '1 Star': overallCounts['1 Star'],
+    avg: overallCounts.total > 0 ? +(overallCounts.sum / overallCounts.total).toFixed(2) : 0
   })
 
   const loadRecords = async () => {
@@ -159,6 +284,7 @@ export default function ClientSatisfaction() {
       gender: rec.gender || '',
       age: rec.age || '',
       contact_number: rec.contact_number || '',
+      address: rec.address || '',
       office_name: rec.office_name || '',
       service_provided: rec.service_provided || '',
       date: rec.date || '',
@@ -249,18 +375,6 @@ export default function ClientSatisfaction() {
     }
   }
 
-  const getAverageScore = (rec) => {
-    const scores = [
-      rec.q1_timeliness, rec.q2_expectation, rec.q3_facilities,
-      rec.q4_information, rec.q5_integrity, rec.q6_competence, rec.q7_overall
-    ].filter(v => v !== null && v !== undefined && v !== '')
-    
-    if (scores.length === 0) return '-'
-    
-    const sum = scores.reduce((a, b) => a + parseInt(b, 10), 0)
-    return (sum / scores.length).toFixed(2)
-  }
-
   if (loading) {
     return (
       <div className="loading-container">
@@ -318,6 +432,26 @@ export default function ClientSatisfaction() {
         </button>
       </div>
 
+      <Card 
+        title="Ratings Distribution" 
+        icon="ri-bar-chart-grouped-line" 
+        style={{ marginBottom:'20px' }}
+      >
+        <ResponsiveContainer width="100%" height={320}>
+          <BarChart data={chartData} margin={{ top:8, right:16, left:-20, bottom:0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" vertical={false} />
+            <XAxis dataKey="name" tick={{ fontSize:11, fontWeight:600 }} axisLine={false} tickLine={false} />
+            <YAxis allowDecimals={false} tick={{ fontSize:11 }} axisLine={false} tickLine={false} />
+            <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'var(--border-light)', opacity: 0.4 }} />
+            <Legend wrapperStyle={{ fontSize: '12px', fontWeight: '500', marginTop: '10px' }} />
+            <Bar dataKey="5 Stars" stackId="a" fill="#22c55e" />
+            <Bar dataKey="4 Stars" stackId="a" fill="#84cc16" />
+            <Bar dataKey="3 Stars" stackId="a" fill="#eab308" />
+            <Bar dataKey="2 Stars" stackId="a" fill="#f97316" />
+            <Bar dataKey="1 Star" stackId="a" fill="#ef4444" />
+          </BarChart>
+        </ResponsiveContainer>
+      </Card>
       
       {records.length > 0 && (
         <ModuleToolbar 
@@ -450,6 +584,20 @@ export default function ClientSatisfaction() {
                   value={formData.contact_number} 
                   onChange={handleInputChange} 
                   placeholder="e.g. 09123456789"
+                />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                <label>Address *</label>
+                <input 
+                  type="text" 
+                  name="address" 
+                  value={formData.address} 
+                  onChange={handleInputChange} 
+                  required 
+                  placeholder="e.g. Brgy. Marcos highway, Palayan City"
                 />
               </div>
             </div>

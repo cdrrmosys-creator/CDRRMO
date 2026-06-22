@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS public.client_satisfaction (
     gender VARCHAR,
     age INTEGER,
     contact_number VARCHAR,
+    address VARCHAR,
     office_name VARCHAR,
     service_provided VARCHAR,
     date DATE NOT NULL DEFAULT CURRENT_DATE,
