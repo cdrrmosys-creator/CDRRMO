@@ -391,7 +391,7 @@ const handleOpenAdd = () => {
                 <th>Title</th>
                 <th>Date Passed</th>
                 <th>Description</th>
-                
+                <th>Attachments</th>
               </tr>
             </thead>
             <tbody>
@@ -422,7 +422,18 @@ const handleOpenAdd = () => {
                       {record.description || '-'}
                     </div>
                   </td>
-                  
+                  <td onClick={(e) => e.stopPropagation()}>
+                    {record.files && record.files.length > 0 ? (
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', maxWidth: '150px' }}>
+                        {record.files.map((url, i) => (
+                          <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
+                            <i className={getFileIcon(getDisplayFilename(url))} title={getDisplayFilename(url)} style={{ fontSize: '16px' }}></i>
+                            <span style={{ maxWidth: '60px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getDisplayFilename(url)}</span>
+                          </a>
+                        ))}
+                      </div>
+                    ) : '-'}
+                  </td>
                 </tr>
               ))}
             </tbody>

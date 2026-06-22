@@ -375,7 +375,7 @@ const handleOpenAdd = () => {
                 <th>Agenda</th>
                 <th>Attendees</th>
                 <th>Minutes Summary</th>
-                
+                <th>Photos</th>
               </tr>
             </thead>
             <tbody>
@@ -428,7 +428,17 @@ const handleOpenAdd = () => {
                       {record.minutes_summary || '-'}
                     </div>
                   </td>
-                  
+                  <td onClick={(e) => e.stopPropagation()}>
+                    {record.photos && record.photos.length > 0 ? (
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', maxWidth: '120px' }}>
+                        {record.photos.map((url, i) => (
+                          <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'none' }}>
+                            <i className="ri-image-line" title="View Photo" style={{ fontSize: '16px' }}></i>
+                          </a>
+                        ))}
+                      </div>
+                    ) : '-'}
+                  </td>
                 </tr>
               ))}
             </tbody>
