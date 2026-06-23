@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase, supabaseAdmin } from '../../services/supabase'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
+import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
 import ModuleToolbar from '../../components/ModuleToolbar'
@@ -64,6 +65,7 @@ export default function Employees() {
   const [avatarPreview, setAvatarPreview] = useState('')
 
   const isAdmin = useIsAdmin()
+  const { canCreate, canUpdate, canDelete } = usePermissions('employees')
   const toast = useToast()
   const confirm = useConfirm()
 
@@ -126,9 +128,7 @@ export default function Employees() {
     setIsModalOpen(true)
   }
 
-  const handleEditFromView = () => {
-    setIsViewing(false)
-  }
+  const handleEditFromView = (e) => { e.preventDefault(); e.stopPropagation(); setIsViewing(false) }
 
   const handleDeleteFromView = async () => {
     const idToDelete = selectedId
@@ -330,12 +330,31 @@ export default function Employees() {
     if (!ok) return
 
     try {
+      // Find the employee record first to get their email for auth deletion
+      const employeeToDelete = employees.find(emp => emp.id === id)
+
+      // Delete the DB record
       const { error } = await supabase
         .from('employees')
         .delete()
         .eq('id', id)
 
       if (error) throw error
+
+      // Also delete the Supabase auth account if one exists
+      if (employeeToDelete?.email && supabaseAdmin) {
+        try {
+          const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
+          const authUser = (usersData?.users || []).find(u => u.email === employeeToDelete.email)
+          if (authUser) {
+            await supabaseAdmin.auth.admin.deleteUser(authUser.id)
+          }
+        } catch (authErr) {
+          // Auth deletion failed but DB record is gone — warn but don't block
+          console.warn('Auth user deletion failed:', authErr)
+          toast.warning('Employee record deleted, but failed to remove their login account.')
+        }
+      }
 
       setEmployees(employees.filter(emp => emp.id !== id))
       toast.success('Employee record deleted successfully!')
@@ -505,7 +524,7 @@ export default function Employees() {
           <i className="ri-team-line" style={{ marginRight: '12px' }}></i>
           Employees
         </h2>
-        <button className="btn-add" onClick={handleOpenAdd} style={{ display: isAdmin ? '' : 'none' }}>
+        <button className="btn-add" onClick={handleOpenAdd} style={{ display: (isAdmin || canCreate) ? '' : 'none' }}>
           <i className="ri-add-line"></i>
           Add Employee
         </button>
@@ -974,9 +993,7 @@ export default function Employees() {
             </div>
 
             {isViewing ? (
-              <div style={{ display: 'flex', gap: '12px' }}>
-                {isAdmin && (
-                  <>
+              <div style={{ display: 'flex', gap: '12px' }}>{(isAdmin || canDelete) && (
                     <button
                       type="button"
                       className="btn-delete"
@@ -985,17 +1002,17 @@ export default function Employees() {
                     >
                       <i className="ri-delete-bin-line" style={{ marginRight: '6px' }}></i> Delete
                     </button>
+                  )}
+                  {(isAdmin || canUpdate) && (
                     <button
-                      type="button"
-                      className="btn-submit"
+                      type="button" className="btn-edit"
                       onClick={handleEditFromView}
                       style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', background: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer' }}
                     >
                       <i className="ri-pencil-line" style={{ marginRight: '6px' }}></i> Edit
                     </button>
-                  </>
-                )}
-                {!isAdmin && (
+                  )}
+                  {!(isAdmin || canUpdate || canDelete) && (
                   <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
                     Close
                   </button>

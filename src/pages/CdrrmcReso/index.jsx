@@ -5,6 +5,7 @@ import { logAudit } from '../../services/audit'
 import { format } from 'date-fns'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
+import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
 import { uploadFile, deleteFiles } from '../../services/storage'
@@ -37,6 +38,7 @@ export default function CdrrmcReso() {
   const [isDragging, setIsDragging] = useState(false)
 
   const isAdmin = useIsAdmin()
+  const { canCreate, canUpdate, canDelete } = usePermissions('cdrrmc-reso')
   const toast = useToast()
   const confirm = useConfirm()
 
@@ -100,9 +102,7 @@ export default function CdrrmcReso() {
     setIsViewing(true)
   }
 
-  const handleEditFromView = () => {
-    setIsViewing(false)
-  }
+  const handleEditFromView = (e) => { e.preventDefault(); e.stopPropagation(); setIsViewing(false) }
 
   const handleDeleteFromView = async () => {
     const idToDelete = selectedId
@@ -358,7 +358,7 @@ const handleOpenAdd = () => {
           <i className="ri-file-list-3-line" style={{ marginRight: '12px' }}></i>
           CDRRMC Resolutions
         </h2>
-        <button className="btn-add" onClick={handleOpenAdd} style={{ display: isAdmin ? '' : 'none' }}>
+        <button className="btn-add" onClick={handleOpenAdd} style={{ display: (isAdmin || canCreate) ? '' : 'none' }}>
           <i className="ri-add-line"></i>
           Add Resolution
         </button>
@@ -717,9 +717,7 @@ const handleOpenAdd = () => {
           <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
             <div></div>
             {isViewing ? (
-              <div style={{ display: 'flex', gap: '12px' }}>
-                {isAdmin && (
-                  <>
+              <div style={{ display: 'flex', gap: '12px' }}>{(isAdmin || canDelete) && (
                     <button 
                       type="button"
                       className="btn-delete"
@@ -728,18 +726,18 @@ const handleOpenAdd = () => {
                     >
                       <i className="ri-delete-bin-line" style={{ marginRight: '6px' }}></i> Delete
                     </button>
+                  )}
+                  {(isAdmin || canUpdate) && (
                     <button 
-                      type="button"
-                      className="btn-submit"
+                      type="button" className="btn-edit"
                       onClick={handleEditFromView}
                       style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', background: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer' }}
                     >
                       <i className="ri-pencil-line" style={{ marginRight: '6px' }}></i> Edit
                     </button>
-                  </>
-                )}
-                {!isAdmin && (
-                   <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
+                  )}
+                  {!(isAdmin || canUpdate || canDelete) && (
+                  <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
                      Close
                    </button>
                 )}

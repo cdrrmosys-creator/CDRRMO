@@ -7,6 +7,7 @@ import { compressImage } from '../../utils/imageCompression'
 import { format, parseISO } from 'date-fns'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
+import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
 import {
@@ -40,6 +41,7 @@ export default function TrainingAttended() {
   const [pendingPhotos, setPendingPhotos] = useState([])
   const [isDragging, setIsDragging] = useState(false)
   const isAdmin = useIsAdmin()
+  const { canCreate, canUpdate, canDelete } = usePermissions('training-attended')
   const toast = useToast()
   const confirm = useConfirm()
 
@@ -125,7 +127,7 @@ export default function TrainingAttended() {
   }
 
   const handleViewDetails = (rec) => { handleOpenEdit(rec); setIsViewing(true) }
-  const handleEditFromView = () => { setIsViewing(false) }
+  const handleEditFromView = (e) => { e.preventDefault(); e.stopPropagation(); setIsViewing(false) }
   const handleDeleteFromView = async () => { const id = selectedId; setIsModalOpen(false); await handleDelete(id) }
 
   const handleOpenAdd = () => {
@@ -265,7 +267,7 @@ export default function TrainingAttended() {
           <i className="ri-book-read-line" style={{ marginRight: '12px' }}></i>
           Training Attended
         </h2>
-        <button className="btn-add" onClick={handleOpenAdd} style={{ display: isAdmin ? '' : 'none' }}>
+        <button className="btn-add" onClick={handleOpenAdd} style={{ display: (isAdmin || canCreate) ? '' : 'none' }}>
           <i className="ri-add-line"></i>
           Log Training Attended
         </button>
@@ -538,18 +540,17 @@ export default function TrainingAttended() {
           <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
             <div></div>
             {isViewing ? (
-              <div style={{ display: 'flex', gap: '12px' }}>
-                {isAdmin && (
-                  <>
+              <div style={{ display: 'flex', gap: '12px' }}>{(isAdmin || canDelete) && (
                     <button type="button" className="btn-delete" onClick={handleDeleteFromView} style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                       <i className="ri-delete-bin-line" style={{ marginRight: '6px' }}></i> Delete
                     </button>
-                    <button type="button" className="btn-submit" onClick={handleEditFromView} style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', background: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer' }}>
+                  )}
+                  {(isAdmin || canUpdate) && (
+                    <button type="button" className="btn-edit" onClick={handleEditFromView} style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', background: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer' }}>
                       <i className="ri-pencil-line" style={{ marginRight: '6px' }}></i> Edit
                     </button>
-                  </>
-                )}
-                {!isAdmin && (
+                  )}
+                  {!(isAdmin || canUpdate || canDelete) && (
                   <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>Close</button>
                 )}
               </div>

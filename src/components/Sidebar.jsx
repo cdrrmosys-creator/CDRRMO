@@ -38,7 +38,8 @@ export default function Sidebar() {
     { label: 'Calendar Events', icon: 'ri-calendar-line', path: '/calendar' },
     ...(isAdmin ? [
       { section: 'System Logs' },
-      { label: 'Audit Trail', icon: 'ri-shield-keyhole-line', path: '/audit-trail' }
+      { label: 'Audit Trail',       icon: 'ri-shield-keyhole-line', path: '/audit-trail' },
+      { label: 'User Permissions',  icon: 'ri-shield-user-line',    path: '/user-permissions' },
     ] : [])
   ]
 

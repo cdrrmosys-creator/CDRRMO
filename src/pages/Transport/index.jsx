@@ -5,6 +5,7 @@ import { logAudit } from '../../services/audit'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
+import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
@@ -104,6 +105,7 @@ export default function Transport() {
   const [chartData, setChartData] = useState([])
 
   const isAdmin = useIsAdmin()
+  const { canCreate, canUpdate, canDelete } = usePermissions('transport')
   const toast = useToast()
   const confirm = useConfirm()
 
@@ -237,9 +239,7 @@ export default function Transport() {
     setIsViewing(true)
   }
 
-  const handleEditFromView = () => {
-    setIsViewing(false)
-  }
+  const handleEditFromView = (e) => { e.preventDefault(); e.stopPropagation(); setIsViewing(false) }
 
   const handleDeleteFromView = async () => {
     const idToDelete = selectedId
@@ -501,7 +501,7 @@ export default function Transport() {
           <i className="ri-taxi-line" style={{ marginRight: '12px' }}></i>
           Transport Dispatch
         </h2>
-        <button className="btn-add" onClick={handleOpenAdd} style={{ display: isAdmin ? '' : 'none' }}>
+        <button className="btn-add" onClick={handleOpenAdd} style={{ display: (isAdmin || canCreate) ? '' : 'none' }}>
           <i className="ri-add-line"></i>
           Add Dispatch
         </button>
@@ -988,9 +988,7 @@ export default function Transport() {
           <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
             <div></div>
             {isViewing ? (
-              <div style={{ display: 'flex', gap: '12px' }}>
-                {isAdmin && (
-                  <>
+              <div style={{ display: 'flex', gap: '12px' }}>{(isAdmin || canDelete) && (
                     <button 
                       type="button"
                       className="btn-delete"
@@ -999,18 +997,18 @@ export default function Transport() {
                     >
                       <i className="ri-delete-bin-line" style={{ marginRight: '6px' }}></i> Delete
                     </button>
+                  )}
+                  {(isAdmin || canUpdate) && (
                     <button 
-                      type="button"
-                      className="btn-submit"
+                      type="button" className="btn-edit"
                       onClick={handleEditFromView}
                       style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', background: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer' }}
                     >
                       <i className="ri-pencil-line" style={{ marginRight: '6px' }}></i> Edit
                     </button>
-                  </>
-                )}
-                {!isAdmin && (
-                   <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
+                  )}
+                  {!(isAdmin || canUpdate || canDelete) && (
+                  <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
                      Close
                    </button>
                 )}

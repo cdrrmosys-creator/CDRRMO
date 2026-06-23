@@ -32,6 +32,7 @@ import ClientSatisfaction from './pages/ClientSatisfaction'
 import CalendarEvents from './pages/CalendarEvents'
 import AuditTrail from './pages/AuditTrail'
 import Kloudtrack from './pages/Kloudtrack'
+import UserPermissions from './pages/UserPermissions'
 import Layout from './components/Layout'
 
 function App() {
@@ -103,6 +104,7 @@ function App() {
               <Route path="client-satisfaction" element={<ClientSatisfaction />} />
               <Route path="calendar" element={<CalendarEvents />} />
               <Route path="audit-trail" element={<AuditTrail />} />
+              <Route path="user-permissions" element={<UserPermissions />} />
             </Route>
 
             {/* Fallback */}
