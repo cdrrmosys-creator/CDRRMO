@@ -1,4 +1,3 @@
-import ModuleToolbar from '../../components/ModuleToolbar'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { uploadFile, deleteFiles } from '../../services/storage'
@@ -62,10 +61,15 @@ export default function Incidents() {
   const confirm = useConfirm()
 
 
-  // Toolbar states
+  // Toolbar / filter states
   const [searchTerm, setSearchTerm] = useState('')
-  const [filter, setFilter] = useState('')
+  const [filterTeam, setFilterTeam] = useState('')
+  const [filterNature, setFilterNature] = useState('')
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   useEffect(() => {
     loadIncidents()
@@ -80,7 +84,8 @@ export default function Incidents() {
       )
     }
 
-    let matchesFilter = true
+    const matchesTeam = !filterTeam || item.team === filterTeam
+    const matchesNature = !filterNature || (item.nature_of_incident || '').toLowerCase().includes(filterNature.toLowerCase())
 
     let matchesDate = true
     if (dateRange.start && dateRange.end) {
@@ -94,8 +99,101 @@ export default function Incidents() {
       }
     }
 
-    return matchesSearch && matchesFilter && matchesDate
+    return matchesSearch && matchesTeam && matchesNature && matchesDate
+  }).sort((a, b) => {
+    const da = new Date(a.date || a.created_at || 0)
+    const db = new Date(b.date || b.created_at || 0)
+    return da - db
   })
+
+  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / pageSize))
+  const safePage = Math.min(currentPage, totalPages)
+  const pagedRecords = filteredRecords.slice((safePage - 1) * pageSize, safePage * pageSize)
+
+  // ── Export modal state ────────────────────────────────────────────────────
+  const [isExportOpen, setIsExportOpen] = useState(false)
+  const [exportFrom, setExportFrom] = useState('')
+  const [exportTo, setExportTo] = useState('')
+
+  const exportPreviewRows = incidents.filter(item => {
+    if (!exportFrom && !exportTo) return true
+    const dateStr = item.date || item.created_at
+    if (!dateStr) return false
+    const d = new Date(dateStr)
+    if (exportFrom && d < new Date(exportFrom)) return false
+    if (exportTo) {
+      const end = new Date(exportTo)
+      end.setHours(23, 59, 59, 999)
+      if (d > end) return false
+    }
+    return true
+  }).sort((a, b) => new Date(a.date || a.created_at || 0) - new Date(b.date || b.created_at || 0))
+
+  const handleExport = () => {
+    if (!window.XLSX) {
+      toast.error('Export library not loaded. Check your internet connection.')
+      return
+    }
+    if (exportPreviewRows.length === 0) {
+      toast.error('No records match the selected date range.')
+      return
+    }
+
+    const COLUMNS = [
+      'record_id', 'date', 'time_of_call', 'team',
+      'place_of_incident', 'exact_place',
+      'nature_of_incident', 'severity',
+      'name', 'age', 'address', 'injury_illness_complaint',
+      'vehicle', 'vehicle_other', 'helmet', 'liquor',
+      'time_of_arrival_at_scene', 'time_of_departure_at_scene',
+      'time_of_arrival_at_hosp', 'time_of_departure_at_hosp', 'back_to_base',
+      'action_given', 'refused_transfer',
+      'transfer_from', 'transfer_to', 'transfer_to_other', 'ambulance',
+      'remarks'
+    ]
+
+    const HEADERS = {
+      record_id: 'Record ID', date: 'Date', time_of_call: 'Time of Call', team: 'Team',
+      place_of_incident: 'Place of Incident', exact_place: 'Exact Place',
+      nature_of_incident: 'Nature of Incident', severity: 'Severity',
+      name: 'Victim Name', age: 'Age', address: 'Address', injury_illness_complaint: 'Injury / Illness',
+      vehicle: 'Vehicle', vehicle_other: 'Vehicle (Other)', helmet: 'Helmet', liquor: 'Liquor',
+      time_of_arrival_at_scene: 'Arrival at Scene', time_of_departure_at_scene: 'Departure at Scene',
+      time_of_arrival_at_hosp: 'Arrival at Hospital', time_of_departure_at_hosp: 'Departure at Hospital',
+      back_to_base: 'Back to Base',
+      action_given: 'Action Given', refused_transfer: 'Refused Transfer',
+      transfer_from: 'Transfer From', transfer_to: 'Transfer To',
+      transfer_to_other: 'Transfer To (Other)', ambulance: 'Ambulance',
+      remarks: 'Remarks'
+    }
+
+    const rows = exportPreviewRows.map(inc => {
+      const row = {}
+      COLUMNS.forEach(col => {
+        let val = inc[col]
+        if (col === 'refused_transfer') val = val ? 'Yes' : 'No'
+        if (val === null || val === undefined) val = ''
+        row[HEADERS[col]] = val
+      })
+      return row
+    })
+
+    const ws = window.XLSX.utils.json_to_sheet(rows)
+
+    // Auto column widths
+    const colWidths = Object.keys(HEADERS).map(k => ({ wch: Math.max(HEADERS[k].length + 2, 14) }))
+    ws['!cols'] = colWidths
+
+    const wb = window.XLSX.utils.book_new()
+    window.XLSX.utils.book_append_sheet(wb, ws, 'Incidents')
+
+    const fromLabel = exportFrom || 'all'
+    const toLabel = exportTo || 'all'
+    window.XLSX.writeFile(wb, `incidents_${fromLabel}_to_${toLabel}.xlsx`)
+
+    setIsExportOpen(false)
+    toast.success(`Exported ${exportPreviewRows.length} records successfully.`)
+  }
 
   const loadIncidents = async () => {
     try {
@@ -104,7 +202,7 @@ export default function Incidents() {
       const { data, error } = await supabase
         .from('incidents')
         .select('*')
-        .order('created_at', { ascending: false })
+        .order('date', { ascending: true })
 
       if (error) throw error
       setIncidents(data || [])
@@ -156,9 +254,20 @@ export default function Incidents() {
     setActiveTab('general')
     setPendingPhotos([])
 
+    // Handle vehicle value — if it's not one of the known options, put it in vehicle_other
+    const knownVehicles = ['', 'N/A', 'Single Motor', 'Tricycle', 'Kolong kolong', 'Other']
+    let vehicleVal = inc.vehicle || ''
+    let vehicleOtherVal = inc.vehicle_other || ''
+    if (vehicleVal && !knownVehicles.includes(vehicleVal)) {
+      vehicleOtherVal = vehicleVal
+      vehicleVal = 'Other'
+    }
+
     setFormData({
       ...INITIAL_FORM_STATE,
       ...inc,
+      vehicle: vehicleVal,
+      vehicle_other: vehicleOtherVal,
       photos: inc.photos || []
     })
     setIsModalOpen(true)
@@ -371,21 +480,113 @@ export default function Incidents() {
       </div>
 
 
-      {incidents.length > 0 && (
-        <ModuleToolbar
-          onSearch={setSearchTerm}
-          onFilterChange={setFilter}
-          onDateRangeChange={setDateRange}
-          exportData={filteredRecords}
-          exportFilename="incidents_report.xlsx"
-        />
-      )}
+      {/* ── Inline filters bar ── */}
+      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '14px' }}>
+        {/* Search */}
+        <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '160px' }}>
+          <i className="ri-search-line" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '15px', pointerEvents: 'none' }} />
+          <input
+            type="text"
+            placeholder="Search records…"
+            value={searchTerm}
+            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1) }}
+            style={{ width: '100%', padding: '8px 10px 8px 32px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: 'var(--text)', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        {/* Team filter */}
+        <select
+          value={filterTeam}
+          onChange={e => { setFilterTeam(e.target.value); setCurrentPage(1) }}
+          style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: filterTeam ? 'var(--text)' : 'var(--text-muted)', cursor: 'pointer', minWidth: '130px' }}
+        >
+          <option value="">All Teams</option>
+          <option value="Alpha">Alpha</option>
+          <option value="Bravo">Bravo</option>
+          <option value="Charlie">Charlie</option>
+          <option value="Delta">Delta</option>
+        </select>
+
+        {/* Nature filter */}
+        <div style={{ position: 'relative', flex: '1 1 160px', minWidth: '140px' }}>
+          <input
+            type="text"
+            placeholder="Filter by nature…"
+            value={filterNature}
+            onChange={e => { setFilterNature(e.target.value); setCurrentPage(1) }}
+            style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: 'var(--text)', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        {/* Date range */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <input
+            type="date"
+            value={dateRange.start}
+            onChange={e => { setDateRange(p => ({ ...p, start: e.target.value })); setCurrentPage(1) }}
+            style={{ padding: '7px 8px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: 'var(--text)' }}
+          />
+          <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>–</span>
+          <input
+            type="date"
+            value={dateRange.end}
+            onChange={e => { setDateRange(p => ({ ...p, end: e.target.value })); setCurrentPage(1) }}
+            style={{ padding: '7px 8px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: 'var(--text)' }}
+          />
+        </div>
+
+        {/* Clear all filters */}
+        {(searchTerm || filterTeam || filterNature || dateRange.start || dateRange.end) && (
+          <button
+            onClick={() => { setSearchTerm(''); setFilterTeam(''); setFilterNature(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
+            style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
+          >
+            <i className="ri-close-line" /> Clear
+          </button>
+        )}
+
+        {/* Page size selector + Export — right side */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Show</span>
+          <select
+            value={pageSize}
+            onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
+            style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: 'var(--text)', cursor: 'pointer' }}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+          </select>
+          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>per page</span>
+
+          <div style={{ width: '1px', height: '20px', background: 'var(--border-light)' }} />
+
+          <button
+            onClick={() => { setExportFrom(''); setExportTo(''); setIsExportOpen(true) }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '7px 14px', borderRadius: '8px',
+              background: '#16a34a', color: '#fff',
+              border: 'none', fontSize: '13px', fontWeight: '700',
+              cursor: 'pointer', whiteSpace: 'nowrap'
+            }}
+          >
+            <i className="ri-file-excel-2-line" style={{ fontSize: '15px' }} /> Export XLSX
+          </button>
+        </div>
+      </div>
 
       {incidents.length === 0 ? (
         <div className="empty-state">
           <i className="ri-alarm-warning-line"></i>
           <h3>No Incidents Reported</h3>
           <p>Click "Report Incident" to log your first incident.</p>
+        </div>
+      ) : filteredRecords.length === 0 ? (
+        <div className="empty-state">
+          <i className="ri-filter-off-line"></i>
+          <h3>No Matching Records</h3>
+          <p>Try adjusting your search or filters.</p>
         </div>
       ) : (
         <div className="data-table">
@@ -394,15 +595,15 @@ export default function Incidents() {
               <tr>
                 <th>Record ID</th>
                 <th>Date</th>
+                <th>Time of Call</th>
                 <th>Team</th>
                 <th>Nature of Incident</th>
                 <th>Victim</th>
                 <th>Place of Incident</th>
-                <th>Severity</th>
               </tr>
             </thead>
             <tbody>
-              {filteredRecords.map((incident) => (
+              {pagedRecords.map((incident) => (
                 <tr
                   key={incident.id}
                   onClick={() => handleViewDetails(incident)}
@@ -410,16 +611,22 @@ export default function Incidents() {
                   className="table-row-clickable"
                 >
                   <td><code style={{ fontWeight: '700' }}>{incident.record_id || '-'}</code></td>
-                  <td>{incident.date ? format(new Date(incident.date), 'MMM dd, yyyy') : '-'}</td>
-                  <td>{incident.team || '-'}</td>
-                  <td style={{ fontWeight: '700' }}>{incident.nature_of_incident || '-'}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{incident.date ? format(new Date(incident.date), 'MMM dd, yyyy') : '-'}</td>
+                  <td style={{ whiteSpace: 'nowrap', color: 'var(--text-muted)', fontSize: '13px' }}>{incident.time_of_call || '-'}</td>
+                  <td>
+                    {incident.team ? (
+                      <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', background: '#eff6ff', color: '#1d4ed8' }}>
+                        {incident.team}
+                      </span>
+                    ) : '-'}
+                  </td>
+                  <td style={{ fontWeight: '600' }}>{incident.nature_of_incident || '-'}</td>
                   <td>{incident.name || '-'}</td>
                   <td>
-                    <div style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {incident.place_of_incident || '-'}
                     </div>
                   </td>
-                  <td>{getSeverityBadge(incident.severity)}</td>
                 </tr>
               ))}
             </tbody>
@@ -427,14 +634,65 @@ export default function Incidents() {
         </div>
       )}
 
-      <div style={{
-        marginTop: '16px',
-        fontSize: '14px',
-        color: 'var(--text-muted)',
-        textAlign: 'center'
-      }}>
-        Showing <strong>{filteredRecords.length}</strong> of <strong>{incidents.length}</strong>
-      </div>
+      {/* ── Pagination bar ── */}
+      {filteredRecords.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px', flexWrap: 'wrap', gap: '10px' }}>
+          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+            Showing <strong>{(safePage - 1) * pageSize + 1}</strong>–<strong>{Math.min(safePage * pageSize, filteredRecords.length)}</strong> of <strong>{filteredRecords.length}</strong> records
+          </span>
+          <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={safePage === 1}
+              style={{ padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', cursor: safePage === 1 ? 'not-allowed' : 'pointer', opacity: safePage === 1 ? 0.4 : 1, fontSize: '14px', lineHeight: 1 }}
+              title="First page"
+            ><i className="ri-skip-back-line" /></button>
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={safePage === 1}
+              style={{ padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', cursor: safePage === 1 ? 'not-allowed' : 'pointer', opacity: safePage === 1 ? 0.4 : 1, fontSize: '14px', lineHeight: 1 }}
+            ><i className="ri-arrow-left-s-line" /></button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+              .reduce((acc, p, idx, arr) => {
+                if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...')
+                acc.push(p)
+                return acc
+              }, [])
+              .map((item, idx) =>
+                item === '...' ? (
+                  <span key={`ellipsis-${idx}`} style={{ padding: '0 4px', color: 'var(--text-muted)', fontSize: '13px' }}>…</span>
+                ) : (
+                  <button
+                    key={item}
+                    onClick={() => setCurrentPage(item)}
+                    style={{
+                      padding: '6px 11px', borderRadius: '7px', fontSize: '13px', fontWeight: '700',
+                      border: `1px solid ${safePage === item ? 'var(--primary)' : 'var(--border-light)'}`,
+                      background: safePage === item ? 'var(--primary)' : 'var(--bg-surface)',
+                      color: safePage === item ? '#fff' : 'var(--text)',
+                      cursor: 'pointer', transition: 'all 0.15s'
+                    }}
+                  >{item}</button>
+                )
+              )
+            }
+
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={safePage === totalPages}
+              style={{ padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', cursor: safePage === totalPages ? 'not-allowed' : 'pointer', opacity: safePage === totalPages ? 0.4 : 1, fontSize: '14px', lineHeight: 1 }}
+            ><i className="ri-arrow-right-s-line" /></button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={safePage === totalPages}
+              style={{ padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', cursor: safePage === totalPages ? 'not-allowed' : 'pointer', opacity: safePage === totalPages ? 0.4 : 1, fontSize: '14px', lineHeight: 1 }}
+              title="Last page"
+            ><i className="ri-skip-forward-line" /></button>
+          </div>
+        </div>
+      )}
 
       {/* Add/Edit Modal */}
       <Modal
@@ -487,13 +745,19 @@ export default function Incidents() {
                     </div>
                     <div className="form-group">
                     <label style={{ marginBottom: '4px', fontWeight: '600' }}>TEAM *</label>
-                    <select name="team" value={formData.team} onChange={handleInputChange} style={{ padding: '8px' }} required>
+                    {isViewing ? (
+                      <div style={{ padding: '8px 12px', background: '#f3f4f6', borderRadius: '8px', fontWeight: '600', fontSize: '14px', border: '1px solid var(--border-light)', minHeight: '38px', display: 'flex', alignItems: 'center' }}>
+                        {formData.team || <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>—</span>}
+                      </div>
+                    ) : (
+                      <select name="team" value={formData.team} onChange={handleInputChange} style={{ padding: '8px' }} required>
                         <option value="">Select Team...</option>
                         <option value="Alpha">Alpha</option>
                         <option value="Bravo">Bravo</option>
                         <option value="Charlie">Charlie</option>
                         <option value="Delta">Delta</option>
                       </select>
+                    )}
                     </div>
                   </div>
                   <div className="form-row" style={{ gap: '12px' }}>
@@ -566,29 +830,102 @@ export default function Incidents() {
                   <div className="form-row" style={{ gap: '12px' }}>
                     <div className="form-group" style={{ marginBottom: '8px' }}>
                       <label style={{ marginBottom: '4px', fontWeight: '600' }}>Vehicle</label>
-                      <select name="vehicle" value={formData.vehicle} onChange={handleInputChange} style={{ padding: '6px' }}>
-                        <option value="N/A">N/A</option>
-                        <option value="Single Motor">Single Motor</option>
-                        <option value="Tricycle">Tricycle</option>
-                        <option value="Kolong kolong">Kolong kolong</option>
-                        <option value="Other">Other</option>
-                      </select>
+                      {isViewing ? (
+                        <div style={{ padding: '8px 12px', background: '#f3f4f6', borderRadius: '8px', fontWeight: '600', fontSize: '14px', border: '1px solid var(--border-light)' }}>
+                          {formData.vehicle === 'Other'
+                            ? (formData.vehicle_other ? `Other — ${formData.vehicle_other}` : 'Other')
+                            : (formData.vehicle || 'N/A')}
+                        </div>
+                      ) : (
+                        <select name="vehicle" value={formData.vehicle} onChange={handleInputChange} style={{ padding: '6px' }}>
+                          <option value="N/A">N/A</option>
+                          <option value="Single Motor">Single Motor</option>
+                          <option value="Tricycle">Tricycle</option>
+                          <option value="Kolong kolong">Kolong kolong</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      )}
                     </div>
-                    {formData.vehicle === 'Other' && (
+                    {!isViewing && formData.vehicle === 'Other' && (
                       <div className="form-group" style={{ marginBottom: '8px' }}>
                         <label style={{ marginBottom: '4px', fontWeight: '600' }}>Specify Vehicle</label>
                         <input type="text" name="vehicle_other" value={formData.vehicle_other} onChange={handleInputChange} placeholder="Specify other vehicle" style={{ padding: '6px' }} />
                       </div>
                     )}
                   </div>
-                  <div className="form-row" style={{ marginTop: '4px', gap: '16px' }}>
-                    <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
-                      <input type="checkbox" id="helmet" name="helmet" checked={formData.helmet === 'Positive'} onChange={(e) => handleInputChange({ target: { name: 'helmet', value: e.target.checked ? 'Positive' : 'Negative' } })} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
-                      <label htmlFor="helmet" style={{ marginBottom: 0, fontWeight: '600', cursor: 'pointer' }}>Helmet (Positive)</label>
+
+                  {/* Helmet & Liquor — badge UI */}
+                  <div className="form-row" style={{ marginTop: '8px', gap: '16px' }}>
+                    {/* Helmet */}
+                    <div className="form-group" style={{ marginBottom: '8px' }}>
+                      <label style={{ marginBottom: '6px', fontWeight: '600' }}>Helmet</label>
+                      {isViewing ? (
+                        <div style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '6px',
+                          padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '13px',
+                          background: formData.helmet === 'Positive' ? '#dcfce7' : formData.helmet === 'Negative' ? '#fee2e2' : '#f3f4f6',
+                          color: formData.helmet === 'Positive' ? '#15803d' : formData.helmet === 'Negative' ? '#b91c1c' : '#6b7280',
+                          border: `1px solid ${formData.helmet === 'Positive' ? '#bbf7d0' : formData.helmet === 'Negative' ? '#fecaca' : '#e5e7eb'}`
+                        }}>
+                          <i className={formData.helmet === 'Positive' ? 'ri-checkbox-circle-fill' : formData.helmet === 'Negative' ? 'ri-close-circle-fill' : 'ri-question-mark'} />
+                          {formData.helmet || 'Not set'}
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {['Positive', 'Negative'].map(val => (
+                            <button
+                              key={val}
+                              type="button"
+                              onClick={() => handleInputChange({ target: { name: 'helmet', value: val } })}
+                              style={{
+                                padding: '6px 16px', borderRadius: '20px', fontWeight: '700', fontSize: '13px', cursor: 'pointer',
+                                border: `2px solid ${formData.helmet === val ? (val === 'Positive' ? '#16a34a' : '#dc2626') : '#e5e7eb'}`,
+                                background: formData.helmet === val ? (val === 'Positive' ? '#dcfce7' : '#fee2e2') : '#f9fafb',
+                                color: formData.helmet === val ? (val === 'Positive' ? '#15803d' : '#b91c1c') : '#6b7280',
+                                transition: 'all 0.15s'
+                              }}
+                            >
+                              {val === 'Positive' ? '✓ Positive' : '✗ Negative'}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
-                      <input type="checkbox" id="liquor" name="liquor" checked={formData.liquor === 'Positive'} onChange={(e) => handleInputChange({ target: { name: 'liquor', value: e.target.checked ? 'Positive' : 'Negative' } })} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
-                      <label htmlFor="liquor" style={{ marginBottom: 0, fontWeight: '600', cursor: 'pointer' }}>Liquor Involvement (Positive)</label>
+
+                    {/* Liquor */}
+                    <div className="form-group" style={{ marginBottom: '8px' }}>
+                      <label style={{ marginBottom: '6px', fontWeight: '600' }}>Liquor Involvement</label>
+                      {isViewing ? (
+                        <div style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '6px',
+                          padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '13px',
+                          background: formData.liquor === 'Positive' ? '#dcfce7' : formData.liquor === 'Negative' ? '#fee2e2' : '#f3f4f6',
+                          color: formData.liquor === 'Positive' ? '#15803d' : formData.liquor === 'Negative' ? '#b91c1c' : '#6b7280',
+                          border: `1px solid ${formData.liquor === 'Positive' ? '#bbf7d0' : formData.liquor === 'Negative' ? '#fecaca' : '#e5e7eb'}`
+                        }}>
+                          <i className={formData.liquor === 'Positive' ? 'ri-checkbox-circle-fill' : formData.liquor === 'Negative' ? 'ri-close-circle-fill' : 'ri-question-mark'} />
+                          {formData.liquor || 'Not set'}
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {['Positive', 'Negative'].map(val => (
+                            <button
+                              key={val}
+                              type="button"
+                              onClick={() => handleInputChange({ target: { name: 'liquor', value: val } })}
+                              style={{
+                                padding: '6px 16px', borderRadius: '20px', fontWeight: '700', fontSize: '13px', cursor: 'pointer',
+                                border: `2px solid ${formData.liquor === val ? (val === 'Positive' ? '#16a34a' : '#dc2626') : '#e5e7eb'}`,
+                                background: formData.liquor === val ? (val === 'Positive' ? '#dcfce7' : '#fee2e2') : '#f9fafb',
+                                color: formData.liquor === val ? (val === 'Positive' ? '#15803d' : '#b91c1c') : '#6b7280',
+                                transition: 'all 0.15s'
+                              }}
+                            >
+                              {val === 'Positive' ? '✓ Positive' : '✗ Negative'}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </>
@@ -596,33 +933,55 @@ export default function Incidents() {
 
               {activeTab === 'time' && (
                 <>
-                  <h4 style={{ margin: '0 0 8px 0', color: 'var(--primary)' }}>Time Logs</h4>
-                  <div className="form-row" style={{ gap: '12px' }}>
-                    <div className="form-group">
-                      <label style={{ marginBottom: '4px', fontWeight: '600' }}>ARRIVAL AT SCENE *</label>
-                      <input type="time" name="time_of_arrival_at_scene" value={formData.time_of_arrival_at_scene} onChange={handleInputChange} style={{ padding: '8px' }} required />
+                  <h4 style={{ margin: '0 0 16px 0', color: 'var(--primary)' }}>Time Logs</h4>
+                  {isViewing ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      {[
+                        { label: 'Time of Call', value: formData.time_of_call },
+                        { label: 'Arrival at Scene', value: formData.time_of_arrival_at_scene },
+                        { label: 'Departure at Scene', value: formData.time_of_departure_at_scene },
+                        { label: 'Arrival at Hospital', value: formData.time_of_arrival_at_hosp },
+                        { label: 'Departure at Hospital', value: formData.time_of_departure_at_hosp },
+                        { label: 'Back to Base', value: formData.back_to_base },
+                      ].map(({ label, value }) => (
+                        <div key={label} style={{ background: '#f8fafc', borderRadius: '8px', padding: '12px 16px', border: '1px solid var(--border-light)' }}>
+                          <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>{label}</div>
+                          <div style={{ fontSize: '16px', fontWeight: '700', color: value ? 'var(--text)' : 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                            {value || <span style={{ fontSize: '13px', fontWeight: '400' }}>— not recorded —</span>}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="form-group">
-                      <label style={{ marginBottom: '4px', fontWeight: '600' }}>DEPARTURE AT SCENE *</label>
-                      <input type="time" name="time_of_departure_at_scene" value={formData.time_of_departure_at_scene} onChange={handleInputChange} style={{ padding: '8px' }} required />
-                    </div>
-                  </div>
-                  <div className="form-row" style={{ gap: '12px' }}>
-                    <div className="form-group" style={{ marginBottom: '8px' }}>
-                      <label style={{ marginBottom: '4px', fontWeight: '600' }}>Arrival at Hosp.</label>
-                      <input type="time" name="time_of_arrival_at_hosp" value={formData.time_of_arrival_at_hosp} onChange={handleInputChange} style={{ padding: '6px' }} />
-                    </div>
-                    <div className="form-group" style={{ marginBottom: '8px' }}>
-                      <label style={{ marginBottom: '4px', fontWeight: '600' }}>Departure at Hosp.</label>
-                      <input type="time" name="time_of_departure_at_hosp" value={formData.time_of_departure_at_hosp} onChange={handleInputChange} style={{ padding: '6px' }} />
-                    </div>
-                  </div>
-                  <div className="form-row" style={{ gap: '12px' }}>
-                    <div className="form-group" style={{ marginBottom: '8px' }}>
-                      <label style={{ marginBottom: '4px', fontWeight: '600' }}>Back to Base</label>
-                      <input type="time" name="back_to_base" value={formData.back_to_base} onChange={handleInputChange} style={{ padding: '6px' }} />
-                    </div>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="form-row" style={{ gap: '12px' }}>
+                        <div className="form-group">
+                          <label style={{ marginBottom: '4px', fontWeight: '600' }}>ARRIVAL AT SCENE *</label>
+                          <input type="time" name="time_of_arrival_at_scene" value={formData.time_of_arrival_at_scene} onChange={handleInputChange} style={{ padding: '8px' }} required />
+                        </div>
+                        <div className="form-group">
+                          <label style={{ marginBottom: '4px', fontWeight: '600' }}>DEPARTURE AT SCENE *</label>
+                          <input type="time" name="time_of_departure_at_scene" value={formData.time_of_departure_at_scene} onChange={handleInputChange} style={{ padding: '8px' }} required />
+                        </div>
+                      </div>
+                      <div className="form-row" style={{ gap: '12px' }}>
+                        <div className="form-group" style={{ marginBottom: '8px' }}>
+                          <label style={{ marginBottom: '4px', fontWeight: '600' }}>Arrival at Hosp.</label>
+                          <input type="time" name="time_of_arrival_at_hosp" value={formData.time_of_arrival_at_hosp} onChange={handleInputChange} style={{ padding: '6px' }} />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: '8px' }}>
+                          <label style={{ marginBottom: '4px', fontWeight: '600' }}>Departure at Hosp.</label>
+                          <input type="time" name="time_of_departure_at_hosp" value={formData.time_of_departure_at_hosp} onChange={handleInputChange} style={{ padding: '6px' }} />
+                        </div>
+                      </div>
+                      <div className="form-row" style={{ gap: '12px' }}>
+                        <div className="form-group" style={{ marginBottom: '8px' }}>
+                          <label style={{ marginBottom: '4px', fontWeight: '600' }}>Back to Base</label>
+                          <input type="time" name="back_to_base" value={formData.back_to_base} onChange={handleInputChange} style={{ padding: '6px' }} />
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
 
@@ -878,6 +1237,128 @@ export default function Incidents() {
           </div>
         </form>
       </Modal>
+      {/* ── Export Modal ── */}
+      {isExportOpen && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setIsExportOpen(false) }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '16px'
+          }}
+        >
+          <div style={{
+            background: 'var(--bg-surface)',
+            borderRadius: 'var(--radius-lg)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+            width: '100%', maxWidth: '460px',
+            overflow: 'hidden'
+          }}>
+            {/* Header */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '20px 24px', borderBottom: '1px solid var(--border-light)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <i className="ri-file-excel-2-line" style={{ fontSize: '20px', color: '#16a34a' }} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: '800', fontSize: '16px' }}>Export to Excel</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>incidents_report.xlsx</div>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsExportOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '20px', lineHeight: 1, padding: '4px' }}
+              ><i className="ri-close-line" /></button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '24px' }}>
+              <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+                Select a date range to filter which records to export. Leave both fields empty to export all records.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>From</label>
+                  <input
+                    type="date"
+                    value={exportFrom}
+                    onChange={e => setExportFrom(e.target.value)}
+                    style={{ width: '100%', padding: '9px 10px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-app)', fontSize: '13px', color: 'var(--text)', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>To</label>
+                  <input
+                    type="date"
+                    value={exportTo}
+                    min={exportFrom || undefined}
+                    onChange={e => setExportTo(e.target.value)}
+                    style={{ width: '100%', padding: '9px 10px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-app)', fontSize: '13px', color: 'var(--text)', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              {/* Row preview */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '12px',
+                padding: '14px 16px', borderRadius: '10px',
+                background: exportPreviewRows.length > 0 ? '#f0fdf4' : '#fef2f2',
+                border: `1px solid ${exportPreviewRows.length > 0 ? '#bbf7d0' : '#fecaca'}`,
+                marginBottom: '24px'
+              }}>
+                <i
+                  className={exportPreviewRows.length > 0 ? 'ri-checkbox-circle-line' : 'ri-error-warning-line'}
+                  style={{ fontSize: '22px', color: exportPreviewRows.length > 0 ? '#16a34a' : '#dc2626', flexShrink: 0 }}
+                />
+                <div>
+                  <div style={{ fontWeight: '800', fontSize: '15px', color: exportPreviewRows.length > 0 ? '#15803d' : '#b91c1c' }}>
+                    {exportPreviewRows.length} {exportPreviewRows.length === 1 ? 'record' : 'records'} will be exported
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    {exportFrom && exportTo
+                      ? `${format(new Date(exportFrom), 'MMM dd, yyyy')} – ${format(new Date(exportTo), 'MMM dd, yyyy')}`
+                      : exportFrom
+                        ? `From ${format(new Date(exportFrom), 'MMM dd, yyyy')} onwards`
+                        : exportTo
+                          ? `Up to ${format(new Date(exportTo), 'MMM dd, yyyy')}`
+                          : 'All dates — no filter applied'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setIsExportOpen(false)}
+                  style={{ padding: '9px 20px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-app)', fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleExport}
+                  disabled={exportPreviewRows.length === 0}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '7px',
+                    padding: '9px 22px', borderRadius: '8px',
+                    background: exportPreviewRows.length > 0 ? '#16a34a' : '#9ca3af',
+                    color: '#fff', border: 'none',
+                    fontSize: '13px', fontWeight: '700',
+                    cursor: exportPreviewRows.length > 0 ? 'pointer' : 'not-allowed',
+                    transition: 'background 0.15s'
+                  }}
+                >
+                  <i className="ri-download-2-line" /> Download XLSX
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

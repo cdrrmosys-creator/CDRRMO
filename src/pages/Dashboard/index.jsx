@@ -21,6 +21,7 @@ const COLORS    = {
 
 const SEVERITY_PALETTE = ['#16a34a','#d97706','#ea580c','#dc2626']
 const DUTY_PALETTE     = ['#16a34a','#dc2626','#2563eb','#d97706']
+const TEAM_PALETTE     = { Alpha:'#2563eb', Bravo:'#16a34a', Charlie:'#d97706', Delta:'#dc2626', Unknown:'#6b7280' }
 const VEH_PALETTE      = ['#16a34a','#d97706','#dc2626','#6b7280']
 const VOL_PALETTE      = ['#16a34a','#dc2626','#6b7280']
 const INV_PALETTE      = ['#16a34a','#dc2626']
@@ -132,7 +133,7 @@ export default function Dashboard() {
   const [loading, setLoading]         = useState(true)
   const [counts, setCounts]           = useState({})
   const [empStatusData, setEmpStatus] = useState([])
-  const [incSevData, setIncSev]       = useState([])
+  const [incTeamData, setIncTeam]     = useState([])
   const [vehStatusData, setVehStatus] = useState([])
   const [volStatusData, setVolStatus] = useState([])
   const [invCondData, setInvCond]     = useState([])
@@ -140,7 +141,7 @@ export default function Dashboard() {
   const [trendPeriod, setTrendPeriod] = useState('month') // 'day', 'week', 'month'
   const [allIncidents, setAllIncidents] = useState([])
   const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'))
-  const [selectedYear, setSelectedYear] = useState(() => format(new Date(), 'yyyy'))
+  const [selectedYear, setSelectedYear] = useState('2025')
   const [recentInc, setRecentInc]     = useState([])
 
   useEffect(() => { fetchAll() }, [])
@@ -194,8 +195,9 @@ export default function Dashboard() {
 
     if (allIncidents.length > 0) {
       allIncidents.forEach(inc => {
-        if (!inc.date_time) return;
-        const t = new Date(inc.date_time).getTime();
+        const rawDate = inc.date || inc.created_at;
+        if (!rawDate) return;
+        const t = new Date(rawDate).getTime();
         data.forEach(m => { if (t >= m.start && t <= m.end) m.count++ })
       })
     }
@@ -224,7 +226,7 @@ export default function Dashboard() {
       // ── Breakdown data ───────────────────────────────────────────────────────
       const [empD, incD, vehD, volD, invD] = await Promise.all([
         supabase.from('employees').select('duty_status'),
-        supabase.from('incidents').select('severity, incident_type, date_time, location, record_id').order('date_time', { ascending:false }),
+        supabase.from('incidents').select('severity, nature_of_incident, date, time_of_call, place_of_incident, record_id, team').order('date', { ascending:false }),
         supabase.from('vehicles').select('status'),
         supabase.from('volunteers').select('status'),
         supabase.from('inventory').select('serviceable'),
@@ -239,13 +241,26 @@ export default function Dashboard() {
         { name:'On Leave', value: eg['On Leave'] || 0 },
       ])
 
-      // Incident severity
-      const ig = groupBy(incD.data, 'severity')
-      setIncSev([
-        { name:'Low',      value: ig['Low']      || 0 },
-        { name:'Medium',   value: ig['Medium']   || 0 },
-        { name:'High',     value: ig['High']     || 0 },
-        { name:'Critical', value: ig['Critical'] || 0 },
+      // Incidents by team — normalize casing/whitespace before grouping
+      const normalizeTeam = (val) => {
+        if (!val) return 'Others'
+        const v = String(val).trim()
+        const map = { alpha: 'Alpha', bravo: 'Bravo', charlie: 'Charlie', delta: 'Delta' }
+        return map[v.toLowerCase()] || v
+      }
+      const normalizedInc = (incD.data || []).map(r => ({ ...r, _team: normalizeTeam(r.team) }))
+      const tg = groupBy(normalizedInc, '_team')
+      console.log('Team groupBy result (normalized):', tg)
+      const knownTeams = ['Alpha', 'Bravo', 'Charlie', 'Delta']
+      const othersCount = Object.entries(tg)
+        .filter(([k]) => !knownTeams.includes(k))
+        .reduce((s, [, v]) => s + v, 0)
+      setIncTeam([
+        { name: 'Alpha',   value: tg['Alpha']   || 0, fill: TEAM_PALETTE.Alpha },
+        { name: 'Bravo',   value: tg['Bravo']   || 0, fill: TEAM_PALETTE.Bravo },
+        { name: 'Charlie', value: tg['Charlie'] || 0, fill: TEAM_PALETTE.Charlie },
+        { name: 'Delta',   value: tg['Delta']   || 0, fill: TEAM_PALETTE.Delta },
+        { name: 'Others',  value: othersCount,         fill: TEAM_PALETTE.Unknown },
       ])
 
       // Recent incidents
@@ -284,14 +299,6 @@ export default function Dashboard() {
     } finally {
       setLoading(false)
     }
-  }
-
-  // ── Severity badge ──────────────────────────────────────────────────────────
-  const SEV = {
-    Low:      { bg:'#d1fae5', color:'#065f46' },
-    Medium:   { bg:'#fef3c7', color:'92400e' },
-    High:     { bg:'#fed7aa', color:'#9a3412' },
-    Critical: { bg:'#fee2e2', color:'#991b1b' },
   }
 
   // Stats grid data
@@ -451,30 +458,43 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* Incident Severity — donut pie */}
-        <Card title="Incidents by Severity" icon="ri-alarm-warning-line">
-          {loading ? <Skeleton /> : (
+        {/* Incidents by Team — horizontal bar */}
+        <Card title="Incidents by Team" icon="ri-alarm-warning-line">
+          {loading ? <Skeleton /> : counts.incidents === 0 ? (
+            <div style={{ textAlign:'center', padding:'40px 0', color:'var(--text-muted)' }}>
+              <i className="ri-alarm-warning-line" style={{ fontSize:'36px', display:'block', marginBottom:'8px', opacity:0.4 }} />
+              No incident data yet.
+            </div>
+          ) : (
             <>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={incSevData.some(d => d.value > 0) ? incSevData : [{ name:'No data', value:1 }]}
-                    cx="50%" cy="50%"
-                    innerRadius={55} outerRadius={85}
-                    paddingAngle={3}
-                    dataKey="value"
-                    labelLine={false}
-                    label={renderPieLabel}
-                  >
-                    {incSevData.some(d => d.value > 0)
-                      ? incSevData.map((_, i) => <Cell key={i} fill={SEVERITY_PALETTE[i % SEVERITY_PALETTE.length]} />)
-                      : <Cell fill="var(--border-light)" />
-                    }
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-              <LegendPills items={incSevData.map((d, i) => ({ name:d.name, value:d.value, color:SEVERITY_PALETTE[i] }))} />
+              <div style={{ display:'flex', flexDirection:'column', gap:'10px', marginTop:'4px' }}>
+                {(() => {
+                  const max = Math.max(...incTeamData.map(d => d.value), 1)
+                  return incTeamData.map(({ name, value, fill }) => (
+                    <div key={name}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px' }}>
+                        <span style={{ fontSize:'13px', fontWeight:'700', color:'var(--text)', display:'flex', alignItems:'center', gap:'7px' }}>
+                          <span style={{ width:'10px', height:'10px', borderRadius:'50%', background:fill, display:'inline-block', flexShrink:0 }} />
+                          {name === 'Others' ? 'Others' : `Team ${name}`}
+                        </span>
+                        <span style={{ fontSize:'13px', fontWeight:'800', color:fill }}>{value}</span>
+                      </div>
+                      <div style={{ height:'10px', borderRadius:'999px', background:'var(--border-light)', overflow:'hidden' }}>
+                        <div style={{
+                          height:'100%', borderRadius:'999px',
+                          width:`${(value / max) * 100}%`,
+                          background:fill,
+                          transition:'width 0.6s ease'
+                        }} />
+                      </div>
+                    </div>
+                  ))
+                })()}
+              </div>
+              <div style={{ marginTop:'16px', paddingTop:'12px', borderTop:'1px solid var(--border-light)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span style={{ fontSize:'12px', color:'var(--text-muted)' }}>Total incidents</span>
+                <span style={{ fontSize:'18px', fontWeight:'900', color:'var(--text)' }}>{incTeamData.reduce((s, d) => s + d.value, 0)}</span>
+              </div>
             </>
           )}
         </Card>
@@ -566,7 +586,7 @@ export default function Dashboard() {
       <Card title="Recent Incidents" icon="ri-history-line">
         {loading ? (
           <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
-            {[1,2,3].map(i => <Skeleton key={i} h="52px" />)}
+            {[1,2,3].map(i => <Skeleton key={i} h="64px" />)}
           </div>
         ) : recentInc.length === 0 ? (
           <div style={{ textAlign:'center', padding:'32px 0', color:'var(--text-muted)' }}>
@@ -575,33 +595,71 @@ export default function Dashboard() {
           </div>
         ) : (
           recentInc.map((inc, i) => {
-            const sev = SEV[inc.severity] || SEV['Medium']
+            const teamColor = TEAM_PALETTE[inc.team] || TEAM_PALETTE.Unknown
             return (
               <div key={inc.record_id || i} style={{
-                display:'flex', alignItems:'center', gap:'16px',
-                padding:'12px 0',
+                display:'flex', alignItems:'flex-start', gap:'14px',
+                padding:'14px 0',
                 borderBottom: i < recentInc.length - 1 ? '1px solid var(--border-light)' : 'none'
               }}>
+                {/* Icon */}
                 <div style={{
-                  width:'38px', height:'38px', borderRadius:'10px', flexShrink:0,
-                  background: sev.bg, color: sev.color,
-                  display:'flex', alignItems:'center', justifyContent:'center'
+                  width:'40px', height:'40px', borderRadius:'10px', flexShrink:0,
+                  background:'#fee2e2', color:'#dc2626',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  marginTop:'1px'
                 }}>
                   <i className="ri-alarm-warning-fill" style={{ fontSize:'18px' }} />
                 </div>
+
+                {/* Main info */}
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontWeight:'700', fontSize:'14px', marginBottom:'2px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                    {inc.incident_type || 'Unknown Incident'}
+                  {/* Title row */}
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'5px', flexWrap:'wrap' }}>
+                    <span style={{ fontWeight:'700', fontSize:'14px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                      {inc.nature_of_incident || 'Unknown Incident'}
+                    </span>
+                    {inc.record_id && (
+                      <code style={{ fontSize:'11px', color:'var(--text-muted)', background:'var(--bg-app)', padding:'1px 6px', borderRadius:'4px', whiteSpace:'nowrap' }}>
+                        {inc.record_id}
+                      </code>
+                    )}
                   </div>
-                  <div style={{ fontSize:'12px', color:'var(--text-muted)', display:'flex', gap:'12px', flexWrap:'wrap' }}>
-                    {inc.location && <span><i className="ri-map-pin-line" /> {inc.location}</span>}
-                    {inc.date_time && <span><i className="ri-time-line" /> {format(new Date(inc.date_time), 'MMM dd, yyyy · hh:mm a')}</span>}
+
+                  {/* Meta row */}
+                  <div style={{ display:'flex', gap:'14px', flexWrap:'wrap', alignItems:'center', fontSize:'12px', color:'var(--text-muted)' }}>
+                    {inc.place_of_incident && (
+                      <span style={{ display:'flex', alignItems:'center', gap:'4px' }}>
+                        <i className="ri-map-pin-2-fill" style={{ color:'#dc2626', fontSize:'13px' }} />
+                        {inc.place_of_incident}
+                      </span>
+                    )}
+                    {inc.date && (
+                      <span style={{ display:'flex', alignItems:'center', gap:'4px' }}>
+                        <i className="ri-calendar-line" style={{ fontSize:'13px' }} />
+                        {format(new Date(inc.date), 'MMM dd, yyyy')}
+                      </span>
+                    )}
+                    {inc.time_of_call && (
+                      <span style={{ display:'flex', alignItems:'center', gap:'4px' }}>
+                        <i className="ri-time-line" style={{ fontSize:'13px' }} />
+                        {inc.time_of_call}
+                      </span>
+                    )}
                   </div>
                 </div>
-                <span style={{
-                  padding:'3px 10px', borderRadius:'10px', fontSize:'11px', fontWeight:'700', flexShrink:0,
-                  background: sev.bg, color: sev.color
-                }}>{inc.severity || 'N/A'}</span>
+
+                {/* Team badge */}
+                {inc.team && (
+                  <span style={{
+                    padding:'3px 11px', borderRadius:'10px', fontSize:'11px', fontWeight:'800',
+                    background:`${teamColor}18`, color:teamColor,
+                    border:`1px solid ${teamColor}40`,
+                    flexShrink:0, whiteSpace:'nowrap', marginTop:'2px'
+                  }}>
+                    {inc.team}
+                  </span>
+                )}
               </div>
             )
           })
