@@ -7,12 +7,12 @@ import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
 import ModuleToolbar from '../../components/ModuleToolbar'
 import ImageCropper from '../../components/ImageCropper'
-import { uploadFile } from '../../services/storage'
+import { uploadFile, deleteFiles } from '../../services/storage'
+import { exportEmployeeProfile } from '../../utils/exportEmployeeProfile'
 
 const INITIAL_FORM_STATE = {
   employee_id: '',
   name: '',
-  username: '',
   designation: '',
   email: '',
   contact: '',
@@ -21,6 +21,7 @@ const INITIAL_FORM_STATE = {
   dob: '',
   pob: '',
   civil_status: 'Single',
+  sex: '',
   blood_type: '',
   address: '',
   height: '',
@@ -33,8 +34,22 @@ const INITIAL_FORM_STATE = {
   sss: '',
   gsis: '',
   philhealth: '',
+  emergency_contact_person: '',
+  emergency_contact_no: '',
+  medical_condition: '',
+  elementary: '',
+  highschool: '',
+  college: '',
+  eligibility: '',
+  father_name: '',
+  mother_name: '',
+  spouse_name: '',
+  children: [],           // [{ name, dob }]
+  work_experience: [],    // [{ job_description, date_from, date_to }]
+  trainings_attended: [], // [{ seminar, date, conducted_by, venue }]
   remarks: '',
   system_role: 'user',
+  role: 'user',
   avatar_url: ''
 }
 
@@ -57,6 +72,7 @@ export default function Employees() {
   const [selectedId, setSelectedId] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('personal')
+  const [visitedTabs, setVisitedTabs] = useState(new Set())
 
   // Avatar states
   const [isCropperOpen, setIsCropperOpen] = useState(false)
@@ -100,7 +116,6 @@ export default function Employees() {
     setFormData({
       employee_id: emp.employee_id || '',
       name: emp.name || '',
-      username: emp.username || '',
       designation: emp.designation || '',
       email: emp.email || '',
       contact: emp.contact || '',
@@ -109,6 +124,7 @@ export default function Employees() {
       dob: emp.dob || '',
       pob: emp.pob || '',
       civil_status: emp.civil_status || 'Single',
+      sex: emp.sex || '',
       blood_type: emp.blood_type || '',
       address: emp.address || '',
       height: emp.height || '',
@@ -121,10 +137,25 @@ export default function Employees() {
       sss: emp.sss || '',
       gsis: emp.gsis || '',
       philhealth: emp.philhealth || '',
+      emergency_contact_person: emp.emergency_contact_person || '',
+      emergency_contact_no: emp.emergency_contact_no || '',
+      medical_condition: emp.medical_condition || '',
+      elementary: emp.elementary || '',
+      highschool: emp.highschool || '',
+      college: emp.college || '',
+      eligibility: emp.eligibility || '',
+      father_name: emp.father_name || '',
+      mother_name: emp.mother_name || '',
+      spouse_name: emp.spouse_name || '',
+      children: emp.children || [],
+      work_experience: emp.work_experience || [],
+      trainings_attended: emp.trainings_attended || [],
       remarks: emp.remarks || '',
-      system_role: 'user'
+      system_role: 'user',
+      role: emp.role || 'user'
     })
     setActiveTab('personal')
+    setVisitedTabs(new Set(['personal','designation','profile','family','work','training','other','remarks']))
     setIsModalOpen(true)
   }
 
@@ -168,6 +199,7 @@ export default function Employees() {
       employee_id: `EMP-${year}-${rand}`
     })
     setActiveTab('personal')
+    setVisitedTabs(new Set())
     setIsModalOpen(true)
   }
 
@@ -180,7 +212,6 @@ export default function Employees() {
     setFormData({
       employee_id: emp.employee_id || '',
       name: emp.name || '',
-      username: emp.username || '',
       designation: emp.designation || '',
       email: emp.email || '',
       contact: emp.contact || '',
@@ -189,6 +220,7 @@ export default function Employees() {
       dob: emp.dob || '',
       pob: emp.pob || '',
       civil_status: emp.civil_status || 'Single',
+      sex: emp.sex || '',
       blood_type: emp.blood_type || '',
       address: emp.address || '',
       height: emp.height || '',
@@ -201,11 +233,26 @@ export default function Employees() {
       sss: emp.sss || '',
       gsis: emp.gsis || '',
       philhealth: emp.philhealth || '',
+      emergency_contact_person: emp.emergency_contact_person || '',
+      emergency_contact_no: emp.emergency_contact_no || '',
+      medical_condition: emp.medical_condition || '',
+      elementary: emp.elementary || '',
+      highschool: emp.highschool || '',
+      college: emp.college || '',
+      eligibility: emp.eligibility || '',
+      father_name: emp.father_name || '',
+      mother_name: emp.mother_name || '',
+      spouse_name: emp.spouse_name || '',
+      children: emp.children || [],
+      work_experience: emp.work_experience || [],
+      trainings_attended: emp.trainings_attended || [],
       remarks: emp.remarks || '',
-      system_role: 'user',
+      system_role: emp.system_role || 'user',
+      role: emp.role || 'user',
       avatar_url: emp.avatar_url || ''
     })
     setActiveTab('personal')
+    setVisitedTabs(new Set(['personal','designation','profile','family','work','training','other','remarks']))
     setIsModalOpen(true)
   }
 
@@ -236,7 +283,7 @@ export default function Employees() {
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    if (e && e.preventDefault) e.preventDefault()
     setIsSaving(true)
 
     // Extract system_role to keep it out of the database insert/update payload
@@ -245,26 +292,51 @@ export default function Employees() {
     // Set empty date to null to prevent postgres syntax error
     let payload = {
       ...employeeData,
-      dob: employeeData.dob || null
+      dob: employeeData.dob || null,
+      role: system_role === 'admin' ? 'admin' : 'user'   // sync role to employees table
     }
 
     try {
       // 1. Upload avatar if there is a newly cropped image blob
       if (croppedBlob) {
-        // Generate a safe unique filename
         const ext = croppedBlob.type === 'image/png' ? 'png' : 'jpeg'
         const filename = `${payload.employee_id || Date.now()}-${Date.now()}.${ext}`
         const publicUrl = await uploadFile('avatars', filename, croppedBlob)
+
+        // Delete old avatar from storage bucket if it exists
+        if (isEditing && formData.avatar_url) {
+          try {
+            // Extract path from URL: .../avatars/{path}
+            const match = formData.avatar_url.match(/\/avatars\/(.+)$/)
+            if (match) await deleteFiles('avatars', [match[1]])
+          } catch (delErr) {
+            console.warn('Old avatar deletion failed:', delErr)
+          }
+        }
+
         payload.avatar_url = publicUrl
       }
 
       if (isEditing) {
+        // 2. Sync email change to Supabase Auth if email was updated
+        const originalEmployee = employees.find(emp => emp.id === selectedId)
+        if (supabaseAdmin && formData.email && originalEmployee?.email !== formData.email) {
+          try {
+            // Find the auth user by old email
+            const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
+            const authUser = (listData?.users || []).find(u => u.email === originalEmployee?.email)
+            if (authUser) {
+              await supabaseAdmin.auth.admin.updateUserById(authUser.id, { email: formData.email })
+            }
+          } catch (authErr) {
+            console.warn('Auth email update failed:', authErr)
+            toast.warning('Employee record updated, but failed to update login email: ' + authErr.message)
+          }
+        }
+
         const { data, error } = await supabase
           .from('employees')
-          .update({
-            ...payload,
-            updated_at: new Date().toISOString()
-          })
+          .update({ ...payload, updated_at: new Date().toISOString() })
           .eq('id', selectedId)
           .select()
 
@@ -280,22 +352,40 @@ export default function Employees() {
             toast.warning('VITE_SUPABASE_SERVICE_KEY is not set in .env. Login account was NOT created. Please add the service key and try again.')
             accountFailed = true
           } else {
-            const { error: authError } = await supabaseAdmin.auth.admin.createUser({
-              email: formData.email,
-              password: '123456',
-              email_confirm: true,
-              user_metadata: {
-                needs_password_change: true,
-                role: system_role === 'admin' ? 'admin' : undefined,
-                created_via_app: 'true'
-              }
-            })
-            if (authError && !authError.message.toLowerCase().includes('already registered')) {
-              console.warn('Auth account warning:', authError.message)
-              toast.warning(`Employee record will be saved, but login account could not be created: ${authError.message}`)
-              accountFailed = true
-            } else {
+            // Check if auth user already exists for this email
+            let existingAuthUser = null
+            try {
+              const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
+              existingAuthUser = (listData?.users || []).find(u => u.email === formData.email)
+            } catch (_) {}
+
+            if (existingAuthUser) {
+              // Auth account already exists — just link, no need to create
               accountCreated = true
+            } else {
+              const { error: authError } = await supabaseAdmin.auth.admin.createUser({
+                email: formData.email,
+                password: '123456',
+                email_confirm: true,
+                user_metadata: {
+                  needs_password_change: true,
+                  role: system_role === 'admin' ? 'admin' : undefined,
+                  created_via_app: 'true'
+                }
+              })
+              if (authError) {
+                const msg = authError.message.toLowerCase()
+                if (msg.includes('already registered')) {
+                  // Account already exists — treat as success
+                  accountCreated = true
+                } else {
+                  console.error('Auth account creation error:', authError)
+                  toast.warning(`Employee record saved, but login account could not be created: ${authError.message}`)
+                  accountFailed = true
+                }
+              } else {
+                accountCreated = true
+              }
             }
           }
         }
@@ -560,14 +650,26 @@ export default function Employees() {
         </div>
       ) : (
         <div className="data-table">
-          <table>
+          <table style={{ tableLayout: 'fixed', width: '100%' }}>
+            <colgroup>
+              <col style={{ width: '110px' }} />{/* ID */}
+              <col style={{ width: '170px' }} />{/* Name */}
+              <col style={{ width: '140px' }} />{/* Designation */}
+              <col style={{ width: '130px' }} />{/* Office */}
+              <col style={{ width: '120px' }} />{/* Contact */}
+              <col style={{ width: '170px' }} />{/* Email */}
+              <col style={{ width: '70px' }}  />{/* Role */}
+              <col style={{ width: '110px' }} />{/* Status */}
+            </colgroup>
             <thead>
               <tr>
                 <th>ID</th>
                 <th>Name</th>
-                <th>Username</th>
                 <th>Designation</th>
+                <th>Office</th>
                 <th>Contact</th>
+                <th>Email</th>
+                <th>Role</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -583,29 +685,44 @@ export default function Employees() {
                   <td style={{ fontWeight: '700' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <div style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        background: 'var(--bg-app)',
-                        border: '1px solid var(--border-light)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden',
-                        flexShrink: 0
+                        width: '32px', height: '32px', borderRadius: '50%',
+                        background: 'var(--bg-app)', border: '1px solid var(--border-light)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        overflow: 'hidden', flexShrink: 0
                       }}>
-                        {emp.avatar_url ? (
-                          <img src={emp.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          <i className="ri-user-line" style={{ fontSize: '14px', color: 'var(--text-muted)' }}></i>
-                        )}
+                        {emp.avatar_url
+                          ? <img src={emp.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : <i className="ri-user-line" style={{ fontSize: '14px', color: 'var(--text-muted)' }}></i>
+                        }
                       </div>
-                      {emp.name || '-'}
+                      <div>
+                        <div>{emp.name || '-'}</div>
+                        {emp.sex && <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '400' }}>{emp.sex}</div>}
+                      </div>
                     </div>
                   </td>
-                  <td>{emp.username || '-'}</td>
-                  <td>{emp.designation || '-'}</td>
-                  <td>{emp.contact || '-'}</td>
+                  <td style={{ fontSize: '13px' }}>{emp.designation || '-'}</td>
+                  <td style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{emp.office || '-'}</td>
+                  <td style={{ fontSize: '13px', fontFamily: 'monospace' }}>{emp.contact || '-'}</td>
+                  <td style={{ fontSize: '13px', maxWidth: '140px' }}>
+                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {emp.email || '-'}
+                    </div>
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    {(() => {
+                      const r = emp.role || 'user'
+                      return (
+                        <span style={{
+                          padding: '3px 10px', borderRadius: '10px', fontSize: '11px', fontWeight: '700',
+                          background: r === 'admin' ? '#fee2e2' : '#eff6ff',
+                          color: r === 'admin' ? '#991b1b' : '#1d4ed8'
+                        }}>
+                          {r === 'admin' ? 'Admin' : 'User'}
+                        </span>
+                      )
+                    })()}
+                  </td>
                   <td onClick={(e) => { if (isAdmin) e.stopPropagation(); }}>{renderDutyStatus(emp)}</td>
                 </tr>
               ))}
@@ -628,77 +745,146 @@ export default function Employees() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={isViewing ? 'Employee Details' : (isEditing ? 'Edit Employee Record' : 'Add Employee Record')}
+        maxWidth="1100px"
       >
-        <form onSubmit={handleSubmit} className="modal-form">
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid var(--border-light)', overflowX: 'auto' }}>
-            <button
-              type="button"
-              onClick={() => setActiveTab('personal')}
-              style={{
-                padding: '8px 16px',
-                background: 'none',
-                border: 'none',
-                borderBottom: activeTab === 'personal' ? '2px solid var(--primary)' : '2px solid transparent',
-                color: activeTab === 'personal' ? 'var(--primary)' : 'var(--text-muted)',
-                fontWeight: '700',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              Personal Info
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('designation')}
-              style={{
-                padding: '8px 16px',
-                background: 'none',
-                border: 'none',
-                borderBottom: activeTab === 'designation' ? '2px solid var(--primary)' : '2px solid transparent',
-                color: activeTab === 'designation' ? 'var(--primary)' : 'var(--text-muted)',
-                fontWeight: '700',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              Designation
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('other')}
-              style={{
-                padding: '8px 16px',
-                background: 'none',
-                border: 'none',
-                borderBottom: activeTab === 'other' ? '2px solid var(--primary)' : '2px solid transparent',
-                color: activeTab === 'other' ? 'var(--primary)' : 'var(--text-muted)',
-                fontWeight: '700',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              Other Info
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('remarks')}
-              style={{
-                padding: '8px 16px',
-                background: 'none',
-                border: 'none',
-                borderBottom: activeTab === 'remarks' ? '2px solid var(--primary)' : '2px solid transparent',
-                color: activeTab === 'remarks' ? 'var(--primary)' : 'var(--text-muted)',
-                fontWeight: '700',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              Remarks
-            </button>
-          </div>
+        <form onSubmit={e => e.preventDefault()} className="modal-form">
+          {/* ── Sidebar steps + content ─────────────────────────────────────── */}
+          {(() => {
+            const TABS = [
+              { id: 'personal',    label: 'Personal Info',    icon: 'ri-user-line' },
+              { id: 'designation', label: 'Designation',      icon: 'ri-briefcase-line' },
+              { id: 'profile',     label: 'Profile',          icon: 'ri-heart-pulse-line' },
+              { id: 'family',      label: 'Family',           icon: 'ri-group-line' },
+              { id: 'work',        label: 'Work Experience',  icon: 'ri-building-line' },
+              { id: 'training',    label: 'Training',         icon: 'ri-book-open-line' },
+              { id: 'other',       label: 'Other Info',       icon: 'ri-more-line' },
+              { id: 'remarks',     label: 'Remarks',          icon: 'ri-sticky-note-line' },
+            ]
+            const currentIdx = TABS.findIndex(t => t.id === activeTab)
+            const isLast  = currentIdx === TABS.length - 1
+            const isFirst = currentIdx === 0
 
-          <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
-            <div style={{ minHeight: '300px' }}>
+            // Completion check per tab — green only when meaningful data is present
+            const REQUIRED = {
+              personal:    ['name', 'contact', 'address', 'dob', 'pob', 'sex', 'civil_status', 'blood_type'],
+              designation: ['email'],
+            }
+
+            const isTabComplete = (tabId) => {
+              const f = formData
+              switch (tabId) {
+                case 'personal':
+                  return ['name','contact','address','dob','pob','sex','civil_status','blood_type']
+                    .every(k => String(f[k] ?? '').trim() !== '')
+                case 'designation':
+                  return String(f.designation ?? '').trim() !== '' && String(f.email ?? '').trim() !== ''
+                case 'profile':
+                  return ['emergency_contact_person','emergency_contact_no']
+                    .some(k => String(f[k] ?? '').trim() !== '')
+                case 'family':
+                  return ['father_name','mother_name','spouse_name']
+                    .some(k => String(f[k] ?? '').trim() !== '')
+                case 'work':
+                  return Array.isArray(f.work_experience) && f.work_experience.length > 0
+                    && f.work_experience.some(w => String(w.job_description ?? '').trim() !== '')
+                case 'training':
+                  return Array.isArray(f.trainings_attended) && f.trainings_attended.length > 0
+                    && f.trainings_attended.some(t => String(t.seminar ?? '').trim() !== '')
+                case 'other':
+                  return ['tin','sss','philhealth','pagibig','gsis']
+                    .some(k => String(f[k] ?? '').trim() !== '')
+                case 'remarks':
+                  return String(f.remarks ?? '').trim() !== ''
+                default:
+                  return false
+              }
+            }
+
+            const handleNext = () => {
+              // Validate required fields first — don't mark next tab as visited if blocked
+              const reqs = REQUIRED[TABS[currentIdx].id]
+              if (reqs) {
+                const missing = reqs.filter(f => String(formData[f] ?? '').trim() === '')
+                if (missing.length > 0) {
+                  toast.error('Please fill in all required fields before continuing.')
+                  return
+                }
+              }
+              // Only after passing validation: mark current + next as visited and advance
+              setVisitedTabs(prev => new Set([...prev, TABS[currentIdx].id, TABS[currentIdx + 1].id]))
+              setActiveTab(TABS[currentIdx + 1].id)
+            }
+
+            return (
+              <div style={{ display: 'flex', gap: 0, minHeight: '520px' }}>
+                {/* Left sidebar */}
+                <div style={{
+                  width: '185px', flexShrink: 0,
+                  borderRight: '1px solid var(--border-light)',
+                  paddingRight: '0', paddingTop: '4px',
+                  display: 'flex', flexDirection: 'column', gap: '2px'
+                }}>
+                  {TABS.map((t, idx) => {
+                    const isActive   = t.id === activeTab
+                    const wasVisited = visitedTabs.has(t.id) && !isActive
+                    const complete   = wasVisited && isTabComplete(t.id)
+                    const incomplete = wasVisited && !isTabComplete(t.id)
+                    // In add mode, only visited tabs are clickable
+                    const isClickable = isEditing || isActive || visitedTabs.has(t.id)
+
+                    let bg    = 'transparent'
+                    let color = 'var(--text-muted)'
+                    let badgeBg    = 'var(--border-light)'
+                    let badgeColor = 'var(--text-muted)'
+                    let badgeContent = String(idx + 1)
+
+                    if (isActive) {
+                      bg = 'var(--primary)'; color = '#fff'
+                      badgeBg = 'rgba(255,255,255,0.25)'; badgeColor = '#fff'
+                    } else if (complete) {
+                      bg = '#f0fdf4'; color = '#15803d'
+                      badgeBg = '#16a34a'; badgeColor = '#fff'
+                      badgeContent = '✓'
+                    } else if (incomplete) {
+                      bg = '#fefce8'; color = '#92400e'
+                      badgeBg = '#f59e0b'; badgeColor = '#fff'
+                      badgeContent = '!'
+                    }
+
+                    return (
+                      <button key={t.id} type="button"
+                        onClick={() => {
+                          if (!isClickable) return
+                          setVisitedTabs(prev => new Set([...prev, t.id]))
+                          setActiveTab(t.id)
+                        }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '10px',
+                          padding: '10px 14px', border: 'none', borderRadius: '8px',
+                          cursor: isClickable ? 'pointer' : 'default',
+                          textAlign: 'left', fontSize: '13px',
+                          fontWeight: isActive ? '700' : '500',
+                          background: bg, color,
+                          transition: 'all 0.15s'
+                        }}>
+                        <span style={{
+                          width: '22px', height: '22px', borderRadius: '50%', flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '11px', fontWeight: '800',
+                          background: badgeBg, color: badgeColor
+                        }}>
+                          {badgeContent}
+                        </span>
+                        {t.label}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Right content */}
+                <div style={{ flex: 1, paddingLeft: '24px', paddingTop: '4px', overflow: 'auto' }}>
+                  <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
+                    <div style={{ minHeight: '420px' }}>
               {activeTab === 'personal' && (
                 <>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '24px' }}>
@@ -763,52 +949,32 @@ export default function Employees() {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Contact Number</label>
-                      <input
-                        type="text"
-                        name="contact"
-                        value={formData.contact}
-                        onChange={handleInputChange}
-                        placeholder="e.g. 0917-XXX-XXXX"
-                      />
+                      <label>Contact Number *</label>
+                      <input type="text" name="contact" value={formData.contact} onChange={handleInputChange}
+                        placeholder="e.g. 0917-XXX-XXXX" required />
                     </div>
                   </div>
 
                   <div className="form-group">
-                    <label>Home Address</label>
-                    <textarea
-                      name="address"
-                      value={formData.address}
-                      onChange={handleInputChange}
-                      rows={2}
-                    />
+                    <label>Home Address *</label>
+                    <textarea name="address" value={formData.address} onChange={handleInputChange} rows={2} required />
                   </div>
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Date of Birth</label>
-                      <input
-                        type="date"
-                        name="dob"
-                        value={formData.dob}
-                        onChange={handleInputChange}
-                      />
+                      <label>Date of Birth *</label>
+                      <input type="date" name="dob" value={formData.dob} onChange={handleInputChange} required />
                     </div>
                     <div className="form-group">
-                      <label>Place of Birth</label>
-                      <input
-                        type="text"
-                        name="pob"
-                        value={formData.pob}
-                        onChange={handleInputChange}
-                      />
+                      <label>Place of Birth *</label>
+                      <input type="text" name="pob" value={formData.pob} onChange={handleInputChange} required />
                     </div>
                   </div>
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Civil Status</label>
-                      <select name="civil_status" value={formData.civil_status} onChange={handleInputChange}>
+                      <label>Civil Status *</label>
+                      <select name="civil_status" value={formData.civil_status} onChange={handleInputChange} required>
                         <option value="Single">Single</option>
                         <option value="Married">Married</option>
                         <option value="Divorced">Divorced</option>
@@ -816,13 +982,17 @@ export default function Employees() {
                       </select>
                     </div>
                     <div className="form-group">
-                      <label>Blood Type</label>
-                      <input
-                        type="text"
-                        name="blood_type"
-                        value={formData.blood_type}
-                        onChange={handleInputChange}
-                        placeholder="e.g. O+, A-"
+                      <label>Sex *</label>
+                      <select name="sex" value={formData.sex} onChange={handleInputChange} required>
+                        <option value="">-- Select --</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Blood Type *</label>
+                      <input type="text" name="blood_type" value={formData.blood_type} onChange={handleInputChange}
+                        placeholder="e.g. O+, A-" required
                       />
                     </div>
                   </div>
@@ -833,60 +1003,22 @@ export default function Employees() {
                 <>
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Employee ID *</label>
-                      <input
-                        type="text"
-                        name="employee_id"
-                        value={formData.employee_id}
-                        onChange={handleInputChange}
-                        required
-                        disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
+                      <label>Employee ID</label>
+                      <input type="text" name="employee_id" value={formData.employee_id}
+                        onChange={handleInputChange} disabled
+                        style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
                     </div>
                     <div className="form-group">
-                      <label>Username *</label>
-                      <input
-                        type="text"
-                        name="username"
-                        value={formData.username}
-                        onChange={handleInputChange}
-                        required
-                        placeholder="Unique username"
-                      />
+                      <label>Designation *</label>
+                      <input type="text" name="designation" value={formData.designation}
+                        onChange={handleInputChange} placeholder="e.g. Responder, Radio Op" />
                     </div>
                   </div>
 
                   <div className="form-row">
-                    <div className="form-group">
-                      <label>Designation</label>
-                      <input
-                        type="text"
-                        name="designation"
-                        value={formData.designation}
-                        onChange={handleInputChange}
-                        placeholder="e.g. Responder, Radio Op"
-                      />
-                    </div>
                     <div className="form-group">
                       <label>Office / Station</label>
-                      <input
-                        type="text"
-                        name="office"
-                        value={formData.office}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>Email Address {isEditing ? '' : '(Used for Login)'}</label>
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        placeholder="juan@cdrrmo.gov.ph"
-                      />
+                      <input type="text" name="office" value={formData.office} onChange={handleInputChange} />
                     </div>
                     <div className="form-group">
                       <label>Duty Status</label>
@@ -896,6 +1028,14 @@ export default function Employees() {
                         <option value="Standby">Standby</option>
                         <option value="On Leave">On Leave</option>
                       </select>
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Email Address * <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>(Used for Login)</span></label>
+                      <input type="email" name="email" value={formData.email}
+                        onChange={handleInputChange} placeholder="juan@cdrrmo.gov.ph" required />
                     </div>
                   </div>
 
@@ -961,6 +1101,216 @@ export default function Employees() {
                 </>
               )}
 
+              {activeTab === 'profile' && (
+                <>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Sex</label>
+                      <select name="sex" value={formData.sex} onChange={handleInputChange}>
+                        <option value="">-- Select --</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Medical Condition</label>
+                      <input type="text" name="medical_condition" value={formData.medical_condition} onChange={handleInputChange} placeholder="e.g. None, Asthma, Diabetes" />
+                    </div>
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Emergency Contact Person</label>
+                      <input type="text" name="emergency_contact_person" value={formData.emergency_contact_person} onChange={handleInputChange} />
+                    </div>
+                    <div className="form-group">
+                      <label>Emergency Contact No.</label>
+                      <input type="text" name="emergency_contact_no" value={formData.emergency_contact_no} onChange={handleInputChange} />
+                    </div>
+                  </div>
+                  <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: '8px 0' }} />
+                  <p style={{ fontWeight: '700', fontSize: '13px', marginBottom: '8px', color: 'var(--primary)' }}>Educational Background</p>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Elementary</label>
+                      <input type="text" name="elementary" value={formData.elementary} onChange={handleInputChange} />
+                    </div>
+                    <div className="form-group">
+                      <label>High School</label>
+                      <input type="text" name="highschool" value={formData.highschool} onChange={handleInputChange} />
+                    </div>
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>College</label>
+                      <input type="text" name="college" value={formData.college} onChange={handleInputChange} />
+                    </div>
+                    <div className="form-group">
+                      <label>Eligibility</label>
+                      <input type="text" name="eligibility" value={formData.eligibility} onChange={handleInputChange} />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'family' && (
+                <>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Father's Name</label>
+                      <input type="text" name="father_name" value={formData.father_name} onChange={handleInputChange} />
+                    </div>
+                    <div className="form-group">
+                      <label>Mother's Maiden Name</label>
+                      <input type="text" name="mother_name" value={formData.mother_name} onChange={handleInputChange} />
+                    </div>
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Spouse Name</label>
+                      <input type="text" name="spouse_name" value={formData.spouse_name} onChange={handleInputChange} />
+                    </div>
+                  </div>
+                  <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: '8px 0' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <p style={{ fontWeight: '700', fontSize: '13px', color: 'var(--primary)', margin: 0 }}>Children</p>
+                    {!isViewing && (
+                      <button type="button" onClick={() => setFormData(p => ({ ...p, children: [...(p.children || []), { name: '', dob: '' }] }))}
+                        style={{ fontSize: '12px', fontWeight: '700', padding: '4px 12px', borderRadius: '6px', border: '1px solid var(--primary)', color: 'var(--primary)', background: 'transparent', cursor: 'pointer' }}>
+                        + Add Child
+                      </button>
+                    )}
+                  </div>
+                  {(formData.children || []).length === 0 && <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No children added.</p>}
+                  {(formData.children || []).map((child, idx) => (
+                    <div key={idx} className="form-row" style={{ alignItems: 'flex-end', marginBottom: '6px' }}>
+                      <div className="form-group">
+                        <label>Name</label>
+                        <input type="text" value={child.name} onChange={e => {
+                          const updated = [...formData.children]; updated[idx] = { ...updated[idx], name: e.target.value }
+                          setFormData(p => ({ ...p, children: updated }))
+                        }} />
+                      </div>
+                      <div className="form-group">
+                        <label>Date of Birth</label>
+                        <input type="date" value={child.dob} onChange={e => {
+                          const updated = [...formData.children]; updated[idx] = { ...updated[idx], dob: e.target.value }
+                          setFormData(p => ({ ...p, children: updated }))
+                        }} />
+                      </div>
+                      {!isViewing && (
+                        <button type="button" onClick={() => setFormData(p => ({ ...p, children: p.children.filter((_, i) => i !== idx) }))}
+                          style={{ padding: '8px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', flexShrink: 0, marginBottom: '2px' }}>
+                          <i className="ri-delete-bin-line" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </>
+              )}
+
+              {activeTab === 'work' && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <p style={{ fontWeight: '700', fontSize: '13px', color: 'var(--primary)', margin: 0 }}>Work Experience</p>
+                    {!isViewing && (
+                      <button type="button" onClick={() => setFormData(p => ({ ...p, work_experience: [...(p.work_experience || []), { job_description: '', date_from: '', date_to: '' }] }))}
+                        style={{ fontSize: '12px', fontWeight: '700', padding: '4px 12px', borderRadius: '6px', border: '1px solid var(--primary)', color: 'var(--primary)', background: 'transparent', cursor: 'pointer' }}>
+                        + Add Entry
+                      </button>
+                    )}
+                  </div>
+                  {(formData.work_experience || []).length === 0 && <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No work experience added.</p>}
+                  {(formData.work_experience || []).map((we, idx) => (
+                    <div key={idx} style={{ background: 'var(--bg-app)', borderRadius: '8px', padding: '12px', marginBottom: '10px', border: '1px solid var(--border-light)' }}>
+                      <div className="form-row" style={{ marginBottom: '6px' }}>
+                        <div className="form-group" style={{ flex: 2 }}>
+                          <label>Job Description</label>
+                          <input type="text" value={we.job_description} onChange={e => {
+                            const updated = [...formData.work_experience]; updated[idx] = { ...updated[idx], job_description: e.target.value }
+                            setFormData(p => ({ ...p, work_experience: updated }))
+                          }} />
+                        </div>
+                        <div className="form-group">
+                          <label>From</label>
+                          <input type="date" value={we.date_from} onChange={e => {
+                            const updated = [...formData.work_experience]; updated[idx] = { ...updated[idx], date_from: e.target.value }
+                            setFormData(p => ({ ...p, work_experience: updated }))
+                          }} />
+                        </div>
+                        <div className="form-group">
+                          <label>To</label>
+                          <input type="date" value={we.date_to} onChange={e => {
+                            const updated = [...formData.work_experience]; updated[idx] = { ...updated[idx], date_to: e.target.value }
+                            setFormData(p => ({ ...p, work_experience: updated }))
+                          }} />
+                        </div>
+                        {!isViewing && (
+                          <button type="button" onClick={() => setFormData(p => ({ ...p, work_experience: p.work_experience.filter((_, i) => i !== idx) }))}
+                            style={{ padding: '8px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', flexShrink: 0, alignSelf: 'flex-end', marginBottom: '2px' }}>
+                            <i className="ri-delete-bin-line" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+
+              {activeTab === 'training' && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <p style={{ fontWeight: '700', fontSize: '13px', color: 'var(--primary)', margin: 0 }}>Seminar / Training Attended</p>
+                    {!isViewing && (
+                      <button type="button" onClick={() => setFormData(p => ({ ...p, trainings_attended: [...(p.trainings_attended || []), { seminar: '', date: '', conducted_by: '', venue: '' }] }))}
+                        style={{ fontSize: '12px', fontWeight: '700', padding: '4px 12px', borderRadius: '6px', border: '1px solid var(--primary)', color: 'var(--primary)', background: 'transparent', cursor: 'pointer' }}>
+                        + Add Training
+                      </button>
+                    )}
+                  </div>
+                  {(formData.trainings_attended || []).length === 0 && <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No trainings added.</p>}
+                  {(formData.trainings_attended || []).map((tr, idx) => (
+                    <div key={idx} style={{ background: 'var(--bg-app)', borderRadius: '8px', padding: '12px', marginBottom: '10px', border: '1px solid var(--border-light)' }}>
+                      <div className="form-row" style={{ flexWrap: 'wrap', gap: '8px' }}>
+                        <div className="form-group" style={{ flex: '2 1 180px' }}>
+                          <label>Training / Seminar</label>
+                          <input type="text" value={tr.seminar} onChange={e => {
+                            const updated = [...formData.trainings_attended]; updated[idx] = { ...updated[idx], seminar: e.target.value }
+                            setFormData(p => ({ ...p, trainings_attended: updated }))
+                          }} />
+                        </div>
+                        <div className="form-group" style={{ flex: '1 1 130px' }}>
+                          <label>Date of Training</label>
+                          <input type="date" value={tr.date} onChange={e => {
+                            const updated = [...formData.trainings_attended]; updated[idx] = { ...updated[idx], date: e.target.value }
+                            setFormData(p => ({ ...p, trainings_attended: updated }))
+                          }} />
+                        </div>
+                        <div className="form-group" style={{ flex: '1 1 150px' }}>
+                          <label>Conducted By</label>
+                          <input type="text" value={tr.conducted_by} onChange={e => {
+                            const updated = [...formData.trainings_attended]; updated[idx] = { ...updated[idx], conducted_by: e.target.value }
+                            setFormData(p => ({ ...p, trainings_attended: updated }))
+                          }} />
+                        </div>
+                        <div className="form-group" style={{ flex: '1 1 150px' }}>
+                          <label>Training Venue</label>
+                          <input type="text" value={tr.venue} onChange={e => {
+                            const updated = [...formData.trainings_attended]; updated[idx] = { ...updated[idx], venue: e.target.value }
+                            setFormData(p => ({ ...p, trainings_attended: updated }))
+                          }} />
+                        </div>
+                        {!isViewing && (
+                          <button type="button" onClick={() => setFormData(p => ({ ...p, trainings_attended: p.trainings_attended.filter((_, i) => i !== idx) }))}
+                            style={{ padding: '8px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', flexShrink: 0, alignSelf: 'flex-end', marginBottom: '2px' }}>
+                            <i className="ri-delete-bin-line" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+
               {activeTab === 'remarks' && (
                 <div className="form-group">
                   <label>Remarks / Notes</label>
@@ -976,59 +1326,74 @@ export default function Employees() {
             </div>
           </fieldset>
 
-          <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              {!isViewing && isEditing && formData.email && isAdmin && (
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={handleResetPassword}
-                  style={{ color: '#991b1b', borderColor: '#fecaca', background: '#fef2f2' }}
-                  disabled={isSaving}
-                >
-                  <i className="ri-key-2-line" style={{ marginRight: '6px' }}></i>
-                  Reset Password
-                </button>
-              )}
-            </div>
-
-            {isViewing ? (
-              <div style={{ display: 'flex', gap: '12px' }}>{(isAdmin || canDelete) && (
-                    <button
-                      type="button"
-                      className="btn-delete"
-                      onClick={handleDeleteFromView}
-                      style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                    >
-                      <i className="ri-delete-bin-line" style={{ marginRight: '6px' }}></i> Delete
-                    </button>
-                  )}
-                  {(isAdmin || canUpdate) && (
-                    <button
-                      type="button" className="btn-edit"
-                      onClick={handleEditFromView}
-                      style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', background: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer' }}
-                    >
-                      <i className="ri-pencil-line" style={{ marginRight: '6px' }}></i> Edit
-                    </button>
-                  )}
-                  {!(isAdmin || canUpdate || canDelete) && (
-                  <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
-                    Close
-                  </button>
-                )}
+                  {/* ── Bottom actions ── */}
+                  {(() => {
+                    const TABS_LIST = ['personal','designation','profile','family','work','training','other','remarks']
+                    const currentIdx = TABS_LIST.indexOf(activeTab)
+                    const isLast  = currentIdx === TABS_LIST.length - 1
+                    const isFirst = currentIdx === 0
+                    return (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border-light)' }}>
+                        <div>
+                          {!isViewing && isEditing && formData.email && isAdmin && (
+                            <button type="button" className="btn-secondary" onClick={handleResetPassword}
+                              style={{ color: '#991b1b', borderColor: '#fecaca', background: '#fef2f2' }} disabled={isSaving}>
+                              <i className="ri-key-2-line" style={{ marginRight: '6px' }}></i>Reset Password
+                            </button>
+                          )}
+                        </div>
+                        {isViewing ? (
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <button type="button" onClick={async () => {
+                              try { await exportEmployeeProfile(formData, avatarPreview) }
+                              catch (err) { console.error('Export failed:', err); toast.error('Export failed: ' + (err?.message || '')) }
+                            }} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', background: '#dc2626', color: 'white', border: 'none', cursor: 'pointer', fontSize: '13px' }}>
+                              <i className="ri-file-pdf-line" style={{ fontSize: '15px' }}></i> Export PDF
+                            </button>
+                            {(isAdmin || canDelete) && (
+                              <button type="button" className="btn-delete" onClick={handleDeleteFromView}
+                                style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                                <i className="ri-delete-bin-line" style={{ marginRight: '6px' }}></i>Delete
+                              </button>
+                            )}
+                            {(isAdmin || canUpdate) && (
+                              <button type="button" className="btn-edit" onClick={handleEditFromView}
+                                style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}>
+                                <i className="ri-pencil-line" style={{ marginRight: '6px' }}></i>Edit
+                              </button>
+                            )}
+                            {!(isAdmin || canUpdate || canDelete) && (
+                              <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>Close</button>
+                            )}
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            {!isFirst && (
+                              <button type="button" className="btn-secondary"
+                                onClick={() => { setVisitedTabs(prev => new Set([...prev, TABS_LIST[currentIdx - 1]])); setActiveTab(TABS_LIST[currentIdx - 1]) }}>
+                                <i className="ri-arrow-left-s-line" style={{ marginRight: '4px' }}></i>Back
+                              </button>
+                            )}
+                            <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>Cancel</button>
+                            {!isLast ? (
+                              <button type="button" className="btn-submit" onClick={handleNext}>
+                                Next <i className="ri-arrow-right-s-line" style={{ marginLeft: '4px' }}></i>
+                              </button>
+                            ) : (
+                              <button type="button" className="btn-submit" disabled={isSaving}
+                                onClick={handleSubmit}>
+                                {isSaving ? 'Saving...' : <><i className="ri-save-line" style={{ marginRight: '6px' }}></i>Save Employee</>}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+                </div>
               </div>
-            ) : (
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-submit" disabled={isSaving}>
-                  {isSaving ? 'Saving...' : 'Save Employee'}
-                </button>
-              </div>
-            )}
-          </div>
+            )
+          })()}
         </form>
       </Modal>
 

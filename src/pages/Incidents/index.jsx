@@ -66,7 +66,6 @@ export default function Incidents() {
   // Toolbar / filter states
   const [searchTerm, setSearchTerm] = useState('')
   const [filterTeam, setFilterTeam] = useState('')
-  const [filterNature, setFilterNature] = useState('')
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
 
   // Pagination states
@@ -86,8 +85,12 @@ export default function Incidents() {
       )
     }
 
-    const matchesTeam = !filterTeam || item.team === filterTeam
-    const matchesNature = !filterNature || (item.nature_of_incident || '').toLowerCase().includes(filterNature.toLowerCase())
+    const KNOWN_TEAMS = ['alpha', 'bravo', 'charlie', 'delta']
+    const itemTeam = (item.team || '').trim().toLowerCase()
+    const matchesTeam = !filterTeam
+      || (filterTeam === 'Other'
+          ? !KNOWN_TEAMS.includes(itemTeam)
+          : itemTeam === filterTeam.toLowerCase())
 
     let matchesDate = true
     if (dateRange.start && dateRange.end) {
@@ -101,7 +104,7 @@ export default function Incidents() {
       }
     }
 
-    return matchesSearch && matchesTeam && matchesNature && matchesDate
+    return matchesSearch && matchesTeam && matchesDate
   }).sort((a, b) => {
     const da = new Date(a.date || a.created_at || 0)
     const db = new Date(b.date || b.created_at || 0)
@@ -505,18 +508,8 @@ export default function Incidents() {
           <option value="Bravo">Bravo</option>
           <option value="Charlie">Charlie</option>
           <option value="Delta">Delta</option>
+          <option value="Other">Other</option>
         </select>
-
-        {/* Nature filter */}
-        <div style={{ position: 'relative', flex: '1 1 160px', minWidth: '140px' }}>
-          <input
-            type="text"
-            placeholder="Filter by nature…"
-            value={filterNature}
-            onChange={e => { setFilterNature(e.target.value); setCurrentPage(1) }}
-            style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: 'var(--text)', boxSizing: 'border-box' }}
-          />
-        </div>
 
         {/* Date range */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -536,9 +529,9 @@ export default function Incidents() {
         </div>
 
         {/* Clear all filters */}
-        {(searchTerm || filterTeam || filterNature || dateRange.start || dateRange.end) && (
+        {(searchTerm || filterTeam || dateRange.start || dateRange.end) && (
           <button
-            onClick={() => { setSearchTerm(''); setFilterTeam(''); setFilterNature(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
+            onClick={() => { setSearchTerm(''); setFilterTeam(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
             style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
           >
             <i className="ri-close-line" /> Clear
