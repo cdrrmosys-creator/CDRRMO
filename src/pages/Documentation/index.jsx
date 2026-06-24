@@ -9,6 +9,7 @@ import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
 import TrainingRegistrations from './TrainingRegistrations'
+import DrrmTraining from './DrrmTraining'
 import { uploadFile, deleteFiles } from '../../services/storage'
 
 const INITIAL_FORM_STATE = {
@@ -403,8 +404,9 @@ export default function Documentation() {
         paddingBottom: '0'
       }}>
         {[
-          { key: 'archive', label: 'Documentation Archive', icon: 'ri-folder-line' },
-          { key: 'registrations', label: 'Training Registrations', icon: 'ri-user-add-line' }
+          { key: 'archive',       label: 'Documentation Archive', icon: 'ri-folder-line' },
+          { key: 'registrations', label: 'Training Registrations', icon: 'ri-user-add-line' },
+          { key: 'drrm-training', label: 'DRRM Office Training',   icon: 'ri-award-line' }
         ].map(tab => (
           <button
             key={tab.key}
@@ -431,7 +433,9 @@ export default function Documentation() {
         ))}
       </div>
 
-      {activeTab === 'registrations' ? (
+      {activeTab === 'drrm-training' ? (
+        <DrrmTraining />
+      ) : activeTab === 'registrations' ? (
         <TrainingRegistrations />
       ) : (
       <div>

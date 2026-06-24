@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { auth } from '../services/supabase'
+import { supabase } from '../services/supabase'
 
 export const useAuthStore = create((set, get) => ({
   user: null,
@@ -36,6 +37,18 @@ export const useAuthStore = create((set, get) => ({
       set({ loading: true, error: null })
       const { user, session } = await auth.signIn(email, password)
       set({ user, session, loading: false })
+
+      // Log login event — write directly to avoid circular import with logAudit
+      try {
+        await supabase.from('audit_logs').insert([{
+          user_email: user?.email ?? email,
+          action: 'Login',
+          module: 'System',
+          record_id: '',
+          details: 'User signed in'
+        }])
+      } catch (_) { /* audit failure should not block login */ }
+
       return { success: true }
     } catch (error) {
       set({ error: error.message, loading: false })
@@ -46,6 +59,20 @@ export const useAuthStore = create((set, get) => ({
   // Sign out
   signOut: async () => {
     try {
+      // Log logout before clearing state so we still have the user email
+      const { user } = get()
+      if (user?.email) {
+        try {
+          await supabase.from('audit_logs').insert([{
+            user_email: user.email,
+            action: 'Logout',
+            module: 'System',
+            record_id: '',
+            details: 'User signed out'
+          }])
+        } catch (_) { /* audit failure should not block logout */ }
+      }
+
       await auth.signOut()
       set({ user: null, session: null })
       return { success: true }

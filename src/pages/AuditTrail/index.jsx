@@ -67,9 +67,11 @@ export default function AuditTrail() {
 
   const getActionBadge = (action) => {
     const colors = {
-      'Added': { bg: '#d1fae5', color: '#065f46' },
+      'Added':   { bg: '#d1fae5', color: '#065f46' },
       'Updated': { bg: '#dbeafe', color: '#1e40af' },
       'Deleted': { bg: '#fee2e2', color: '#991b1b' },
+      'Login':   { bg: '#fef9c3', color: '#854d0e' },
+      'Logout':  { bg: '#f3e8ff', color: '#6b21a8' },
     }
     const style = colors[action] || { bg: '#e5e7eb', color: '#374151' }
     
@@ -95,9 +97,11 @@ export default function AuditTrail() {
   }))
 
   const filterOptions = [
-    { label: 'Action: Added', value: 'Added' },
+    { label: 'Action: Added',   value: 'Added' },
     { label: 'Action: Updated', value: 'Updated' },
     { label: 'Action: Deleted', value: 'Deleted' },
+    { label: 'Action: Login',   value: 'Login' },
+    { label: 'Action: Logout',  value: 'Logout' },
     ...moduleOptions
   ]
 
