@@ -3,6 +3,44 @@ import jsPDF from 'jspdf'
 const na = (v) =>
   v === null || v === undefined || String(v).trim() === '' ? 'N/A' : String(v).trim()
 
+const asArray = (val) => {
+  if (Array.isArray(val)) return val
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
+const fmtDate = (d) => {
+  if (!d) return ''
+  const dt = new Date(d)
+  if (isNaN(dt)) return na(d)
+  const dd = String(dt.getDate()).padStart(2, '0')
+  const mm = String(dt.getMonth() + 1).padStart(2, '0')
+  const yyyy = dt.getFullYear()
+  return `${dd}/${mm}/${yyyy}`
+}
+
+const writeCellText = (doc, text, x, y, w, h, align = 'left') => {
+  if (!text) return
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7.5)
+  doc.setTextColor(0, 0, 0)
+  let sz = 7.5
+  doc.setFontSize(sz)
+  while (sz > 4 && doc.getTextWidth(text) > w - 6) {
+    sz -= 0.25
+    doc.setFontSize(sz)
+  }
+  const tx = align === 'center' ? x + w / 2 : x + 3
+  doc.text(text, tx, y + h / 2 + 2.5, { align, baseline: 'middle' })
+}
+
 const calcAge = (dob) => {
   if (!dob) return 'N/A'
   const b = new Date(dob); if (isNaN(b)) return 'N/A'
@@ -267,12 +305,17 @@ export async function exportEmployeeProfile(emp, avatarSrc) {
   const weDataH  = weH - SH - weSubH1 - weSubH2
   const weRowCnt = leftF.length - 5   // = 7 rows alongside left column
   const weRH     = weDataH / weRowCnt
+  const workExp  = asArray(emp.work_experience || emp.duties)
 
   for (let i = 0; i < weRowCnt; i++) {
     const wy = weDataY + i * weRH
-    emptyCell(ML + halfW,              wy, jobW,   weRH)
-    emptyCell(ML + halfW + jobW,       wy, dtHalf, weRH)
-    emptyCell(ML + halfW + jobW + dtHalf, wy, dtHalf, weRH)
+    const w = workExp[i] || {}
+    box(ML + halfW, wy, jobW, weRH, WHITE)
+    box(ML + halfW + jobW, wy, dtHalf, weRH, WHITE)
+    box(ML + halfW + jobW + dtHalf, wy, dtHalf, weRH, WHITE)
+    writeCellText(doc, w.job_description ? na(w.job_description) : '', ML + halfW, wy, jobW, weRH)
+    writeCellText(doc, fmtDate(w.date_from), ML + halfW + jobW, wy, dtHalf, weRH, 'center')
+    writeCellText(doc, fmtDate(w.date_to), ML + halfW + jobW + dtHalf, wy, dtHalf, weRH, 'center')
   }
 
   y += profRows * RH
@@ -290,9 +333,16 @@ export async function exportEmployeeProfile(emp, avatarSrc) {
   const fbHalf = W / 2
   const cNW    = W * 0.32
   const cDW    = W - fbHalf - cNW
+  const children = asArray(emp.children)
+  const childSlots = []
+
+  const drawChildRow = (rowY) => {
+    childSlots.push(rowY)
+    box(ML + fbHalf, rowY, cNW, RH, WHITE)
+    box(ML + fbHalf + cNW, rowY, cDW, RH, WHITE)
+  }
 
   // Column headers for children (on the FIRST row of the family section)
-  // They span the height of the first label row
   box(ML + fbHalf,       y, cNW,  RH, LBL)
   box(ML + fbHalf + cNW, y, cDW,  RH, LBL)
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(...BLACK)
@@ -302,26 +352,26 @@ export async function exportEmployeeProfile(emp, avatarSrc) {
 
   // FATHER'S NAME
   rowStacked("FATHER'S NAME", na(emp.father_name), ML, y, fbHalf, RH, RH)
-  // child row beside father's value row
-  emptyCell(ML + fbHalf,       y + RH, cNW, RH)
-  emptyCell(ML + fbHalf + cNW, y + RH, cDW, RH)
+  drawChildRow(y + RH)
   y += RH * 2
 
   // MOTHER'S MAIDEN NAME
   rowStacked("MOTHER'S MAIDEN NAME", na(emp.mother_name), ML, y, fbHalf, RH, RH)
-  emptyCell(ML + fbHalf,       y,      cNW, RH)
-  emptyCell(ML + fbHalf + cNW, y,      cDW, RH)
-  emptyCell(ML + fbHalf,       y + RH, cNW, RH)
-  emptyCell(ML + fbHalf + cNW, y + RH, cDW, RH)
+  drawChildRow(y)
+  drawChildRow(y + RH)
   y += RH * 2
 
   // SPOUSE NAME
   rowStacked('SPOUSE NAME', na(emp.spouse_name), ML, y, fbHalf, RH, RH)
-  emptyCell(ML + fbHalf,       y,      cNW, RH)
-  emptyCell(ML + fbHalf + cNW, y,      cDW, RH)
-  emptyCell(ML + fbHalf,       y + RH, cNW, RH)
-  emptyCell(ML + fbHalf + cNW, y + RH, cDW, RH)
+  drawChildRow(y)
+  drawChildRow(y + RH)
   y += RH * 2
+
+  childSlots.forEach((rowY, i) => {
+    const child = children[i] || {}
+    writeCellText(doc, child.name ? na(child.name) : '', ML + fbHalf, rowY, cNW, RH, 'center')
+    writeCellText(doc, fmtDate(child.dob), ML + fbHalf + cNW, rowY, cDW, RH, 'center')
+  })
 
   // ═══════════════════════════════════════════════════════════════════════════
   // SECTION F — SEMINAR/TRAINING ATTENDED header  (no gap — straight after family)
@@ -345,7 +395,7 @@ export async function exportEmployeeProfile(emp, avatarSrc) {
   })
   y += RH
 
-  const trainings = Array.isArray(emp.trainings_attended) ? emp.trainings_attended : []
+  const trainings = asArray(emp.trainings_attended || emp.seminars || emp.trainings)
   for (let i = 0; i < trainRows; i++) {
     const t = trainings[i] || {}
     tx = ML

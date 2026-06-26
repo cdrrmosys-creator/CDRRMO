@@ -66,6 +66,34 @@ const INITIAL_FORM_STATE = {
   avatar_url: ''
 }
 
+const stripListMeta = (items = []) => items.map(({ saved, ...rest }) => rest)
+
+const entryCardStyle = (saved) => ({
+  background: 'var(--bg-app)',
+  borderRadius: '8px',
+  padding: '12px',
+  marginBottom: '10px',
+  border: `1px solid ${saved ? '#bbf7d0' : 'var(--border-light)'}`,
+  boxShadow: saved ? 'inset 3px 0 0 #16a34a' : 'none',
+})
+
+const entrySaveBtnStyle = {
+  padding: '8px 12px',
+  borderRadius: '6px',
+  border: '1px solid #bbf7d0',
+  background: '#f0fdf4',
+  color: '#15803d',
+  cursor: 'pointer',
+  flexShrink: 0,
+  fontSize: '12px',
+  fontWeight: '700',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '4px',
+  alignSelf: 'flex-end',
+  marginBottom: '2px',
+}
+
 export default function Employees() {
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(true)
@@ -183,9 +211,9 @@ export default function Employees() {
       father_name: emp.father_name || '',
       mother_name: emp.mother_name || '',
       spouse_name: emp.spouse_name || '',
-      children: emp.children || [],
-      work_experience: emp.work_experience || [],
-      trainings_attended: emp.trainings_attended || [],
+      children: (emp.children || []).map(c => ({ ...c, saved: true })),
+      work_experience: (emp.work_experience || []).map(w => ({ ...w, saved: true })),
+      trainings_attended: (emp.trainings_attended || []).map(t => ({ ...t, saved: true })),
       remarks: emp.remarks || '',
       system_role: 'user',
       role: emp.role || 'user'
@@ -287,9 +315,9 @@ export default function Employees() {
       father_name: emp.father_name || '',
       mother_name: emp.mother_name || '',
       spouse_name: emp.spouse_name || '',
-      children: emp.children || [],
-      work_experience: emp.work_experience || [],
-      trainings_attended: emp.trainings_attended || [],
+      children: (emp.children || []).map(c => ({ ...c, saved: true })),
+      work_experience: (emp.work_experience || []).map(w => ({ ...w, saved: true })),
+      trainings_attended: (emp.trainings_attended || []).map(t => ({ ...t, saved: true })),
       remarks: emp.remarks || '',
       system_role: emp.system_role || 'user',
       role: emp.role || 'user',
@@ -326,6 +354,50 @@ export default function Employees() {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
+  const saveChildEntry = (idx) => {
+    const child = formData.children?.[idx]
+    if (!String(child?.name ?? '').trim()) {
+      toast.warning('Enter the child\'s name before saving this entry.')
+      return
+    }
+    const updated = [...formData.children]
+    updated[idx] = { ...updated[idx], saved: true }
+    setFormData(p => ({ ...p, children: updated }))
+    toast.success('Child entry saved.')
+  }
+
+  const saveWorkEntry = (idx) => {
+    const entry = formData.work_experience?.[idx]
+    if (!String(entry?.job_description ?? '').trim()) {
+      toast.warning('Enter a job description before saving this entry.')
+      return
+    }
+    const updated = [...formData.work_experience]
+    updated[idx] = { ...updated[idx], saved: true }
+    setFormData(p => ({ ...p, work_experience: updated }))
+    toast.success('Work experience entry saved.')
+  }
+
+  const saveTrainingEntry = (idx) => {
+    const entry = formData.trainings_attended?.[idx]
+    if (!String(entry?.seminar ?? '').trim()) {
+      toast.warning('Enter the training / seminar name before saving this entry.')
+      return
+    }
+    const updated = [...formData.trainings_attended]
+    updated[idx] = { ...updated[idx], saved: true }
+    setFormData(p => ({ ...p, trainings_attended: updated }))
+    toast.success('Training entry saved.')
+  }
+
+  const markListEntryDirty = (listKey, idx, patch) => {
+    setFormData(p => {
+      const updated = [...(p[listKey] || [])]
+      updated[idx] = { ...updated[idx], ...patch, saved: false }
+      return { ...p, [listKey]: updated }
+    })
+  }
+
   // Email duplicate check — fires when user finishes typing the email
   const [emailError, setEmailError] = useState('')
   const handleEmailBlur = async () => {
@@ -351,14 +423,17 @@ export default function Employees() {
     if (e && e.preventDefault) e.preventDefault()
     setIsSaving(true)
 
-    // Extract system_role to keep it out of the database insert/update payload
-    const { system_role, ...employeeData } = formData
+    // Extract fields that should not be sent to the database
+    const { system_role, username: _username, ...employeeData } = formData
 
     // Set empty date to null to prevent postgres syntax error
     let payload = {
       ...employeeData,
       dob: employeeData.dob || null,
-      role: system_role === 'admin' ? 'admin' : 'user'   // sync role to employees table
+      role: system_role === 'admin' ? 'admin' : 'user',
+      children: stripListMeta(employeeData.children),
+      work_experience: stripListMeta(employeeData.work_experience),
+      trainings_attended: stripListMeta(employeeData.trainings_attended),
     }
 
     try {
@@ -366,7 +441,17 @@ export default function Employees() {
       if (croppedBlob) {
         const ext = croppedBlob.type === 'image/png' ? 'png' : 'jpeg'
         const filename = `${payload.employee_id || Date.now()}-${Date.now()}.${ext}`
-        const publicUrl = await uploadFile('avatars', filename, croppedBlob)
+        let publicUrl
+        try {
+          publicUrl = await uploadFile('avatars', filename, croppedBlob)
+        } catch (uploadErr) {
+          console.error('Avatar upload error:', uploadErr)
+          throw new Error(
+            uploadErr.message?.includes('row-level security')
+              ? 'Avatar upload blocked by storage permissions. Run fix_avatars_storage.sql in Supabase, or ensure VITE_SUPABASE_SERVICE_KEY is configured.'
+              : `Avatar upload failed: ${uploadErr.message}`
+          )
+        }
 
         // Delete old avatar from storage bucket if it exists
         if (isEditing && formData.avatar_url) {
@@ -1311,7 +1396,7 @@ export default function Employees() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <p style={{ fontWeight: '700', fontSize: '13px', color: 'var(--primary)', margin: 0 }}>Children</p>
                     {!isViewing && (
-                      <button type="button" onClick={() => setFormData(p => ({ ...p, children: [...(p.children || []), { name: '', dob: '' }] }))}
+                      <button type="button" onClick={() => setFormData(p => ({ ...p, children: [...(p.children || []), { name: '', dob: '', saved: false }] }))}
                         style={{ fontSize: '12px', fontWeight: '700', padding: '4px 12px', borderRadius: '6px', border: '1px solid var(--primary)', color: 'var(--primary)', background: 'transparent', cursor: 'pointer' }}>
                         + Add Child
                       </button>
@@ -1319,27 +1404,35 @@ export default function Employees() {
                   </div>
                   {(formData.children || []).length === 0 && <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No children added.</p>}
                   {(formData.children || []).map((child, idx) => (
-                    <div key={idx} className="form-row" style={{ alignItems: 'flex-end', marginBottom: '6px' }}>
+                    <div key={idx} style={entryCardStyle(child.saved)}>
+                      {child.saved && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: '700', color: '#15803d', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <i className="ri-checkbox-circle-fill" /> Saved
+                          </span>
+                        </div>
+                      )}
+                      <div className="form-row" style={{ alignItems: 'flex-end', marginBottom: 0 }}>
                       <div className="form-group">
                         <label>Name</label>
-                        <input type="text" value={child.name} onChange={e => {
-                          const updated = [...formData.children]; updated[idx] = { ...updated[idx], name: e.target.value }
-                          setFormData(p => ({ ...p, children: updated }))
-                        }} />
+                        <input type="text" value={child.name} onChange={e => markListEntryDirty('children', idx, { name: e.target.value })} />
                       </div>
                       <div className="form-group">
                         <label>Date of Birth</label>
-                        <input type="date" value={child.dob} onChange={e => {
-                          const updated = [...formData.children]; updated[idx] = { ...updated[idx], dob: e.target.value }
-                          setFormData(p => ({ ...p, children: updated }))
-                        }} />
+                        <input type="date" value={child.dob} onChange={e => markListEntryDirty('children', idx, { dob: e.target.value })} />
                       </div>
                       {!isViewing && (
-                        <button type="button" onClick={() => setFormData(p => ({ ...p, children: p.children.filter((_, i) => i !== idx) }))}
-                          style={{ padding: '8px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', flexShrink: 0, marginBottom: '2px' }}>
-                          <i className="ri-delete-bin-line" />
-                        </button>
+                        <>
+                          <button type="button" onClick={() => saveChildEntry(idx)} style={entrySaveBtnStyle}>
+                            <i className="ri-save-line" /> Save
+                          </button>
+                          <button type="button" onClick={() => setFormData(p => ({ ...p, children: p.children.filter((_, i) => i !== idx) }))}
+                            style={{ padding: '8px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', flexShrink: 0, marginBottom: '2px' }}>
+                            <i className="ri-delete-bin-line" />
+                          </button>
+                        </>
                       )}
+                      </div>
                     </div>
                   ))}
                 </>
@@ -1350,7 +1443,7 @@ export default function Employees() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <p style={{ fontWeight: '700', fontSize: '13px', color: 'var(--primary)', margin: 0 }}>Work Experience</p>
                     {!isViewing && (
-                      <button type="button" onClick={() => setFormData(p => ({ ...p, work_experience: [...(p.work_experience || []), { job_description: '', date_from: '', date_to: '' }] }))}
+                      <button type="button" onClick={() => setFormData(p => ({ ...p, work_experience: [...(p.work_experience || []), { job_description: '', date_from: '', date_to: '', saved: false }] }))}
                         style={{ fontSize: '12px', fontWeight: '700', padding: '4px 12px', borderRadius: '6px', border: '1px solid var(--primary)', color: 'var(--primary)', background: 'transparent', cursor: 'pointer' }}>
                         + Add Entry
                       </button>
@@ -1358,34 +1451,37 @@ export default function Employees() {
                   </div>
                   {(formData.work_experience || []).length === 0 && <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No work experience added.</p>}
                   {(formData.work_experience || []).map((we, idx) => (
-                    <div key={idx} style={{ background: 'var(--bg-app)', borderRadius: '8px', padding: '12px', marginBottom: '10px', border: '1px solid var(--border-light)' }}>
-                      <div className="form-row" style={{ marginBottom: '6px' }}>
+                    <div key={idx} style={entryCardStyle(we.saved)}>
+                      {we.saved && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: '700', color: '#15803d', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <i className="ri-checkbox-circle-fill" /> Saved
+                          </span>
+                        </div>
+                      )}
+                      <div className="form-row" style={{ marginBottom: 0 }}>
                         <div className="form-group" style={{ flex: 2 }}>
                           <label>Job Description</label>
-                          <input type="text" value={we.job_description} onChange={e => {
-                            const updated = [...formData.work_experience]; updated[idx] = { ...updated[idx], job_description: e.target.value }
-                            setFormData(p => ({ ...p, work_experience: updated }))
-                          }} />
+                          <input type="text" value={we.job_description} onChange={e => markListEntryDirty('work_experience', idx, { job_description: e.target.value })} />
                         </div>
                         <div className="form-group">
                           <label>From</label>
-                          <input type="date" value={we.date_from} onChange={e => {
-                            const updated = [...formData.work_experience]; updated[idx] = { ...updated[idx], date_from: e.target.value }
-                            setFormData(p => ({ ...p, work_experience: updated }))
-                          }} />
+                          <input type="date" value={we.date_from} onChange={e => markListEntryDirty('work_experience', idx, { date_from: e.target.value })} />
                         </div>
                         <div className="form-group">
                           <label>To</label>
-                          <input type="date" value={we.date_to} onChange={e => {
-                            const updated = [...formData.work_experience]; updated[idx] = { ...updated[idx], date_to: e.target.value }
-                            setFormData(p => ({ ...p, work_experience: updated }))
-                          }} />
+                          <input type="date" value={we.date_to} onChange={e => markListEntryDirty('work_experience', idx, { date_to: e.target.value })} />
                         </div>
                         {!isViewing && (
-                          <button type="button" onClick={() => setFormData(p => ({ ...p, work_experience: p.work_experience.filter((_, i) => i !== idx) }))}
-                            style={{ padding: '8px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', flexShrink: 0, alignSelf: 'flex-end', marginBottom: '2px' }}>
-                            <i className="ri-delete-bin-line" />
-                          </button>
+                          <>
+                            <button type="button" onClick={() => saveWorkEntry(idx)} style={entrySaveBtnStyle}>
+                              <i className="ri-save-line" /> Save
+                            </button>
+                            <button type="button" onClick={() => setFormData(p => ({ ...p, work_experience: p.work_experience.filter((_, i) => i !== idx) }))}
+                              style={{ padding: '8px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', flexShrink: 0, alignSelf: 'flex-end', marginBottom: '2px' }}>
+                              <i className="ri-delete-bin-line" />
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -1398,7 +1494,7 @@ export default function Employees() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <p style={{ fontWeight: '700', fontSize: '13px', color: 'var(--primary)', margin: 0 }}>Seminar / Training Attended</p>
                     {!isViewing && (
-                      <button type="button" onClick={() => setFormData(p => ({ ...p, trainings_attended: [...(p.trainings_attended || []), { seminar: '', date: '', conducted_by: '', venue: '' }] }))}
+                      <button type="button" onClick={() => setFormData(p => ({ ...p, trainings_attended: [...(p.trainings_attended || []), { seminar: '', date: '', conducted_by: '', venue: '', saved: false }] }))}
                         style={{ fontSize: '12px', fontWeight: '700', padding: '4px 12px', borderRadius: '6px', border: '1px solid var(--primary)', color: 'var(--primary)', background: 'transparent', cursor: 'pointer' }}>
                         + Add Training
                       </button>
@@ -1406,41 +1502,41 @@ export default function Employees() {
                   </div>
                   {(formData.trainings_attended || []).length === 0 && <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No trainings added.</p>}
                   {(formData.trainings_attended || []).map((tr, idx) => (
-                    <div key={idx} style={{ background: 'var(--bg-app)', borderRadius: '8px', padding: '12px', marginBottom: '10px', border: '1px solid var(--border-light)' }}>
-                      <div className="form-row" style={{ flexWrap: 'wrap', gap: '8px' }}>
+                    <div key={idx} style={entryCardStyle(tr.saved)}>
+                      {tr.saved && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: '700', color: '#15803d', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <i className="ri-checkbox-circle-fill" /> Saved
+                          </span>
+                        </div>
+                      )}
+                      <div className="form-row" style={{ flexWrap: 'wrap', gap: '8px', marginBottom: 0 }}>
                         <div className="form-group" style={{ flex: '2 1 180px' }}>
                           <label>Training / Seminar</label>
-                          <input type="text" value={tr.seminar} onChange={e => {
-                            const updated = [...formData.trainings_attended]; updated[idx] = { ...updated[idx], seminar: e.target.value }
-                            setFormData(p => ({ ...p, trainings_attended: updated }))
-                          }} />
+                          <input type="text" value={tr.seminar} onChange={e => markListEntryDirty('trainings_attended', idx, { seminar: e.target.value })} />
                         </div>
                         <div className="form-group" style={{ flex: '1 1 130px' }}>
                           <label>Date of Training</label>
-                          <input type="date" value={tr.date} onChange={e => {
-                            const updated = [...formData.trainings_attended]; updated[idx] = { ...updated[idx], date: e.target.value }
-                            setFormData(p => ({ ...p, trainings_attended: updated }))
-                          }} />
+                          <input type="date" value={tr.date} onChange={e => markListEntryDirty('trainings_attended', idx, { date: e.target.value })} />
                         </div>
                         <div className="form-group" style={{ flex: '1 1 150px' }}>
                           <label>Conducted By</label>
-                          <input type="text" value={tr.conducted_by} onChange={e => {
-                            const updated = [...formData.trainings_attended]; updated[idx] = { ...updated[idx], conducted_by: e.target.value }
-                            setFormData(p => ({ ...p, trainings_attended: updated }))
-                          }} />
+                          <input type="text" value={tr.conducted_by} onChange={e => markListEntryDirty('trainings_attended', idx, { conducted_by: e.target.value })} />
                         </div>
                         <div className="form-group" style={{ flex: '1 1 150px' }}>
                           <label>Training Venue</label>
-                          <input type="text" value={tr.venue} onChange={e => {
-                            const updated = [...formData.trainings_attended]; updated[idx] = { ...updated[idx], venue: e.target.value }
-                            setFormData(p => ({ ...p, trainings_attended: updated }))
-                          }} />
+                          <input type="text" value={tr.venue} onChange={e => markListEntryDirty('trainings_attended', idx, { venue: e.target.value })} />
                         </div>
                         {!isViewing && (
-                          <button type="button" onClick={() => setFormData(p => ({ ...p, trainings_attended: p.trainings_attended.filter((_, i) => i !== idx) }))}
-                            style={{ padding: '8px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', flexShrink: 0, alignSelf: 'flex-end', marginBottom: '2px' }}>
-                            <i className="ri-delete-bin-line" />
-                          </button>
+                          <>
+                            <button type="button" onClick={() => saveTrainingEntry(idx)} style={entrySaveBtnStyle}>
+                              <i className="ri-save-line" /> Save
+                            </button>
+                            <button type="button" onClick={() => setFormData(p => ({ ...p, trainings_attended: p.trainings_attended.filter((_, i) => i !== idx) }))}
+                              style={{ padding: '8px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', flexShrink: 0, alignSelf: 'flex-end', marginBottom: '2px' }}>
+                              <i className="ri-delete-bin-line" />
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
