@@ -1,415 +1,446 @@
 # CDRRMO System — Technical Diagrams
 
-> **How to view:** Open in VS Code with the Markdown Preview Enhanced extension, or paste Mermaid blocks at [mermaid.live](https://mermaid.live).
+> Render at [mermaid.live](https://mermaid.live) or use the **Markdown Preview Mermaid Support** VS Code extension.
 
 ---
 
 ## 1. Entity Relationship Diagram (ERD)
 
-Shows all Supabase tables, their columns, and relationships.
+> Key columns shown per table. Full schema in Supabase.
 
 ```mermaid
-erDiagram
+%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#1e40af", "primaryTextColor": "#ffffff", "primaryBorderColor": "#3b82f6", "lineColor": "#3b82f6", "secondaryColor": "#dbeafe", "fontFamily": "Inter, sans-serif", "fontSize": "13px"}}}%%
+classDiagram
+  direction LR
 
-  AUTH_USERS {
-    uuid id PK
-    string email
-    jsonb user_metadata
-    timestamptz created_at
+  class auth_users {
+    +UUID id
+    +String email
+    +JSON user_metadata
   }
 
-  EMPLOYEES {
-    uuid id PK
-    string employee_id UK
-    string name
-    string designation
-    string email
-    string contact
-    string duty_status
-    string office
-    string role
-    date dob
-    string pob
-    string civil_status
-    string sex
-    string blood_type
-    string address
-    string addr_city
-    string addr_barangay
-    string addr_street
-    string height
-    string weight
-    string tin
-    string sss
-    string gsis
-    string pagibig
-    string philhealth
-    string emergency_contact_person
-    string emergency_contact_no
-    string medical_condition
-    string elementary
-    string highschool
-    string college
-    string eligibility
-    string father_name
-    string mother_name
-    string spouse_name
-    jsonb children
-    jsonb work_experience
-    jsonb trainings_attended
-    string avatar_url
-    string remarks
-    timestamptz created_at
-    timestamptz updated_at
+  class employees {
+    +UUID id
+    +String employee_id
+    +String name
+    +String email
+    +String role
+    +String designation
+    +String duty_status
+    +String office
+    +Date dob
+    +String civil_status
+    +String sex
+    +String blood_type
+    +String address
+    +JSON work_experience
+    +JSON trainings_attended
+    +JSON children
+    +String avatar_url
   }
 
-  USER_PERMISSIONS {
-    uuid id PK
-    uuid user_id FK
-    string module
-    boolean can_create
-    boolean can_read
-    boolean can_update
-    boolean can_delete
-    timestamptz created_at
-    timestamptz updated_at
+  class user_permissions {
+    +UUID id
+    +UUID user_id
+    +String module
+    +Boolean can_create
+    +Boolean can_read
+    +Boolean can_update
+    +Boolean can_delete
   }
 
-  INCIDENTS {
-    uuid id PK
-    string record_id UK
-    string team
-    date date
-    string time_of_call
-    string severity
-    string nature_of_incident
-    string place_of_incident
-    string exact_place
-    string name
-    int age
-    string address
-    string vehicle
-    string vehicle_other
-    string helmet
-    string liquor
-    string time_of_arrival_at_scene
-    string time_of_departure_at_scene
-    string time_of_arrival_at_hosp
-    string time_of_departure_at_hosp
-    string back_to_base
-    string action_given
-    boolean refused_transfer
-    string transfer_from
-    string transfer_to
-    string ambulance
-    string remarks
-    jsonb photos
-    timestamptz created_at
+  class incidents {
+    +UUID id
+    +String record_id
+    +String team
+    +Date date
+    +String severity
+    +String nature_of_incident
+    +String place_of_incident
+    +String name
+    +Integer age
+    +String vehicle
+    +String helmet
+    +String liquor
+    +String action_given
+    +Boolean refused_transfer
+    +JSON photos
   }
 
-  AUDIT_LOGS {
-    uuid id PK
-    string user_email
-    string action
-    string module
-    string record_id
-    string details
-    timestamptz created_at
+  class vouchers {
+    +UUID id
+    +String record_id
+    +String beneficiary_name
+    +Numeric amount
+    +String purpose
+    +Date date
+    +String status
+    +Boolean has_insurance
   }
 
-  DRRM_OFFICE_TRAINING {
-    uuid id PK
-    string record_id UK
-    timestamptz timestamp
-    string first_name
-    string middle_name
-    string last_name
-    string suffix
-    string name_on_certificate
-    string gender
-    string contact_number
-    string email_address
-    string office
-    string designation
-    string civil_status
-    date birthdate
-    string present_address
-    string photo_url
-    timestamptz created_at
+  class inventory {
+    +UUID id
+    +String record_id
+    +String item_name
+    +String category
+    +Integer quantity
+    +String condition
+    +Date date_acquired
+    +Boolean serviceable
+    +JSON photos
   }
 
-  VEHICLES {
-    uuid id PK
-    string plate_number UK
-    string type
-    string status
-    timestamptz created_at
+  class vehicles {
+    +UUID id
+    +String vehicle_id
+    +String plate
+    +String model
+    +String type
+    +String status
+    +Date last_maintenance
   }
 
-  VOLUNTEERS {
-    uuid id PK
-    string name
-    string status
-    timestamptz created_at
+  class drivers {
+    +UUID id
+    +String driver_id
+    +String name
+    +String license_no
+    +Date license_expiry
+    +String status
   }
 
-  INVENTORY {
-    uuid id PK
-    string item_name
-    boolean serviceable
-    timestamptz created_at
+  class transport {
+    +UUID id
+    +String record_id
+    +String vehicle
+    +String driver
+    +String destination
+    +DateTime date_time
+    +String purpose
+    +JSON photos
   }
 
-  AUTH_USERS ||--o{ USER_PERMISSIONS : "has"
-  AUTH_USERS ||--o| EMPLOYEES : "linked via email"
-  USER_PERMISSIONS }o--|| AUTH_USERS : "belongs to"
+  class volunteers {
+    +UUID id
+    +String record_id
+    +String volunteer_name
+    +String organization
+    +String accreditation_no
+    +String status
+    +Boolean with_insurance
+  }
+
+  class audit_logs {
+    +UUID id
+    +String user_email
+    +String action
+    +String module
+    +String record_id
+    +String details
+    +DateTime created_at
+  }
+
+  class training_registrations {
+    +UUID id
+    +String record_id
+    +String full_name
+    +String gender
+    +String contact_number
+    +String[] trainings
+    +Date birth_date
+  }
+
+  class drrm_office_training {
+    +UUID id
+    +String record_id
+    +String first_name
+    +String last_name
+    +String office
+    +String designation
+    +Date birthdate
+    +String photo_url
+  }
+
+  class client_satisfaction {
+    +UUID id
+    +String record_id
+    +String client_name
+    +Date date
+    +Integer q1_timeliness
+    +Integer q7_overall
+    +String feedback
+  }
+
+  class cctv_documentations {
+    +UUID id
+    +String record_id
+    +Date incident_date
+    +String location
+    +String status
+    +JSON files
+  }
+
+  class venues {
+    +UUID id
+    +String record_id
+    +String facility_name
+    +Date date
+    +Time start_time
+    +Time end_time
+    +String booked_by
+  }
+
+  class activities {
+    +UUID id
+    +String record_id
+    +String activity_title
+    +Date date
+    +Integer participants
+  }
+
+  class documentations {
+    +UUID id
+    +String record_id
+    +String title
+    +Date date_filed
+    +String document_type
+    +JSON files
+  }
+
+  class calendar_events {
+    +UUID id
+    +String record_id
+    +String event_title
+    +Date start_date
+    +Date end_date
+    +String event_type
+  }
+
+  class cdrrmc_reso {
+    +UUID id
+    +String record_id
+    +String resolution_no
+    +String title
+    +Date date_passed
+    +JSON files
+  }
+
+  class cdrrmc_meeting {
+    +UUID id
+    +String record_id
+    +String meeting_no
+    +Date date
+    +String agenda
+    +JSON photos
+  }
+
+  %% Relationships
+  auth_users       "1" --> "0..*" user_permissions     : has
+  auth_users       "1" --> "0..1" employees            : linked via email
+  auth_users       "1" --> "0..*" audit_logs           : generates
+  transport        "0..*" --> "1" vehicles             : uses vehicle
+  transport        "0..*" --> "1" drivers              : assigned driver
 ```
 
 ---
 
 ## 2. Data Flow Diagram (DFD)
 
-Illustrates how data moves between the React frontend, Supabase backend, and Vercel.
-
 ```mermaid
-flowchart TD
-  subgraph USER["👤 End User (Browser)"]
-    UI["React SPA\n(Vite + React)"]
-  end
+%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#1e293b", "primaryTextColor": "#f8fafc", "primaryBorderColor": "#475569", "lineColor": "#94a3b8", "secondaryColor": "#0f172a", "fontFamily": "Inter, sans-serif", "fontSize": "13px"}}}%%
+flowchart LR
+  classDef actor    fill:#1d4ed8,stroke:#3b82f6,color:#fff
+  classDef hosting  fill:#18181b,stroke:#71717a,color:#fff
+  classDef supabase fill:#065f46,stroke:#10b981,color:#fff
+  classDef google   fill:#1a56db,stroke:#3b82f6,color:#fff
 
-  subgraph VERCEL["☁️ Vercel (Hosting)"]
-    STATIC["Static Assets\n(HTML, JS, CSS)"]
-    CDN["Global CDN\nEdge Network"]
-  end
+  DEV["Developer"]:::actor
+  UI["React SPA"]:::actor
+  CDN["Vercel CDN"]:::hosting
+  BUILD["CI/CD Pipeline"]:::hosting
 
-  subgraph SUPABASE["🗄️ Supabase (Backend)"]
-    AUTH["Auth Service\n(JWT Tokens)"]
-    DB["PostgreSQL DB\n(Tables + RLS)"]
-    STORAGE["Object Storage\n(avatars bucket\nincidents bucket)"]
-    REALTIME["Realtime\n(PostgREST API)"]
-  end
+  AUTH["Supabase Auth"]:::supabase
+  DB["PostgreSQL DB"]:::supabase
+  STORE["Object Storage"]:::supabase
+  REST["PostgREST API"]:::supabase
 
-  subgraph EXTERNAL["🌐 External"]
-    GSHEETS["Google Sheets\n(Form Responses)"]
-    GAS["Google Apps Script\n(DrrmTrainingSync.gs)"]
-  end
+  SHEETS["Google Sheets"]:::google
+  GAS["Apps Script"]:::google
 
-  %% Deploy flow
-  DEV["Developer\n(Local VSCode)"] -->|"git push"| VERCEL
-  VERCEL --> STATIC
-  STATIC --> CDN
-  CDN -->|"Serve app"| UI
+  DEV   -->|git push| BUILD
+  BUILD -->|deploy| CDN
+  CDN   -->|serve| UI
 
-  %% Auth flow
-  UI -->|"signIn(email, password)"| AUTH
-  AUTH -->|"JWT + user_metadata"| UI
+  UI    -->|anon key| REST
+  REST  <-->|rows| DB
+  UI    -->|service key| AUTH
+  AUTH  <-->|users| DB
+  UI    -->|upload| STORE
+  STORE -->|publicUrl| UI
 
-  %% Data flow
-  UI -->|"supabase.from('table').select()"| REALTIME
-  REALTIME -->|"Rows (JSON)"| UI
-  UI -->|"insert / update / delete"| DB
-  DB -->|"RLS check → result"| UI
-
-  %% Storage
-  UI -->|"uploadFile(bucket, path, blob)"| STORAGE
-  STORAGE -->|"publicUrl"| UI
-
-  %% Admin operations
-  UI -->|"supabaseAdmin.auth.admin.*"| AUTH
-  AUTH -->|"User list / create / delete"| UI
-
-  %% Google Sheets sync
-  GSHEETS -->|"Form submission"| GAS
-  GAS -->|"POST /rest/v1/drrm_office_training"| DB
-
-  %% Audit
-  UI -->|"logAudit(action, module, id)"| DB
+  SHEETS -->|form submit| GAS
+  GAS    -->|REST POST| REST
+  UI     -->|logAudit| DB
 ```
 
 ---
 
 ## 3. System Architecture Diagram
 
-High-level view of all system components and how they connect.
-
 ```mermaid
-flowchart LR
-  subgraph CLIENT["Client Layer"]
-    BROWSER["Browser\nChrome / Edge / Firefox"]
-    REACT["React 19 SPA\n──────────────\n• Vite bundler\n• React Router v7\n• Zustand (state)\n• Recharts (charts)\n• jsPDF (PDF export)\n• SheetJS (XLSX export)"]
+%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#1e3a5f", "primaryTextColor": "#ffffff", "primaryBorderColor": "#2563eb", "lineColor": "#64748b", "secondaryColor": "#dbeafe", "fontFamily": "Inter, sans-serif", "fontSize": "13px"}}}%%
+flowchart TB
+  classDef client   fill:#1d4ed8,stroke:#3b82f6,color:#fff
+  classDef vercel   fill:#18181b,stroke:#a1a1aa,color:#fff
+  classDef db       fill:#065f46,stroke:#10b981,color:#fff
+  classDef auth     fill:#7c3aed,stroke:#8b5cf6,color:#fff
+  classDef storage  fill:#b45309,stroke:#f59e0b,color:#fff
+  classDef ext      fill:#1e3a5f,stroke:#60a5fa,color:#fff
+
+  subgraph CLIENT["Client — Browser"]
+    REACT["React 19 + Vite
+    Router · Zustand · Recharts
+    jsPDF · SheetJS"]:::client
   end
 
-  subgraph HOSTING["Hosting Layer — Vercel"]
-    EDGE["Edge CDN\n(Global)"]
-    BUILD["Build Pipeline\n• npm run build\n• Vite output → dist/"]
+  subgraph VERCEL["Hosting — Vercel"]
+    CDN["Edge CDN (Global)"]:::vercel
+    PIPE["Build Pipeline
+    git push → build → deploy"]:::vercel
   end
 
-  subgraph BACKEND["Backend Layer — Supabase (managed)"]
-    direction TB
-    PG["PostgreSQL 15\n──────────────\n• employees\n• incidents\n• vehicles\n• volunteers\n• inventory\n• audit_logs\n• user_permissions\n• drrm_office_training\n• (+ 15 more tables)"]
-    PGAUTH["Auth Service\n──────────────\n• Email+Password\n• JWT sessions\n• user_metadata (role)\n• Admin API"]
-    PGSTORAGE["Object Storage\n──────────────\n• avatars bucket\n• incidents bucket"]
-    PGAPI["PostgREST API\n──────────────\n• Auto REST from schema\n• RLS enforcement\n• Service role bypass"]
+  subgraph SUPA["Backend — Supabase"]
+    PG["PostgreSQL 15
+    20+ tables + RLS"]:::db
+    PGAUTH["Auth Service
+    JWT · Admin API"]:::auth
+    PGSTORAGE["Object Storage
+    avatars · incidents"]:::storage
+    PGAPI["PostgREST API"]:::db
   end
 
-  subgraph GOOGLE["Google Integration"]
-    SHEETS["Google Sheets\n(DRRM Training Forms)"]
-    APPSCRIPT["Apps Script\nDrrmTrainingSync.gs"]
+  subgraph EXT["External"]
+    GS["Google Sheets"]:::ext
+    GA["Apps Script"]:::ext
   end
 
-  BROWSER --> REACT
-  REACT -->|"HTTPS requests"| EDGE
-  EDGE -->|"Serve static bundle"| REACT
-  BUILD --> EDGE
-
-  REACT -->|"@supabase/supabase-js\nanon key (read/RLS)"| PGAPI
-  REACT -->|"service role key\n(admin operations)"| PGAUTH
-  REACT -->|"storage SDK"| PGSTORAGE
-  PGAPI --> PG
-  PGAUTH --> PG
-
-  SHEETS -->|"Form Submit trigger"| APPSCRIPT
-  APPSCRIPT -->|"REST API POST\nservice role key"| PGAPI
+  PIPE  --> CDN
+  CDN   -->|serves bundle| REACT
+  REACT -->|anon key| PGAPI
+  REACT -->|service key| PGAUTH
+  REACT -->|storage SDK| PGSTORAGE
+  PGAPI <--> PG
+  PGAUTH <--> PG
+  GS --> GA --> PGAPI
 ```
 
 ---
 
 ## 4. Component Diagram
 
-Maps React components, pages, and their interactions.
-
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#312e81", "primaryTextColor": "#ffffff", "primaryBorderColor": "#4f46e5", "lineColor": "#94a3b8", "secondaryColor": "#ede9fe", "fontFamily": "Inter, sans-serif", "fontSize": "13px"}}}%%
 flowchart TD
-  subgraph APP["App.jsx (Root)"]
-    ROUTER["BrowserRouter\n+ Routes"]
-    PROVIDERS["Providers\n• ToastProvider\n• ConfirmProvider"]
+  classDef root    fill:#1e1b4b,stroke:#4f46e5,color:#fff
+  classDef layout  fill:#1e3a5f,stroke:#2563eb,color:#fff
+  classDef page    fill:#064e3b,stroke:#10b981,color:#fff
+  classDef shared  fill:#7c2d12,stroke:#ea580c,color:#fff
+  classDef hook    fill:#4a1d96,stroke:#7c3aed,color:#fff
+  classDef svc     fill:#374151,stroke:#9ca3af,color:#fff
+  classDef util    fill:#1f2937,stroke:#6b7280,color:#fff
+
+  APP["App.jsx"]:::root --> SB["Sidebar"]:::layout
+  APP --> TB["Topbar"]:::layout
+  APP --> PAGES
+
+  subgraph PAGES["Pages"]
+    direction TB
+    DASH["Dashboard"]:::page
+    EMP["Employees"]:::page
+    INC["Incidents"]:::page
+    DOC["Documentation"]:::page
+    PERM["UserPermissions"]:::page
+    OTHER["20+ Modules"]:::page
   end
 
-  subgraph LAYOUT["Layout.jsx"]
-    SIDEBAR["Sidebar.jsx\n(Nav links, admin gates)"]
-    TOPBAR["Topbar.jsx\n(Search, Profile modal, Logout)"]
-    OUTLET["<Outlet />\n(Page content)"]
+  subgraph SHARED["Shared Components"]
+    direction TB
+    MODAL["Modal"]:::shared
+    TOOLBAR["ModuleToolbar"]:::shared
+    CROP["ImageCropper"]:::shared
+    TOAST["Toast"]:::shared
+    PHADDR["PHAddressSelect"]:::shared
   end
 
-  subgraph PAGES["Pages (src/pages/)"]
-    DASH["Dashboard\n• Stat cards\n• Incident Trend chart\n• Incidents by Team\n• Recent Incidents"]
-    EMP["Employees\n• List + search/filter\n• Add wizard (8 steps)\n• Edit modal\n• Export PDF"]
-    INC["Incidents\n• Paginated list\n• Filters + Export XLSX\n• View/Edit modal (tabs)"]
-    DOCS["Documentation\n• Archive tab\n• Training Registrations tab\n• DRRM Office Training tab"]
-    PERM["UserPermissions\n• User list\n• CRUD matrix per module"]
-    OTHER["Vouchers, Inventory,\nVehicles, Drivers,\nTransport, Venues,\nActivities, Events,\nTraining, Volunteers,\nMaps, Pruning,\nCalendar, History,\nCCTV, Resolutions,\nMeetings, Kloudtrack,\nAudit Trail,\nClient Satisfaction"]
+  subgraph INFRA["Hooks · Services · Utils"]
+    direction TB
+    ISADMIN["useIsAdmin"]:::hook
+    PERMS["usePermissions"]:::hook
+    AUTHST["useAuthStore"]:::hook
+    SBSVC["supabase.js"]:::svc
+    STSVC["storage.js"]:::svc
+    AUDIT["audit.js"]:::svc
+    PDF["exportEmployeeProfile"]:::util
   end
 
-  subgraph COMPONENTS["Shared Components (src/components/)"]
-    MODAL["Modal.jsx"]
-    TOOLBAR["ModuleToolbar.jsx\n(Search, Filter, Export)"]
-    IMGCROP["ImageCropper.jsx"]
-    TOAST["Toast.jsx"]
-    CONFIRM["ConfirmDialog.jsx"]
-    PHADDR["PHAddressSelect.jsx\n(Nueva Ecija dropdowns)"]
-  end
-
-  subgraph HOOKS["Hooks (src/hooks/)"]
-    ISADMIN["useIsAdmin()"]
-    PERMS["usePermissions(module)"]
-  end
-
-  subgraph SERVICES["Services (src/services/)"]
-    SB["supabase.js\n(anon + admin clients)"]
-    STOR["storage.js\n(uploadFile, deleteFiles)"]
-    AUDIT["audit.js\n(logAudit)"]
-  end
-
-  subgraph STORES["State (src/stores/)"]
-    AUTHSTORE["useAuthStore\n(Zustand)\n• user, session\n• signIn, signOut"]
-  end
-
-  subgraph UTILS["Utils (src/utils/)"]
-    EXPORTPDF["exportEmployeeProfile.js\n(jsPDF)"]
-  end
-
-  APP --> LAYOUT
-  LAYOUT --> SIDEBAR
-  LAYOUT --> TOPBAR
-  LAYOUT --> OUTLET
-  OUTLET --> PAGES
-
-  EMP --> PHADDR
-  EMP --> IMGCROP
-  EMP --> EXPORTPDF
-  EMP --> MODAL
-
-  INC --> MODAL
-  DOCS --> MODAL
-
-  PAGES --> TOOLBAR
+  EMP  --> PHADDR
+  EMP  --> CROP
+  EMP  --> PDF
   PAGES --> MODAL
+  PAGES --> TOOLBAR
   PAGES --> TOAST
-  PAGES --> CONFIRM
-
   PAGES --> ISADMIN
   PAGES --> PERMS
-  TOPBAR --> AUTHSTORE
-  PAGES --> SB
-  PAGES --> STOR
+  PAGES --> SBSVC
+  PAGES --> STSVC
   PAGES --> AUDIT
+  TB   --> AUTHST
 ```
 
 ---
 
 ## 5. Workflow / Use Case Diagram
 
-Defines all user actions and their flows through the system.
-
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#0c4a6e", "primaryTextColor": "#ffffff", "primaryBorderColor": "#0284c7", "lineColor": "#94a3b8", "secondaryColor": "#e0f2fe", "fontFamily": "Inter, sans-serif", "fontSize": "13px"}}}%%
 flowchart TD
-  START(["User Opens App"])
+  classDef terminal fill:#0f172a,stroke:#334155,color:#fff
+  classDef decision fill:#7c3aed,stroke:#6d28d9,color:#fff
+  classDef action   fill:#065f46,stroke:#10b981,color:#fff
+  classDef admin    fill:#7c2d12,stroke:#dc2626,color:#fff
+  classDef all      fill:#1e3a5f,stroke:#2563eb,color:#fff
+  classDef auto     fill:#3f3f46,stroke:#71717a,color:#fff
 
-  START --> CHECK_AUTH{Authenticated?}
-  CHECK_AUTH -->|No| LOGIN["Login Page\n• Enter email + password\n• Supabase Auth validates\n• Logs Login to audit_trail"]
-  LOGIN --> PWD_CHANGE{needs_password\n_change?}
-  PWD_CHANGE -->|Yes| CHANGE_PWD["Change Password Page\n• Enter new password\n• Clears flag in user_metadata"]
-  PWD_CHANGE -->|No| DASHBOARD
-  CHANGE_PWD --> DASHBOARD
+  START(["Open App"]):::terminal --> AUTHCHK{"Authenticated?"}:::decision
+  AUTHCHK -->|No| LOGIN["Login\nEmail + Password"]:::action
+  LOGIN --> PWDCHK{"Force password\nchange?"}:::decision
+  PWDCHK -->|Yes| NEWPWD["Set New Password"]:::action --> DASH
+  PWDCHK -->|No| DASH
+  AUTHCHK -->|Yes| DASH["Dashboard"]:::all
 
-  CHECK_AUTH -->|Yes| DASHBOARD["Dashboard\n• Stat cards (6 modules)\n• Incident Trend chart\n• Incidents by Team bars\n• Recent Incidents feed"]
+  DASH --> VIEW["View Records\nAll users"]:::all
+  DASH --> ADD["Add Record\nAdmin / canCreate"]:::action
+  DASH --> EDIT["Edit Record\nAdmin / canUpdate"]:::action
+  DASH --> DEL["Delete Record\nAdmin / canDelete"]:::admin
+  DASH --> PROFILE["My Profile\nAll users — own record"]:::all
+  DASH --> PERMMOD["User Permissions\nAdmin only"]:::admin
+  DASH --> AUDITMOD["Audit Trail\nAdmin only"]:::admin
+  DASH --> LOGOUT["Logout\nLogs to audit_trail"]:::action
 
-  DASHBOARD --> NAV["User Navigates via Sidebar"]
-
-  NAV --> UC_VIEW["📋 VIEW Records\n(All users — canRead default)\n• List with search/filter/pagination\n• Click row → View modal\n• Export PDF (Employee profile)\n• Export XLSX (all modules)"]
-
-  NAV --> UC_ADD["➕ ADD Record\n(Admin OR canCreate permission)\n• Fill form / wizard\n• Upload files/photos\n• Submit → INSERT to DB\n• Creates Auth account (Employees)\n• Logs Added to audit_trail"]
-
-  NAV --> UC_EDIT["✏️ EDIT Record\n(Admin OR canUpdate permission)\n• Click Edit in view modal\n• Modify fields\n• Save → UPDATE in DB\n• Syncs email to Auth (Employees)\n• Deletes old avatar if changed\n• Logs Updated to audit_trail"]
-
-  NAV --> UC_DELETE["🗑️ DELETE Record\n(Admin OR canDelete permission)\n• Confirm dialog\n• DELETE from DB\n• Deletes files from Storage\n• Deletes Auth account (Employees)\n• Logs Deleted to audit_trail"]
-
-  NAV --> UC_PROFILE["👤 MY PROFILE\n(All users — own record)\n• Click name in Topbar\n• View/Edit personal info\n• Upload avatar (ImageCropper)\n• All 8 tabs (wizard)\n• Designation fields read-only\n• Save → UPDATE employees"]
-
-  NAV --> UC_PERMS["🔑 USER PERMISSIONS\n(Admin only)\n• List all non-admin users\n• CRUD matrix per module\n• Toggle All / per row\n• Save → UPSERT user_permissions"]
-
-  NAV --> UC_AUDIT["📜 AUDIT TRAIL\n(Admin only)\n• View all user actions\n• Filter: Login/Logout/Added/\n  Updated/Deleted\n• Export XLSX"]
-
-  NAV --> UC_LOGOUT["🚪 LOGOUT\n• Logs Logout to audit_trail\n• Clears Zustand session\n• Redirects to /login"]
-
-  subgraph GOOGLE_SYNC["🔄 Google Sheets Sync (Automatic)"]
-    GS_FORM["User fills Google Form\n(DRRM Office Training)"]
-    GS_TRIGGER["Apps Script onFormSubmit\nfires automatically"]
-    GS_INSERT["POST to Supabase\ndrrm_office_training table"]
-    GS_FORM --> GS_TRIGGER --> GS_INSERT
+  subgraph SYNC["Auto — Google Sheets"]
+    direction LR
+    GF["Form Submit"]:::auto --> GT["Apps Script"]:::auto --> GI["INSERT to DB"]:::auto
   end
 ```
 
 ---
 
-## Summary Table
+## Summary
 
-| Diagram | Purpose | Format |
+| # | Diagram | Key info |
 |---|---|---|
-| ERD | Database schema & relationships | Mermaid `erDiagram` |
-| DFD | Data movement across layers | Mermaid `flowchart TD` |
-| System Architecture | Component topology & tech stack | Mermaid `flowchart LR` |
-| Component Diagram | React component tree & dependencies | Mermaid `flowchart TD` |
-| Use Case / Workflow | User actions end-to-end | Mermaid `flowchart TD` |
-
-> **Rendering tip:** All diagrams use [Mermaid](https://mermaid.js.org/) syntax. Install the **Markdown Preview Mermaid Support** extension in VS Code to render them inline.
+| 1 | ERD | Tables, columns (key fields), relationships |
+| 2 | DFD | Data movement: browser → Vercel → Supabase → Google |
+| 3 | Architecture | Tech stack layers: Client · Vercel · Supabase · Google |
+| 4 | Components | React component tree & dependencies |
+| 5 | Use Cases | User workflows from login to logout |

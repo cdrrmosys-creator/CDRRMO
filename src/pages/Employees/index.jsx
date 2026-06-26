@@ -216,6 +216,7 @@ export default function Employees() {
     })
     setActiveTab('personal')
     setVisitedTabs(new Set())
+    setEmailError('')
     setIsModalOpen(true)
   }
 
@@ -305,6 +306,27 @@ export default function Employees() {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
+  // Email duplicate check — fires when user finishes typing the email
+  const [emailError, setEmailError] = useState('')
+  const handleEmailBlur = async () => {
+    const email = (formData.email || '').trim()
+    if (!email) { setEmailError(''); return }
+    // Skip check when editing same employee
+    const currentEmp = employees.find(e => e.id === selectedId)
+    if (currentEmp?.email === email) { setEmailError(''); return }
+
+    const { data } = await supabase
+      .from('employees')
+      .select('id, name')
+      .eq('email', email)
+      .maybeSingle()
+    if (data) {
+      setEmailError(`Already used by: ${data.name}`)
+    } else {
+      setEmailError('')
+    }
+  }
+
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault()
     setIsSaving(true)
@@ -367,67 +389,68 @@ export default function Employees() {
         setEmployees(employees.map(emp => emp.id === selectedId ? data[0] : emp))
         toast.success('Employee updated successfully!')
       } else {
-        // If email is provided, auto-create a Supabase Auth login account
-        let accountCreated = false
-        let accountFailed = false
+        // ── Pre-check: block if email already exists ────────────────────────
         if (formData.email) {
-          if (!supabaseAdmin) {
-            toast.warning('VITE_SUPABASE_SERVICE_KEY is not set in .env. Login account was NOT created. Please add the service key and try again.')
-            accountFailed = true
-          } else {
-            // Check if auth user already exists for this email
-            let existingAuthUser = null
-            try {
-              const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
-              existingAuthUser = (listData?.users || []).find(u => u.email === formData.email)
-            } catch (_) {}
+          const { data: existingEmp } = await supabase
+            .from('employees')
+            .select('id, name')
+            .eq('email', formData.email)
+            .maybeSingle()
 
-            if (existingAuthUser) {
-              // Auth account already exists — just link, no need to create
-              accountCreated = true
-            } else {
-              const { error: authError } = await supabaseAdmin.auth.admin.createUser({
-                email: formData.email,
-                password: '123456',
-                email_confirm: true,
-                user_metadata: {
-                  needs_password_change: true,
-                  role: system_role === 'admin' ? 'admin' : undefined,
-                  created_via_app: 'true'
-                }
-              })
-              if (authError) {
-                const msg = authError.message.toLowerCase()
-                if (msg.includes('already registered')) {
-                  // Account already exists — treat as success
-                  accountCreated = true
-                } else {
-                  console.error('Auth account creation error:', authError)
-                  toast.warning(`Employee record saved, but login account could not be created: ${authError.message}`)
-                  accountFailed = true
-                }
-              } else {
-                accountCreated = true
-              }
+          if (existingEmp) {
+            toast.error(`Email "${formData.email}" is already used by employee "${existingEmp.name}".`)
+            setIsSaving(false)
+            return
+          }
+
+          if (supabaseAdmin) {
+            const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 }).catch(() => ({ data: null }))
+            const existingAuth = (listData?.users || []).find(u => u.email === formData.email)
+            if (existingAuth) {
+              toast.error(`The email "${formData.email}" already has a login account. Use a different email address.`)
+              setIsSaving(false)
+              return
             }
           }
         }
 
-        const { data, error } = await supabase
+        // ── Step 1: Insert employee DB record FIRST ─────────────────────────
+        const { data: newEmpData, error: insertError } = await supabase
           .from('employees')
           .insert([payload])
           .select()
 
-        if (error) throw error
-        setEmployees([data[0], ...employees])
+        if (insertError) throw insertError   // DB failed — no auth account made
 
-        if (accountCreated) {
-          toast.success('Employee added! Login account created with default password: 123456')
-        } else if (accountFailed) {
-          toast.success('Employee record added successfully (without login account).')
-        } else {
-          toast.success('Employee added successfully!')
+        // ── Step 2: Create auth account. If this fails, delete the DB record ─
+        let accountCreated = false
+        if (formData.email && supabaseAdmin) {
+          const { error: authError } = await supabaseAdmin.auth.admin.createUser({
+            email: formData.email,
+            password: '123456',
+            email_confirm: true,
+            user_metadata: {
+              needs_password_change: true,
+              role: system_role === 'admin' ? 'admin' : undefined,
+              created_via_app: 'true'
+            }
+          })
+          if (authError) {
+            // Rollback: delete the DB record we just inserted
+            await supabase.from('employees').delete().eq('id', newEmpData[0].id)
+            console.error('Auth account creation error:', authError)
+            toast.error(`Could not create login account: ${authError.message}. Employee record was NOT saved.`)
+            setIsSaving(false)
+            return
+          }
+          accountCreated = true
         }
+
+        setEmployees([newEmpData[0], ...employees])
+        toast.success(accountCreated
+          ? 'Employee added! Login account created with default password: 123456'
+          : 'Employee added successfully!'
+        )
       }
       setIsModalOpen(false)
     } catch (err) {
@@ -720,7 +743,9 @@ export default function Employees() {
                       </div>
                       <div>
                         <div>{emp.name || '-'}</div>
-                        {emp.sex && <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '400' }}>{emp.sex}</div>}
+                        {emp.sex && emp.sex !== 'Rather not to say' && (
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '400' }}>{emp.sex}</div>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -961,7 +986,7 @@ export default function Employees() {
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Full Name *</label>
+                      <label>Full Name <span style={{ color: "#dc2626" }}>*</span></label>
                       <input
                         type="text"
                         name="name"
@@ -972,7 +997,7 @@ export default function Employees() {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Contact Number *</label>
+                      <label>Contact Number <span style={{ color: "#dc2626" }}>*</span></label>
                       <input
                         type="tel"
                         name="contact"
@@ -991,7 +1016,7 @@ export default function Employees() {
 
                   {/* Philippine address selector */}
                   <div className="form-group" style={{ marginBottom: '4px' }}>
-                    <label>Home Address *</label>
+                    <label>Home Address <span style={{ color: "#dc2626" }}>*</span></label>
                   </div>
                   <PHAddressSelect
                     disabled={isViewing}
@@ -1023,7 +1048,7 @@ export default function Employees() {
 
                   <div className="form-row" style={{ marginTop: '4px' }}>
                     <div className="form-group">
-                      <label>Date of Birth *</label>
+                      <label>Date of Birth <span style={{ color: "#dc2626" }}>*</span></label>
                       <input
                         type="date"
                         name="dob"
@@ -1034,14 +1059,14 @@ export default function Employees() {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Place of Birth *</label>
+                      <label>Place of Birth <span style={{ color: "#dc2626" }}>*</span></label>
                       <input type="text" name="pob" value={formData.pob} onChange={handleInputChange} required placeholder="e.g. Palayan City" />
                     </div>
                   </div>
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Civil Status *</label>
+                      <label>Civil Status <span style={{ color: "#dc2626" }}>*</span></label>
                       <select name="civil_status" value={formData.civil_status} onChange={handleInputChange} required>
                         <option value="Single">Single</option>
                         <option value="Married">Married</option>
@@ -1050,15 +1075,16 @@ export default function Employees() {
                       </select>
                     </div>
                     <div className="form-group">
-                      <label>Sex *</label>
+                      <label>Sex <span style={{ color: "#dc2626" }}>*</span></label>
                       <select name="sex" value={formData.sex} onChange={handleInputChange} required>
                         <option value="">-- Select --</option>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
+                        <option value="Rather not to say">Rather not to say</option>
                       </select>
                     </div>
                     <div className="form-group">
-                      <label>Blood Type *</label>
+                      <label>Blood Type <span style={{ color: "#dc2626" }}>*</span></label>
                       <select name="blood_type" value={formData.blood_type} onChange={handleInputChange} required>
                         <option value="">-- Select --</option>
                         {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(bt => <option key={bt} value={bt}>{bt}</option>)}
@@ -1070,24 +1096,35 @@ export default function Employees() {
 
               {activeTab === 'designation' && (
                 <>
+                  {/* Row 1: Designation + Office */}
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Employee ID</label>
-                      <input type="text" name="employee_id" value={formData.employee_id}
-                        onChange={handleInputChange} disabled
-                        style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
-                    </div>
-                    <div className="form-group">
-                      <label>Designation *</label>
+                      <label>Designation</label>
                       <input type="text" name="designation" value={formData.designation}
                         onChange={handleInputChange} placeholder="e.g. Responder, Radio Op" />
                     </div>
-                  </div>
-
-                  <div className="form-row">
                     <div className="form-group">
                       <label>Office / Station</label>
                       <input type="text" name="office" value={formData.office} onChange={handleInputChange} />
+                    </div>
+                  </div>
+
+                  {/* Row 2: Email + Duty Status */}
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>
+                        Email Address <span style={{ color: '#dc2626' }}>*</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '6px' }}>(Used for Login)</span>
+                      </label>
+                      <input type="email" name="email" value={formData.email}
+                        onChange={e => { handleInputChange(e); setEmailError('') }}
+                        onBlur={handleEmailBlur}
+                        placeholder="juan@cdrrmo.gov.ph" required />
+                      {emailError && (
+                        <div style={{ marginTop: '4px', fontSize: '12px', color: '#dc2626', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <i className="ri-error-warning-line" /> {emailError}
+                        </div>
+                      )}
                     </div>
                     <div className="form-group">
                       <label>Duty Status</label>
@@ -1100,25 +1137,29 @@ export default function Employees() {
                     </div>
                   </div>
 
+                  {/* Row 3: Employee ID (edit only) + System Role (add only) */}
                   <div className="form-row">
-                    <div className="form-group">
-                      <label>Email Address * <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>(Used for Login)</span></label>
-                      <input type="email" name="email" value={formData.email}
-                        onChange={handleInputChange} placeholder="juan@cdrrmo.gov.ph" required />
-                    </div>
-                  </div>
-
-                  {!isEditing && (
-                    <div className="form-row">
+                    {isEditing && (
                       <div className="form-group">
-                        <label>System Role <span style={{ color: 'var(--primary)', fontSize: '12px' }}>(Controls App Permissions)</span></label>
+                        <label>Employee ID</label>
+                        <input type="text" name="employee_id" value={formData.employee_id}
+                          onChange={handleInputChange} disabled
+                          style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
+                      </div>
+                    )}
+                    {!isEditing && (
+                      <div className="form-group">
+                        <label>
+                          System Role
+                          <span style={{ color: 'var(--primary)', fontSize: '12px', marginLeft: '6px' }}>(Controls App Permissions)</span>
+                        </label>
                         <select name="system_role" value={formData.system_role} onChange={handleInputChange}>
                           <option value="user">Standard User (Read-only)</option>
                           <option value="admin">Administrator (Full Access)</option>
                         </select>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </>
               )}
 
@@ -1174,23 +1215,15 @@ export default function Employees() {
                 <>
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Sex</label>
-                      <select name="sex" value={formData.sex} onChange={handleInputChange}>
-                        <option value="">-- Select --</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                      </select>
-                    </div>
-                    <div className="form-group">
                       <label>Medical Condition</label>
                       <input type="text" name="medical_condition" value={formData.medical_condition} onChange={handleInputChange} placeholder="e.g. None, Asthma, Diabetes" />
                     </div>
-                  </div>
-                  <div className="form-row">
                     <div className="form-group">
                       <label>Emergency Contact Person</label>
                       <input type="text" name="emergency_contact_person" value={formData.emergency_contact_person} onChange={handleInputChange} />
                     </div>
+                  </div>
+                  <div className="form-row">
                     <div className="form-group">
                       <label>Emergency Contact No.</label>
                       <input type="text" name="emergency_contact_no" value={formData.emergency_contact_no} onChange={handleInputChange} />

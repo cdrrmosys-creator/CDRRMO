@@ -10,6 +10,24 @@ import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
 
+// Convert any time value (HH:MM, full datetime string, etc.) to h:mm AM/PM
+const formatTime = (t) => {
+  if (!t) return '-'
+  const str = String(t).trim()
+
+  // Try to extract HH:MM from any format
+  // Matches: "08:30", "08:30:00", "Sat Dec 30 1899 12:13:00", ISO strings, etc.
+  const match = str.match(/(\d{1,2}):(\d{2})/)
+  if (!match) return str
+
+  const h = parseInt(match[1], 10)
+  const m = match[2]
+  if (isNaN(h)) return str
+  const period = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 || 12
+  return `${h12}:${m} ${period}`
+}
+
 const INITIAL_FORM_STATE = {
   record_id: '',
   team: '',
@@ -583,7 +601,16 @@ export default function Incidents() {
         </div>
       ) : (
         <div className="data-table">
-          <table>
+          <table style={{ tableLayout: 'fixed', width: '100%' }}>
+            <colgroup>
+              <col style={{ width: '12%'  }} />{/* Record ID */}
+              <col style={{ width: '11%'  }} />{/* Date */}
+              <col style={{ width: '9%'   }} />{/* Time of Call */}
+              <col style={{ width: '8%'   }} />{/* Team */}
+              <col style={{ width: '25%'  }} />{/* Nature */}
+              <col style={{ width: '17%'  }} />{/* Victim */}
+              <col />{/* Place — remaining */}
+            </colgroup>
             <thead>
               <tr>
                 <th>Record ID</th>
@@ -600,26 +627,40 @@ export default function Incidents() {
                 <tr
                   key={incident.id}
                   onClick={() => handleViewDetails(incident)}
-                  style={{ cursor: 'pointer' }}
+                  style={{ cursor: 'pointer', height: '49px' }}
                   className="table-row-clickable"
                 >
-                  <td><code style={{ fontWeight: '700' }}>{incident.record_id || '-'}</code></td>
-                  <td style={{ whiteSpace: 'nowrap' }}>{incident.date ? format(new Date(incident.date), 'MMM dd, yyyy') : '-'}</td>
-                  <td style={{ whiteSpace: 'nowrap', color: 'var(--text-muted)', fontSize: '13px' }}>{incident.time_of_call || '-'}</td>
-                  <td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <code style={{ fontWeight: '700' }}>{incident.record_id || '-'}</code>
+                  </td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px' }}>
+                    {incident.date ? format(new Date(incident.date), 'MMM dd, yyyy') : '-'}
+                  </td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-muted)', fontSize: '13px' }}>
+                    {formatTime(incident.time_of_call)}
+                  </td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {incident.team ? (
                       <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', background: '#eff6ff', color: '#1d4ed8' }}>
                         {incident.team}
                       </span>
                     ) : '-'}
                   </td>
-                  <td style={{ fontWeight: '600' }}>{incident.nature_of_incident || '-'}</td>
-                  <td>{incident.name || '-'}</td>
-                  <td>
-                    <div style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {incident.place_of_incident || '-'}
-                    </div>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '600' }}>
+                    {incident.nature_of_incident || '-'}
                   </td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {incident.name || '-'}
+                  </td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {incident.place_of_incident || '-'}
+                  </td>
+                </tr>
+              ))}
+              {/* Ghost rows — pad to pageSize so table height never changes */}
+              {Array.from({ length: Math.max(0, pageSize - pagedRecords.length) }).map((_, i) => (
+                <tr key={`ghost-${i}`} style={{ height: '49px', pointerEvents: 'none' }}>
+                  <td colSpan={7} style={{ borderBottom: '1px solid var(--border-light)' }} />
                 </tr>
               ))}
             </tbody>
@@ -930,17 +971,17 @@ export default function Incidents() {
                   {isViewing ? (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                       {[
-                        { label: 'Time of Call', value: formData.time_of_call },
-                        { label: 'Arrival at Scene', value: formData.time_of_arrival_at_scene },
-                        { label: 'Departure at Scene', value: formData.time_of_departure_at_scene },
-                        { label: 'Arrival at Hospital', value: formData.time_of_arrival_at_hosp },
-                        { label: 'Departure at Hospital', value: formData.time_of_departure_at_hosp },
-                        { label: 'Back to Base', value: formData.back_to_base },
+                        { label: 'Time of Call',          value: formData.time_of_call },
+                        { label: 'Arrival at Scene',       value: formData.time_of_arrival_at_scene },
+                        { label: 'Departure at Scene',     value: formData.time_of_departure_at_scene },
+                        { label: 'Arrival at Hospital',    value: formData.time_of_arrival_at_hosp },
+                        { label: 'Departure at Hospital',  value: formData.time_of_departure_at_hosp },
+                        { label: 'Back to Base',           value: formData.back_to_base },
                       ].map(({ label, value }) => (
                         <div key={label} style={{ background: '#f8fafc', borderRadius: '8px', padding: '12px 16px', border: '1px solid var(--border-light)' }}>
                           <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>{label}</div>
                           <div style={{ fontSize: '16px', fontWeight: '700', color: value ? 'var(--text)' : 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
-                            {value || <span style={{ fontSize: '13px', fontWeight: '400' }}>— not recorded —</span>}
+                            {value ? formatTime(value) : <span style={{ fontSize: '13px', fontWeight: '400' }}>— not recorded —</span>}
                           </div>
                         </div>
                       ))}
