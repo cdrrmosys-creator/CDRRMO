@@ -9,6 +9,7 @@ import ModuleToolbar from '../../components/ModuleToolbar'
 import ImageCropper from '../../components/ImageCropper'
 import { uploadFile, deleteFiles } from '../../services/storage'
 import { exportEmployeeProfile } from '../../utils/exportEmployeeProfile'
+import PHAddressSelect from '../../components/PHAddressSelect'
 
 const INITIAL_FORM_STATE = {
   employee_id: '',
@@ -23,7 +24,15 @@ const INITIAL_FORM_STATE = {
   civil_status: 'Single',
   sex: '',
   blood_type: '',
-  address: '',
+  // Structured address
+  address: '',           // full string (assembled for display/export)
+  addr_province: '',
+  addr_province_code: '',
+  addr_city: '',
+  addr_city_code: '',
+  addr_barangay: '',
+  addr_barangay_code: '',
+  addr_street: '',
   height: '',
   weight: '',
   waist: '',
@@ -44,9 +53,9 @@ const INITIAL_FORM_STATE = {
   father_name: '',
   mother_name: '',
   spouse_name: '',
-  children: [],           // [{ name, dob }]
-  work_experience: [],    // [{ job_description, date_from, date_to }]
-  trainings_attended: [], // [{ seminar, date, conducted_by, venue }]
+  children: [],
+  work_experience: [],
+  trainings_attended: [],
   remarks: '',
   system_role: 'user',
   role: 'user',
@@ -127,6 +136,13 @@ export default function Employees() {
       sex: emp.sex || '',
       blood_type: emp.blood_type || '',
       address: emp.address || '',
+      addr_province: emp.addr_province || '',
+      addr_province_code: emp.addr_province_code || '',
+      addr_city: emp.addr_city || '',
+      addr_city_code: emp.addr_city_code || '',
+      addr_barangay: emp.addr_barangay || '',
+      addr_barangay_code: emp.addr_barangay_code || '',
+      addr_street: emp.addr_street || '',
       height: emp.height || '',
       weight: emp.weight || '',
       waist: emp.waist || '',
@@ -223,6 +239,13 @@ export default function Employees() {
       sex: emp.sex || '',
       blood_type: emp.blood_type || '',
       address: emp.address || '',
+      addr_province: emp.addr_province || '',
+      addr_province_code: emp.addr_province_code || '',
+      addr_city: emp.addr_city || '',
+      addr_city_code: emp.addr_city_code || '',
+      addr_barangay: emp.addr_barangay || '',
+      addr_barangay_code: emp.addr_barangay_code || '',
+      addr_street: emp.addr_street || '',
       height: emp.height || '',
       weight: emp.weight || '',
       waist: emp.waist || '',
@@ -766,7 +789,7 @@ export default function Employees() {
 
             // Completion check per tab — green only when meaningful data is present
             const REQUIRED = {
-              personal:    ['name', 'contact', 'address', 'dob', 'pob', 'sex', 'civil_status', 'blood_type'],
+              personal:    ['name', 'contact', 'dob', 'pob', 'sex', 'civil_status', 'blood_type', 'addr_city'],
               designation: ['email'],
             }
 
@@ -774,7 +797,7 @@ export default function Employees() {
               const f = formData
               switch (tabId) {
                 case 'personal':
-                  return ['name','contact','address','dob','pob','sex','civil_status','blood_type']
+                  return ['name','contact','dob','pob','sex','civil_status','blood_type','addr_city']
                     .every(k => String(f[k] ?? '').trim() !== '')
                 case 'designation':
                   return String(f.designation ?? '').trim() !== '' && String(f.email ?? '').trim() !== ''
@@ -950,24 +973,69 @@ export default function Employees() {
                     </div>
                     <div className="form-group">
                       <label>Contact Number *</label>
-                      <input type="text" name="contact" value={formData.contact} onChange={handleInputChange}
-                        placeholder="e.g. 0917-XXX-XXXX" required />
+                      <input
+                        type="tel"
+                        name="contact"
+                        value={formData.contact}
+                        onChange={e => {
+                          // Only allow digits, +, -, spaces, ()
+                          const val = e.target.value.replace(/[^0-9+\-\s()]/g, '')
+                          handleInputChange({ target: { name: 'contact', value: val } })
+                        }}
+                        placeholder="e.g. 09171234567"
+                        maxLength={15}
+                        required
+                      />
                     </div>
                   </div>
 
-                  <div className="form-group">
+                  {/* Philippine address selector */}
+                  <div className="form-group" style={{ marginBottom: '4px' }}>
                     <label>Home Address *</label>
-                    <textarea name="address" value={formData.address} onChange={handleInputChange} rows={2} required />
                   </div>
+                  <PHAddressSelect
+                    disabled={isViewing}
+                    required
+                    value={{
+                      province:       formData.addr_province,
+                      province_code:  formData.addr_province_code,
+                      city:           formData.addr_city,
+                      city_code:      formData.addr_city_code,
+                      barangay:       formData.addr_barangay,
+                      barangay_code:  formData.addr_barangay_code,
+                      street:         formData.addr_street,
+                    }}
+                    onChange={addr => {
+                      const full = [addr.street, addr.barangay, addr.city, addr.province].filter(Boolean).join(', ')
+                      setFormData(prev => ({
+                        ...prev,
+                        address:            full,
+                        addr_province:      addr.province      || '',
+                        addr_province_code: addr.province_code || '',
+                        addr_city:          addr.city          || '',
+                        addr_city_code:     addr.city_code     || '',
+                        addr_barangay:      addr.barangay      || '',
+                        addr_barangay_code: addr.barangay_code || '',
+                        addr_street:        addr.street        || '',
+                      }))
+                    }}
+                  />
 
-                  <div className="form-row">
+                  <div className="form-row" style={{ marginTop: '4px' }}>
                     <div className="form-group">
                       <label>Date of Birth *</label>
-                      <input type="date" name="dob" value={formData.dob} onChange={handleInputChange} required />
+                      <input
+                        type="date"
+                        name="dob"
+                        value={formData.dob}
+                        onChange={handleInputChange}
+                        max={new Date().toISOString().split('T')[0]}
+                        required
+                      />
                     </div>
                     <div className="form-group">
                       <label>Place of Birth *</label>
-                      <input type="text" name="pob" value={formData.pob} onChange={handleInputChange} required />
+                      <input type="text" name="pob" value={formData.pob} onChange={handleInputChange} required placeholder="e.g. Palayan City" />
                     </div>
                   </div>
 
@@ -991,9 +1059,10 @@ export default function Employees() {
                     </div>
                     <div className="form-group">
                       <label>Blood Type *</label>
-                      <input type="text" name="blood_type" value={formData.blood_type} onChange={handleInputChange}
-                        placeholder="e.g. O+, A-" required
-                      />
+                      <select name="blood_type" value={formData.blood_type} onChange={handleInputChange} required>
+                        <option value="">-- Select --</option>
+                        {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(bt => <option key={bt} value={bt}>{bt}</option>)}
+                      </select>
                     </div>
                   </div>
                 </>
