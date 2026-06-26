@@ -1,4 +1,8 @@
 import ModuleToolbar from '../../components/ModuleToolbar'
+import ListPagination from '../../components/ListPagination'
+import ExportModal from '../../components/ExportModal'
+import TableGhostRows from '../../components/TableGhostRows'
+import useListPagination from '../../hooks/useListPagination'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
@@ -71,6 +75,22 @@ export default function TrainingRegistrations() {
     }
     return matchesSearch && matchesDate
   })
+
+  const [isExportOpen, setIsExportOpen] = useState(false)
+  const { currentPage, setCurrentPage, pageSize, setPageSize: handlePageSizeChange, totalPages, safePage, pagedRecords } = useListPagination(filteredRecords)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, filter, dateRange, setCurrentPage])
+
+  const hasActiveFilters = !!(searchTerm || filter || dateRange.start || dateRange.end)
+
+  const handleClearFilters = () => {
+    setSearchTerm('')
+    setFilter('')
+    setDateRange({ start: '', end: '' })
+    setCurrentPage(1)
+  }
 
   const loadRecords = async () => {
     try {
@@ -227,8 +247,11 @@ export default function TrainingRegistrations() {
           onSearch={setSearchTerm}
           onFilterChange={setFilter}
           onDateRangeChange={setDateRange}
-          exportData={filteredRecords}
-          exportFilename="training_registrations_report.xlsx"
+          pageSize={pageSize}
+          onPageSizeChange={handlePageSizeChange}
+          onExportClick={() => setIsExportOpen(true)}
+          onClearFilters={handleClearFilters}
+          hasActiveFilters={hasActiveFilters}
         />
       )}
 
@@ -237,6 +260,12 @@ export default function TrainingRegistrations() {
           <i className="ri-user-add-line"></i>
           <h3>No Registrations Yet</h3>
           <p>Click "Add Registration" to log a training registration request.</p>
+        </div>
+      ) : filteredRecords.length === 0 ? (
+        <div className="empty-state">
+          <i className="ri-filter-off-line"></i>
+          <h3>No Matching Records</h3>
+          <p>Try adjusting your search or filters.</p>
         </div>
       ) : (
         <div className="data-table">
@@ -254,8 +283,8 @@ export default function TrainingRegistrations() {
               </tr>
             </thead>
             <tbody>
-              {filteredRecords.map(record => (
-                <tr key={record.id} onClick={() => handleViewDetails(record)} style={{ cursor: 'pointer' }} className="table-row-clickable">
+              {pagedRecords.map(record => (
+                <tr key={record.id} onClick={() => handleViewDetails(record)} style={{ cursor: 'pointer', height: '49px' }} className="table-row-clickable">
                   <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
                   <td style={{ fontWeight: '700' }}>{record.full_name || '-'}</td>
                   <td>{getGenderBadge(record.gender)}</td>
@@ -272,14 +301,30 @@ export default function TrainingRegistrations() {
                   <td style={{ fontSize: '13px' }}>{record.civil_status || '-'}</td>
                 </tr>
               ))}
+              <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={8} />
             </tbody>
           </table>
         </div>
       )}
 
-      <div style={{ marginTop: '16px', fontSize: '14px', color: 'var(--text-muted)', textAlign: 'center' }}>
-        Showing <strong>{filteredRecords.length}</strong> of <strong>{records.length}</strong>
-      </div>
+      <ListPagination
+        currentPage={safePage}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        totalRecords={filteredRecords.length}
+        onPageChange={setCurrentPage}
+      />
+
+      <ExportModal
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        records={records}
+        filename="training_registrations_report.xlsx"
+        sheetName="Training Registrations"
+        dateField="birth_date"
+        onSuccess={(count) => toast.success(`Exported ${count} records.`)}
+        onError={(msg) => toast.error(msg)}
+      />
 
       {/* Modal */}
       <Modal

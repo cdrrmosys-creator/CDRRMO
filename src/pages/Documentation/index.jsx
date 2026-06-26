@@ -1,4 +1,8 @@
 import ModuleToolbar from '../../components/ModuleToolbar'
+import ListPagination from '../../components/ListPagination'
+import ExportModal from '../../components/ExportModal'
+import TableGhostRows from '../../components/TableGhostRows'
+import useListPagination from '../../hooks/useListPagination'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
@@ -93,6 +97,22 @@ export default function Documentation() {
 
     return matchesSearch && matchesFilter && matchesDate
   })
+
+  const [isExportOpen, setIsExportOpen] = useState(false)
+  const { currentPage, setCurrentPage, pageSize, setPageSize: handlePageSizeChange, totalPages, safePage, pagedRecords } = useListPagination(filteredRecords)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, filter, dateRange, setCurrentPage])
+
+  const hasActiveFilters = !!(searchTerm || filter || dateRange.start || dateRange.end)
+
+  const handleClearFilters = () => {
+    setSearchTerm('')
+    setFilter('')
+    setDateRange({ start: '', end: '' })
+    setCurrentPage(1)
+  }
 
   const loadRecords = async () => {
     try {
@@ -452,12 +472,15 @@ export default function Documentation() {
 
       
       {records.length > 0 && (
-        <ModuleToolbar 
+        <ModuleToolbar
           onSearch={setSearchTerm}
           onFilterChange={setFilter}
           onDateRangeChange={setDateRange}
-          exportData={filteredRecords}
-          exportFilename="documentation_report.xlsx"
+          pageSize={pageSize}
+          onPageSizeChange={handlePageSizeChange}
+          onExportClick={() => setIsExportOpen(true)}
+          onClearFilters={handleClearFilters}
+          hasActiveFilters={hasActiveFilters}
         />
       )}
 
@@ -466,6 +489,12 @@ export default function Documentation() {
           <i className="ri-folder-line"></i>
           <h3>No Documents Filed</h3>
           <p>Click "Add Document" to file your first document record.</p>
+        </div>
+      ) : filteredRecords.length === 0 ? (
+        <div className="empty-state">
+          <i className="ri-filter-off-line"></i>
+          <h3>No Matching Records</h3>
+          <p>Try adjusting your search or filters.</p>
         </div>
       ) : (
         <div className="data-table">
@@ -482,11 +511,11 @@ export default function Documentation() {
               </tr>
             </thead>
             <tbody>
-              {filteredRecords.map((record) => (
+              {pagedRecords.map((record) => (
                 <tr 
                   key={record.id}
                   onClick={() => handleViewDetails(record)}
-                  style={{ cursor: 'pointer' }}
+                  style={{ cursor: 'pointer', height: '49px' }}
                   className="table-row-clickable"
                 >
                   <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
@@ -524,19 +553,30 @@ export default function Documentation() {
                   </td>
                 </tr>
               ))}
+              <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={7} />
             </tbody>
           </table>
         </div>
       )}
 
-      <div style={{
-        marginTop: '16px',
-        fontSize: '14px',
-        color: 'var(--text-muted)',
-        textAlign: 'center'
-      }}>
-        Showing <strong>{filteredRecords.length}</strong> of <strong>{records.length}</strong>
-      </div>
+      <ListPagination
+        currentPage={safePage}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        totalRecords={filteredRecords.length}
+        onPageChange={setCurrentPage}
+      />
+
+      <ExportModal
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        records={records}
+        filename="documentation_report.xlsx"
+        sheetName="Documentation"
+        dateField="date_filed"
+        onSuccess={(count) => toast.success(`Exported ${count} records.`)}
+        onError={(msg) => toast.error(msg)}
+      />
 
       {/* Add/Edit Modal */}
       <Modal

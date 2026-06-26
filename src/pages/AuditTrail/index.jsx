@@ -1,17 +1,24 @@
 import ModuleToolbar from '../../components/ModuleToolbar'
+import ListPagination from '../../components/ListPagination'
+import ExportModal from '../../components/ExportModal'
+import TableGhostRows from '../../components/TableGhostRows'
+import useListPagination from '../../hooks/useListPagination'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { format } from 'date-fns'
+import { useToast } from '../../components/Toast'
 
 export default function AuditTrail() {
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const toast = useToast()
 
   // Toolbar states
   const [searchTerm, setSearchTerm] = useState('')
   const [filter, setFilter] = useState('')
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
+  const [isExportOpen, setIsExportOpen] = useState(false)
 
   useEffect(() => {
     loadRecords()
@@ -45,6 +52,21 @@ export default function AuditTrail() {
 
     return matchesSearch && matchesFilter && matchesDate
   })
+
+  const { currentPage, setCurrentPage, pageSize, setPageSize: handlePageSizeChange, totalPages, safePage, pagedRecords } = useListPagination(filteredRecords)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, filter, dateRange, setCurrentPage])
+
+  const hasActiveFilters = !!(searchTerm || filter || dateRange.start || dateRange.end)
+
+  const handleClearFilters = () => {
+    setSearchTerm('')
+    setFilter('')
+    setDateRange({ start: '', end: '' })
+    setCurrentPage(1)
+  }
 
   const loadRecords = async () => {
     try {
@@ -163,8 +185,11 @@ export default function AuditTrail() {
           onSearch={setSearchTerm}
           onFilterChange={setFilter}
           onDateRangeChange={setDateRange}
-          exportData={filteredRecords}
-          exportFilename="audit_trail_report.xlsx"
+          pageSize={pageSize}
+          onPageSizeChange={handlePageSizeChange}
+          onExportClick={() => setIsExportOpen(true)}
+          onClearFilters={handleClearFilters}
+          hasActiveFilters={hasActiveFilters}
           filterOptions={filterOptions}
         />
       )}
@@ -174,6 +199,12 @@ export default function AuditTrail() {
           <i className="ri-shield-keyhole-line"></i>
           <h3>No Audit Logs Found</h3>
           <p>System actions will be recorded here.</p>
+        </div>
+      ) : filteredRecords.length === 0 ? (
+        <div className="empty-state">
+          <i className="ri-filter-off-line"></i>
+          <h3>No Matching Records</h3>
+          <p>Try adjusting your search or filters.</p>
         </div>
       ) : (
         <div className="data-table">
@@ -189,8 +220,8 @@ export default function AuditTrail() {
               </tr>
             </thead>
             <tbody>
-              {filteredRecords.map((record) => (
-                <tr key={record.id}>
+              {pagedRecords.map((record) => (
+                <tr key={record.id} style={{ height: '49px' }}>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
                     {record.created_at 
                       ? format(new Date(record.created_at), 'MMM dd, yyyy HH:mm:ss')
@@ -214,19 +245,39 @@ export default function AuditTrail() {
                   </td>
                 </tr>
               ))}
+              <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={6} />
             </tbody>
           </table>
         </div>
       )}
 
-      <div style={{
-        marginTop: '16px',
-        fontSize: '14px',
-        color: 'var(--text-muted)',
-        textAlign: 'center'
-      }}>
-        Showing <strong>{filteredRecords.length}</strong> of <strong>{records.length}</strong>
-      </div>
+      <ListPagination
+        currentPage={safePage}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        totalRecords={filteredRecords.length}
+        onPageChange={setCurrentPage}
+      />
+
+      <ExportModal
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        records={records}
+        filename="audit_trail_report.xlsx"
+        sheetName="Audit Trail"
+        dateField="created_at"
+        columns={['created_at', 'user_email', 'action', 'module', 'record_id', 'details']}
+        headers={{
+          created_at: 'Date & Time',
+          user_email: 'User',
+          action: 'Action',
+          module: 'Module',
+          record_id: 'Record ID',
+          details: 'Details',
+        }}
+        onSuccess={(count) => toast.success(`Exported ${count} records.`)}
+        onError={(msg) => toast.error(msg)}
+      />
     </div>
   )
 }

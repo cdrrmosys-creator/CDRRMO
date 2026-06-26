@@ -1,4 +1,8 @@
 import ModuleToolbar from '../../components/ModuleToolbar'
+import ListPagination from '../../components/ListPagination'
+import ExportModal from '../../components/ExportModal'
+import TableGhostRows from '../../components/TableGhostRows'
+import useListPagination from '../../hooks/useListPagination'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
@@ -46,6 +50,7 @@ export default function CdrrmcReso() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filter, setFilter] = useState('')
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
+  const [isExportOpen, setIsExportOpen] = useState(false)
 
   useEffect(() => {
     loadRecords()
@@ -76,6 +81,16 @@ export default function CdrrmcReso() {
 
     return matchesSearch && matchesFilter && matchesDate
   })
+
+  const { currentPage, setCurrentPage, pageSize, setPageSize, totalPages, safePage, pagedRecords } = useListPagination(filteredRecords)
+  const hasActiveFilters = !!(searchTerm || filter || dateRange.start || dateRange.end)
+
+  const handleClearFilters = () => {
+    setSearchTerm('')
+    setFilter('')
+    setDateRange({ start: '', end: '' })
+    setCurrentPage(1)
+  }
 
   const loadRecords = async () => {
     try {
@@ -366,22 +381,32 @@ const handleOpenAdd = () => {
 
       
       {records.length > 0 && (
-        <ModuleToolbar 
-          onSearch={setSearchTerm}
-          onFilterChange={setFilter}
-          onDateRangeChange={setDateRange}
-          exportData={filteredRecords}
-          exportFilename="cdrrmcreso_report.xlsx"
+        <ModuleToolbar
+          onSearch={v => { setSearchTerm(v); setCurrentPage(1) }}
+          onFilterChange={v => { setFilter(v); setCurrentPage(1) }}
+          onDateRangeChange={r => { setDateRange(r); setCurrentPage(1) }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          onExportClick={() => setIsExportOpen(true)}
+          onClearFilters={handleClearFilters}
+          hasActiveFilters={hasActiveFilters}
         />
       )}
 
-{records.length === 0 ? (
+      {records.length === 0 ? (
         <div className="empty-state">
           <i className="ri-file-list-3-line"></i>
           <h3>No Resolutions Found</h3>
           <p>Click "Add Resolution" to log your first resolution record.</p>
         </div>
+      ) : filteredRecords.length === 0 ? (
+        <div className="empty-state">
+          <i className="ri-filter-off-line"></i>
+          <h3>No Matching Records</h3>
+          <p>Try adjusting your search or filters.</p>
+        </div>
       ) : (
+        <>
         <div className="data-table">
           <table>
             <thead>
@@ -395,11 +420,11 @@ const handleOpenAdd = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredRecords.map((record) => (
+              {pagedRecords.map((record) => (
                 <tr 
                   key={record.id}
                   onClick={() => handleViewDetails(record)}
-                  style={{ cursor: 'pointer' }}
+                  style={{ cursor: 'pointer', height: '49px' }}
                   className="table-row-clickable"
                 >
                   <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
@@ -436,19 +461,30 @@ const handleOpenAdd = () => {
                   </td>
                 </tr>
               ))}
+              <TableGhostRows count={pageSize - pagedRecords.length} colSpan={6} />
             </tbody>
           </table>
         </div>
+        <ListPagination
+          currentPage={safePage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalRecords={filteredRecords.length}
+          onPageChange={setCurrentPage}
+        />
+        </>
       )}
 
-      <div style={{
-        marginTop: '16px',
-        fontSize: '14px',
-        color: 'var(--text-muted)',
-        textAlign: 'center'
-      }}>
-        Showing <strong>{filteredRecords.length}</strong> of <strong>{records.length}</strong>
-      </div>
+      <ExportModal
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        records={records}
+        filename="cdrrmcreso_report.xlsx"
+        sheetName="Resolutions"
+        dateField="date_passed"
+        onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onError={(msg) => toast.error(msg)}
+      />
 
       {/* Add/Edit Modal */}
       <Modal

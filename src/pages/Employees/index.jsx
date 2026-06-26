@@ -6,6 +6,10 @@ import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
 import ModuleToolbar from '../../components/ModuleToolbar'
+import ListPagination from '../../components/ListPagination'
+import ExportModal from '../../components/ExportModal'
+import TableGhostRows from '../../components/TableGhostRows'
+import useListPagination from '../../hooks/useListPagination'
 import ImageCropper from '../../components/ImageCropper'
 import { uploadFile, deleteFiles } from '../../services/storage'
 import { exportEmployeeProfile } from '../../utils/exportEmployeeProfile'
@@ -114,6 +118,22 @@ export default function Employees() {
 
     return matchesSearch && matchesFilter && matchesDate
   })
+
+  const [isExportOpen, setIsExportOpen] = useState(false)
+  const { currentPage, setCurrentPage, pageSize, setPageSize: handlePageSizeChange, totalPages, safePage, pagedRecords } = useListPagination(filteredEmployees)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, filter, dateRange, setCurrentPage])
+
+  const hasActiveFilters = !!(searchTerm || filter || dateRange.start || dateRange.end)
+
+  const handleClearFilters = () => {
+    setSearchTerm('')
+    setFilter('')
+    setDateRange({ start: '', end: '' })
+    setCurrentPage(1)
+  }
 
   const handleViewDetails = (emp) => {
     setSelectedEmployee(emp)
@@ -671,8 +691,12 @@ export default function Employees() {
           onSearch={setSearchTerm}
           onFilterChange={setFilter}
           onDateRangeChange={setDateRange}
-          exportData={filteredEmployees}
-          exportFilename="employees_report.xlsx"
+          pageSize={pageSize}
+          onPageSizeChange={handlePageSizeChange}
+          onExportClick={() => setIsExportOpen(true)}
+          onClearFilters={handleClearFilters}
+          hasActiveFilters={hasActiveFilters}
+          filterLabel="All Status"
           filterOptions={[
             { label: 'On Duty', value: 'On Duty' },
             { label: 'Off Duty', value: 'Off Duty' },
@@ -690,8 +714,8 @@ export default function Employees() {
         </div>
       ) : filteredEmployees.length === 0 ? (
         <div className="empty-state">
-          <i className="ri-search-line"></i>
-          <h3>No matches found</h3>
+          <i className="ri-filter-off-line"></i>
+          <h3>No Matching Records</h3>
           <p>Try adjusting your search or filters.</p>
         </div>
       ) : (
@@ -720,11 +744,11 @@ export default function Employees() {
               </tr>
             </thead>
             <tbody>
-              {filteredEmployees.map((emp) => (
+              {pagedRecords.map((emp) => (
                 <tr
                   key={emp.id}
                   onClick={() => handleViewDetails(emp)}
-                  style={{ cursor: 'pointer' }}
+                  style={{ cursor: 'pointer', height: '49px' }}
                   className="table-row-clickable"
                 >
                   <td><code style={{ fontWeight: '700' }}>{emp.employee_id || '-'}</code></td>
@@ -774,19 +798,30 @@ export default function Employees() {
                   <td onClick={(e) => { if (isAdmin) e.stopPropagation(); }}>{renderDutyStatus(emp)}</td>
                 </tr>
               ))}
+              <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={8} />
             </tbody>
           </table>
         </div>
       )}
 
-      <div style={{
-        marginTop: '16px',
-        fontSize: '14px',
-        color: 'var(--text-muted)',
-        textAlign: 'center'
-      }}>
-        Showing <strong>{filteredEmployees.length}</strong> of <strong>{employees.length}</strong> Employees
-      </div>
+      <ListPagination
+        currentPage={safePage}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        totalRecords={filteredEmployees.length}
+        onPageChange={setCurrentPage}
+      />
+
+      <ExportModal
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        records={employees}
+        filename="employees_report.xlsx"
+        sheetName="Employees"
+        dateField="created_at"
+        onSuccess={(count) => toast.success(`Exported ${count} records.`)}
+        onError={(msg) => toast.error(msg)}
+      />
 
       {/* Add/Edit Modal */}
       <Modal

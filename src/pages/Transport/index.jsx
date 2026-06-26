@@ -1,9 +1,14 @@
 import ModuleToolbar from '../../components/ModuleToolbar'
+import ListPagination from '../../components/ListPagination'
+import ExportModal from '../../components/ExportModal'
+import TableGhostRows from '../../components/TableGhostRows'
+import useListPagination from '../../hooks/useListPagination'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns'
 import Modal from '../../components/Modal'
+import PhotoUploadPanel from '../../components/PhotoUploadPanel'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
@@ -96,7 +101,6 @@ export default function Transport() {
   // Photo states
   const [isUploading, setIsUploading] = useState(false)
   const [pendingPhotos, setPendingPhotos] = useState([])
-  const [isDragging, setIsDragging] = useState(false)
 
   // Chart states
   const [trendPeriod, setTrendPeriod] = useState('month')
@@ -113,6 +117,7 @@ export default function Transport() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filter, setFilter] = useState('')
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
+  const [isExportOpen, setIsExportOpen] = useState(false)
 
   useEffect(() => {
     loadRecords()
@@ -203,6 +208,16 @@ export default function Transport() {
 
     return matchesSearch && matchesFilter && matchesDate
   })
+
+  const { currentPage, setCurrentPage, pageSize, setPageSize, totalPages, safePage, pagedRecords } = useListPagination(filteredRecords)
+  const hasActiveFilters = !!(searchTerm || filter || dateRange.start || dateRange.end)
+
+  const handleClearFilters = () => {
+    setSearchTerm('')
+    setFilter('')
+    setDateRange({ start: '', end: '' })
+    setCurrentPage(1)
+  }
 
   const loadRecords = async () => {
     try {
@@ -310,31 +325,6 @@ export default function Transport() {
       [name]: type === 'checkbox' ? checked : value 
     }))
   }
-
-  const handleDragOver = (e) => {
-    if (isViewing) return;
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e) => {
-    if (isViewing) return;
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const handleDrop = async (e) => {
-    if (isViewing) return;
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFileUpload({ target: { files: e.dataTransfer.files } });
-    }
-  };
 
   const handleFileUpload = (e) => {
     const files = Array.from(e.target.files)
@@ -577,12 +567,15 @@ export default function Transport() {
 
       
       {records.length > 0 && (
-        <ModuleToolbar 
-          onSearch={setSearchTerm}
-          onFilterChange={setFilter}
-          onDateRangeChange={setDateRange}
-          exportData={filteredRecords}
-          exportFilename="transport_report.xlsx"
+        <ModuleToolbar
+          onSearch={v => { setSearchTerm(v); setCurrentPage(1) }}
+          onFilterChange={v => { setFilter(v); setCurrentPage(1) }}
+          onDateRangeChange={r => { setDateRange(r); setCurrentPage(1) }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          onExportClick={() => setIsExportOpen(true)}
+          onClearFilters={handleClearFilters}
+          hasActiveFilters={hasActiveFilters}
         />
       )}
 
@@ -592,7 +585,14 @@ export default function Transport() {
           <h3>No Transport Records</h3>
           <p>Click "Add Dispatch" to create your first transport record.</p>
         </div>
+      ) : filteredRecords.length === 0 ? (
+        <div className="empty-state">
+          <i className="ri-filter-off-line"></i>
+          <h3>No Matching Records</h3>
+          <p>Try adjusting your search or filters.</p>
+        </div>
       ) : (
+        <>
         <div className="data-table">
           <table>
             <thead>
@@ -607,11 +607,11 @@ export default function Transport() {
               </tr>
             </thead>
             <tbody>
-              {filteredRecords.map((record) => (
+              {pagedRecords.map((record) => (
                 <tr 
                   key={record.id}
                   onClick={() => handleViewDetails(record)}
-                  style={{ cursor: 'pointer' }}
+                  style={{ cursor: 'pointer', height: '49px' }}
                   className="table-row-clickable"
                 >
                   <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
@@ -637,19 +637,30 @@ export default function Transport() {
                   </td>
                 </tr>
               ))}
+              <TableGhostRows count={pageSize - pagedRecords.length} colSpan={7} />
             </tbody>
           </table>
         </div>
+        <ListPagination
+          currentPage={safePage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalRecords={filteredRecords.length}
+          onPageChange={setCurrentPage}
+        />
+        </>
       )}
 
-      <div style={{
-        marginTop: '16px',
-        fontSize: '14px',
-        color: 'var(--text-muted)',
-        textAlign: 'center'
-      }}>
-        Showing <strong>{filteredRecords.length}</strong> of <strong>{records.length}</strong>
-      </div>
+      <ExportModal
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        records={records}
+        filename="transport_report.xlsx"
+        sheetName="Transport"
+        dateField="date_time"
+        onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onError={(msg) => toast.error(msg)}
+      />
 
       {/* Add/Edit Modal */}
       <Modal
@@ -818,170 +829,18 @@ export default function Transport() {
             </div>
 
             <div className="transport-photos-col">
-              <div style={{ minHeight: '350px', display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <h4 style={{ margin: '0 0 12px 0', color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  Photos
-                  {!isViewing && (
-                    <div style={{ position: 'relative' }}>
-                      <input 
-                        type="file" 
-                        multiple 
-                        accept="image/*" 
-                        onChange={handleFileUpload}
-                        disabled={isUploading || isSaving}
-                        style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: 10 }} 
-                      />
-                      <button 
-                        type="button" 
-                        className="btn-primary" 
-                        disabled={isUploading || isSaving}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                      >
-                        {(isUploading || isSaving) ? <i className="ri-loader-4-line ri-spin" style={{ fontSize: '16px' }}></i> : <i className="ri-camera-line" style={{ fontSize: '16px' }}></i>}
-                        {(isUploading || isSaving) ? 'Uploading...' : 'Add Photos'}
-                      </button>
-                    </div>
-                  )}
-                </h4>
-                
-                {(!formData.photos || formData.photos.length === 0) && pendingPhotos.length === 0 ? (
-                  <div 
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '40px 20px',
-                      textAlign: 'center',
-                      background: isDragging ? 'var(--primary-bg)' : '#f8fafc',
-                      borderRadius: '8px',
-                      border: `2px dashed ${isDragging ? 'var(--primary)' : 'var(--border-light)'}`,
-                      color: isDragging ? 'var(--primary)' : 'var(--text-muted)',
-                      transition: 'all 0.2s',
-                      position: 'relative'
-                    }}>
-                    {!isViewing && (
-                      <input 
-                        type="file" 
-                        multiple 
-                        accept="image/*" 
-                        onChange={handleFileUpload}
-                        disabled={isUploading || isSaving}
-                        style={{ position: 'absolute', inset: 0, opacity: 0, cursor: isDragging ? 'copy' : 'pointer', zIndex: 10 }} 
-                      />
-                    )}
-                    <i className="ri-image-line" style={{ fontSize: '48px', color: isDragging ? 'var(--primary)' : 'var(--border-light)', transition: 'all 0.2s' }}></i>
-                    <p style={{ marginTop: '12px', fontWeight: '600' }}>{isDragging ? 'Drop photos here' : 'No photos uploaded yet.'}</p>
-                    {!isViewing && <p style={{ fontSize: '12px', marginTop: '4px', opacity: 0.7 }}>Drag and drop or click to upload</p>}
-                  </div>
-                ) : (
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
-                    gap: '12px'
-                  }}>
-                    {formData.photos && formData.photos.map((url, idx) => (
-                      <div key={`existing-${idx}`} style={{ 
-                        position: 'relative', 
-                        aspectRatio: '1', 
-                        borderRadius: '8px', 
-                        overflow: 'hidden',
-                        border: '1px solid var(--border-light)'
-                      }}>
-                        <a href={url} target="_blank" rel="noopener noreferrer">
-                          <img 
-                            src={url} 
-                            alt={`Photo ${idx + 1}`} 
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                          />
-                        </a>
-                        {!isViewing && (
-                          <button
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); removeExistingPhoto(idx); }}
-                            style={{
-                              position: 'absolute',
-                              top: '6px',
-                              right: '6px',
-                              background: 'rgba(239, 68, 68, 0.9)',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '50%',
-                              width: '24px',
-                              height: '24px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                            }}
-                          >
-                            <i className="ri-close-line" style={{ fontSize: '14px' }}></i>
-                          </button>
-                        )}
-                      </div>
-                    ))}
-
-                    {pendingPhotos.map((file, idx) => {
-                      const objectUrl = URL.createObjectURL(file);
-                      return (
-                        <div key={`pending-${idx}`} style={{ 
-                          position: 'relative', 
-                          aspectRatio: '1', 
-                          borderRadius: '8px', 
-                          overflow: 'hidden',
-                          border: '1px solid var(--primary)',
-                          opacity: isUploading ? 0.6 : 1
-                        }}>
-                          <img 
-                            src={objectUrl} 
-                            alt={`Pending photo ${idx + 1}`} 
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                            onLoad={() => URL.revokeObjectURL(objectUrl)}
-                          />
-                          {!isViewing && !isUploading && (
-                            <button
-                              type="button"
-                              onClick={(e) => { e.preventDefault(); removePendingPhoto(idx); }}
-                              style={{
-                                position: 'absolute',
-                                top: '6px',
-                                right: '6px',
-                                background: 'rgba(239, 68, 68, 0.9)',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '50%',
-                                width: '24px',
-                                height: '24px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                              }}
-                            >
-                              <i className="ri-close-line" style={{ fontSize: '14px' }}></i>
-                            </button>
-                          )}
-                          {isUploading && (
-                            <div style={{
-                              position: 'absolute', inset: 0, display: 'flex',
-                              alignItems: 'center', justifyContent: 'center',
-                              background: 'rgba(255,255,255,0.5)'
-                            }}>
-                              <i className="ri-loader-4-line ri-spin" style={{ fontSize: '24px', color: 'var(--primary)' }}></i>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <PhotoUploadPanel
+                title="Transport Photos"
+                emptyMessage="No photos uploaded for this transport record yet."
+                photos={formData.photos}
+                pendingPhotos={pendingPhotos}
+                isViewing={isViewing}
+                isUploading={isUploading}
+                isSaving={isSaving}
+                onFileUpload={handleFileUpload}
+                onRemoveExisting={removeExistingPhoto}
+                onRemovePending={removePendingPhoto}
+              />
             </div>
           </div>
 

@@ -5,11 +5,16 @@ import { uploadFile, deleteFiles } from '../../services/storage'
 import { compressImage } from '../../utils/imageCompression'
 import { format } from 'date-fns'
 import Modal from '../../components/Modal'
+import PhotoUploadPanel from '../../components/PhotoUploadPanel'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
 import ModuleToolbar from '../../components/ModuleToolbar'
+import ListPagination from '../../components/ListPagination'
+import ExportModal from '../../components/ExportModal'
+import TableGhostRows from '../../components/TableGhostRows'
+import useListPagination from '../../hooks/useListPagination'
 
 const INITIAL_FORM_STATE = {
   record_id: '',
@@ -48,7 +53,6 @@ export default function Inventory() {
   const [isSaving, setIsSaving] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [pendingPhotos, setPendingPhotos] = useState([])
-  const [isDragging, setIsDragging] = useState(false)
   const isAdmin = useIsAdmin()
   const { canCreate, canUpdate, canDelete } = usePermissions('inventory')
   const toast = useToast()
@@ -146,30 +150,6 @@ const handleOpenAdd = () => {
     if (!files || files.length === 0) return
     setPendingPhotos(prev => [...prev, ...files])
   }
-
-  const handleDragOver = (e) => {
-    if (isViewing) return;
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e) => {
-    if (isViewing) return;
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e) => {
-    if (isViewing) return;
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFileUpload({ target: { files: e.dataTransfer.files } });
-    }
-  };
 
   const removeExistingPhoto = (indexToRemove) => {
     setFormData(prev => ({
@@ -340,6 +320,22 @@ const handleOpenAdd = () => {
 
   const totalItems = filteredItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
 
+  const [isExportOpen, setIsExportOpen] = useState(false)
+  const { currentPage, setCurrentPage, pageSize, setPageSize: handlePageSizeChange, totalPages, safePage, pagedRecords } = useListPagination(filteredItems)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, filter, dateRange, setCurrentPage])
+
+  const hasActiveFilters = !!(searchTerm || filter || dateRange.start || dateRange.end)
+
+  const handleClearFilters = () => {
+    setSearchTerm('')
+    setFilter('')
+    setDateRange({ start: '', end: '' })
+    setCurrentPage(1)
+  }
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -398,17 +394,21 @@ const handleOpenAdd = () => {
       </div>
 
       {items.length > 0 && (
-        <ModuleToolbar 
+        <ModuleToolbar
           onSearch={setSearchTerm}
           onFilterChange={setFilter}
           onDateRangeChange={setDateRange}
-          exportData={filteredItems}
-          exportFilename="inventory_report.xlsx"
+          pageSize={pageSize}
+          onPageSizeChange={handlePageSizeChange}
+          onExportClick={() => setIsExportOpen(true)}
+          onClearFilters={handleClearFilters}
+          hasActiveFilters={hasActiveFilters}
           filterOptions={categories.map(cat => ({ label: cat, value: cat }))}
         />
       )}
 
       {/* Summary */}
+      {items.length > 0 && (
       <div style={{
         background: 'var(--bg-surface)',
         border: '1px solid var(--border-light)',
@@ -436,12 +436,19 @@ const handleOpenAdd = () => {
           </div>
         </div>
       </div>
+      )}
 
-      {filteredItems.length === 0 ? (
+      {items.length === 0 ? (
         <div className="empty-state">
           <i className="ri-archive-line"></i>
           <h3>No Items Found</h3>
           <p>Click "Add Item" to add your first inventory item.</p>
+        </div>
+      ) : filteredItems.length === 0 ? (
+        <div className="empty-state">
+          <i className="ri-filter-off-line"></i>
+          <h3>No Matching Records</h3>
+          <p>Try adjusting your search or filters.</p>
         </div>
       ) : (
         <div className="data-table">
@@ -458,11 +465,11 @@ const handleOpenAdd = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredItems.map((item) => (
+              {pagedRecords.map((item) => (
                 <tr 
                   key={item.id}
                   onClick={() => handleViewDetails(item)}
-                  style={{ cursor: 'pointer' }}
+                  style={{ cursor: 'pointer', height: '49px' }}
                   className="table-row-clickable"
                 >
                   <td><code style={{ fontWeight: '700' }}>{item.record_id || '-'}</code></td>
@@ -496,10 +503,34 @@ const handleOpenAdd = () => {
                   
                 </tr>
               ))}
+              <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={6} />
             </tbody>
           </table>
         </div>
       )}
+
+      <ListPagination
+        currentPage={safePage}
+        totalPages={totalPages}
+        pageSize={pageSize}
+        totalRecords={filteredItems.length}
+        onPageChange={setCurrentPage}
+      />
+
+      <ExportModal
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        records={items}
+        filename="inventory_report.xlsx"
+        sheetName="Inventory"
+        dateField="date_acquired"
+        transformValue={(col, val) => {
+          if (col === 'serviceable') return val !== false ? 'Serviceable' : 'Not Serviceable'
+          return val
+        }}
+        onSuccess={(count) => toast.success(`Exported ${count} records.`)}
+        onError={(msg) => toast.error(msg)}
+      />
 
       {/* Add/Edit Modal */}
       <Modal
@@ -633,113 +664,18 @@ const handleOpenAdd = () => {
 
             {/* Right: Photos */}
             <div className="inventory-photos-col">
-              <div style={{ minHeight: '350px', display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <h4 style={{ margin: '0 0 12px 0', color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  Item Photos
-                  {!isViewing && (
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        onChange={handleFileUpload}
-                        disabled={isUploading || isSaving}
-                        style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: 10 }}
-                      />
-                      <button
-                        type="button"
-                        className="btn-primary"
-                        disabled={isUploading || isSaving}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                      >
-                        {(isUploading || isSaving) ? <i className="ri-loader-4-line ri-spin" style={{ fontSize: '16px' }}></i> : <i className="ri-camera-line" style={{ fontSize: '16px' }}></i>}
-                        {(isUploading || isSaving) ? 'Uploading...' : 'Add Photos'}
-                      </button>
-                    </div>
-                  )}
-                </h4>
-
-                {(!formData.photos || formData.photos.length === 0) && pendingPhotos.length === 0 ? (
-                  <div
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '40px 20px',
-                      textAlign: 'center',
-                      background: isDragging ? 'var(--primary-bg)' : '#f8fafc',
-                      borderRadius: '8px',
-                      border: `2px dashed ${isDragging ? 'var(--primary)' : 'var(--border-light)'}`,
-                      color: isDragging ? 'var(--primary)' : 'var(--text-muted)',
-                      transition: 'all 0.2s',
-                      position: 'relative'
-                    }}
-                  >
-                    {!isViewing && (
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        onChange={handleFileUpload}
-                        disabled={isUploading || isSaving}
-                        style={{ position: 'absolute', inset: 0, opacity: 0, cursor: isDragging ? 'copy' : 'pointer', zIndex: 10 }}
-                      />
-                    )}
-                    <i className="ri-image-line" style={{ fontSize: '48px', color: isDragging ? 'var(--primary)' : 'var(--border-light)', transition: 'all 0.2s' }}></i>
-                    <p style={{ marginTop: '12px', fontWeight: '600' }}>{isDragging ? 'Drop photos here' : 'No photos uploaded for this item yet.'}</p>
-                    {!isViewing && <p style={{ fontSize: '12px', marginTop: '4px', opacity: 0.7 }}>Drag and drop or click to upload</p>}
-                  </div>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '12px' }}>
-                    {/* Existing Photos */}
-                    {formData.photos && formData.photos.map((url, idx) => (
-                      <div key={`existing-${idx}`} style={{ position: 'relative', aspectRatio: '1', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
-                        <a href={url} target="_blank" rel="noopener noreferrer">
-                          <img src={url} alt={`Item photo ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        </a>
-                        {!isViewing && (
-                          <button
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); removeExistingPhoto(idx); }}
-                            style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(239, 68, 68, 0.9)', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
-                            title="Remove photo"
-                          >
-                            <i className="ri-close-line" style={{ fontSize: '14px' }}></i>
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    {/* Pending Photos */}
-                    {pendingPhotos.map((file, idx) => {
-                      const objectUrl = URL.createObjectURL(file);
-                      return (
-                        <div key={`pending-${idx}`} style={{ position: 'relative', aspectRatio: '1', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--primary)', opacity: isUploading ? 0.6 : 1 }}>
-                          <img src={objectUrl} alt={`Pending ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onLoad={() => URL.revokeObjectURL(objectUrl)} />
-                          {!isViewing && !isUploading && (
-                            <button
-                              type="button"
-                              onClick={(e) => { e.preventDefault(); removePendingPhoto(idx); }}
-                              style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(239, 68, 68, 0.9)', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
-                            >
-                              <i className="ri-close-line" style={{ fontSize: '14px' }}></i>
-                            </button>
-                          )}
-                          {isUploading && (
-                            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', color: 'white' }}>
-                              <i className="ri-loader-4-line ri-spin" style={{ fontSize: '24px' }}></i>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <PhotoUploadPanel
+                title="Item Photos"
+                emptyMessage="No photos uploaded for this item yet."
+                photos={formData.photos}
+                pendingPhotos={pendingPhotos}
+                isViewing={isViewing}
+                isUploading={isUploading}
+                isSaving={isSaving}
+                onFileUpload={handleFileUpload}
+                onRemoveExisting={removeExistingPhoto}
+                onRemovePending={removePendingPhoto}
+              />
             </div>
 
           </div>

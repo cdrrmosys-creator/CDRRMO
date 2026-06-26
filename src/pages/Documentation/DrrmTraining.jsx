@@ -3,6 +3,11 @@ import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
 import { format } from 'date-fns'
 import Modal from '../../components/Modal'
+import ModuleToolbar from '../../components/ModuleToolbar'
+import ListPagination from '../../components/ListPagination'
+import ExportModal from '../../components/ExportModal'
+import TableGhostRows from '../../components/TableGhostRows'
+import useListPagination from '../../hooks/useListPagination'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
@@ -30,6 +35,21 @@ const INITIAL_FORM_STATE = {
   photo_url: '',
 }
 
+const DRRM_EXPORT_COLUMNS = [
+  'record_id', 'timestamp', 'first_name', 'middle_name', 'last_name', 'suffix',
+  'name_on_certificate', 'gender', 'contact_number', 'email_address', 'office', 'designation',
+  'civil_status', 'birthdate', 'present_address', 'photo_url',
+]
+
+const DRRM_EXPORT_HEADERS = {
+  record_id: 'Record ID', timestamp: 'Timestamp', first_name: 'First Name',
+  middle_name: 'Middle Name', last_name: 'Last Name', suffix: 'Suffix',
+  name_on_certificate: 'Name on Certificate', gender: 'Gender',
+  contact_number: 'Contact Number', email_address: 'Email Address', office: 'Office',
+  designation: 'Designation/Position', civil_status: 'Civil Status', birthdate: 'Birthdate',
+  present_address: 'Present Address', photo_url: 'Photo URL',
+}
+
 export default function DrrmTraining() {
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
@@ -49,13 +69,7 @@ export default function DrrmTraining() {
 
   const [searchTerm, setSearchTerm] = useState('')
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
-
-  // Export modal state
   const [isExportOpen, setIsExportOpen] = useState(false)
-  const [exportFrom, setExportFrom] = useState('')
-  const [exportTo, setExportTo] = useState('')
 
   useEffect(() => { loadRecords() }, [])
 
@@ -179,43 +193,7 @@ export default function DrrmTraining() {
     return [r.first_name, r.middle_name, r.last_name, validSuffix].filter(Boolean).join(' ')
   }
 
-  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / pageSize))
-  const safePage = Math.min(currentPage, totalPages)
-  const pagedRecords = filteredRecords.slice((safePage - 1) * pageSize, safePage * pageSize)
-
-  const exportPreviewRows = records.filter(item => {
-    if (!exportFrom && !exportTo) return true
-    const d = new Date(item.timestamp || item.created_at || 0)
-    if (exportFrom && d < new Date(exportFrom)) return false
-    if (exportTo) { const e = new Date(exportTo); e.setHours(23,59,59,999); if (d > e) return false }
-    return true
-  })
-
-  const handleExport = () => {
-    if (!window.XLSX) { toast.error('Export library not loaded.'); return }
-    if (exportPreviewRows.length === 0) { toast.error('No records in selected range.'); return }
-    const COLS = ['record_id','timestamp','first_name','middle_name','last_name','suffix',
-      'name_on_certificate','gender','contact_number','email_address','office','designation',
-      'civil_status','birthdate','present_address','photo_url']
-    const HDRS = { record_id:'Record ID', timestamp:'Timestamp', first_name:'First Name',
-      middle_name:'Middle Name', last_name:'Last Name', suffix:'Suffix',
-      name_on_certificate:'Name on Certificate', gender:'Gender',
-      contact_number:'Contact Number', email_address:'Email Address', office:'Office',
-      designation:'Designation/Position', civil_status:'Civil Status', birthdate:'Birthdate',
-      present_address:'Present Address', photo_url:'Photo URL' }
-    const rows = exportPreviewRows.map(r => {
-      const row = {}
-      COLS.forEach(c => { row[HDRS[c]] = r[c] ?? '' })
-      return row
-    })
-    const ws = window.XLSX.utils.json_to_sheet(rows)
-    ws['!cols'] = COLS.map(c => ({ wch: Math.max(HDRS[c].length + 2, 14) }))
-    const wb = window.XLSX.utils.book_new()
-    window.XLSX.utils.book_append_sheet(wb, ws, 'DRRM Training')
-    window.XLSX.writeFile(wb, `drrm_training_${exportFrom||'all'}_to_${exportTo||'all'}.xlsx`)
-    setIsExportOpen(false)
-    toast.success(`Exported ${exportPreviewRows.length} records.`)
-  }
+  const { currentPage, setCurrentPage, pageSize, setPageSize, totalPages, safePage, pagedRecords } = useListPagination(filteredRecords)
 
   const getGenderBadge = (g) => {
     const map = { Male: { bg: '#dbeafe', color: '#1e40af' }, Female: { bg: '#fce7f3', color: '#9d174d' }, 'Prefer not to say': { bg: '#f3f4f6', color: '#374151' } }
@@ -242,52 +220,18 @@ export default function DrrmTraining() {
         </button>
       </div>
 
-      {/* Filters bar */}
-      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '14px' }}>
-        {/* Search */}
-        <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '160px' }}>
-          <i className="ri-search-line" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '15px', pointerEvents: 'none' }} />
-          <input type="text" placeholder="Search name, office, email…" value={searchTerm}
-            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1) }}
-            style={{ width: '100%', padding: '8px 10px 8px 32px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', boxSizing: 'border-box' }} />
-        </div>
-
-        {/* Gender filter */}
-        
-        {/* Date range */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <input type="date" value={dateRange.start} onChange={e => { setDateRange(p => ({ ...p, start: e.target.value })); setCurrentPage(1) }}
-            style={{ padding: '7px 8px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px' }} />
-          <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>–</span>
-          <input type="date" value={dateRange.end} onChange={e => { setDateRange(p => ({ ...p, end: e.target.value })); setCurrentPage(1) }}
-            style={{ padding: '7px 8px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px' }} />
-        </div>
-
-        {/* Clear */}
-        {(searchTerm || dateRange.start || dateRange.end) && (
-          <button onClick={() => { setSearchTerm(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
-            style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <i className="ri-close-line" /> Clear
-          </button>
-        )}
-
-        {/* Page size + Export */}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
-          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Show</span>
-          <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
-            style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', cursor: 'pointer' }}>
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-          </select>
-          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>per page</span>
-          <div style={{ width: '1px', height: '20px', background: 'var(--border-light)' }} />
-          <button onClick={() => { setExportFrom(''); setExportTo(''); setIsExportOpen(true) }}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '8px', background: '#16a34a', color: '#fff', border: 'none', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}>
-            <i className="ri-file-excel-2-line" style={{ fontSize: '15px' }} /> Export XLSX
-          </button>
-        </div>
-      </div>
+      {records.length > 0 && (
+        <ModuleToolbar
+          onSearch={(v) => { setSearchTerm(v); setCurrentPage(1) }}
+          onDateRangeChange={(r) => { setDateRange(r); setCurrentPage(1) }}
+          searchPlaceholder="Search name, office, email…"
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          onExportClick={() => setIsExportOpen(true)}
+          onClearFilters={() => { setSearchTerm(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
+          hasActiveFilters={Boolean(searchTerm || dateRange.start || dateRange.end)}
+        />
+      )}
 
       {records.length === 0 ? (
         <div className="empty-state">
@@ -314,7 +258,7 @@ export default function DrrmTraining() {
             </thead>
             <tbody>
               {pagedRecords.map(record => (
-                <tr key={record.id} onClick={() => handleViewDetails(record)} style={{ cursor: 'pointer' }} className="table-row-clickable">
+                <tr key={record.id} onClick={() => handleViewDetails(record)} style={{ cursor: 'pointer', height: '49px' }} className="table-row-clickable">
                   <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
                   <td style={{ whiteSpace: 'nowrap', fontSize: '13px', color: 'var(--text-muted)' }}>
                     {record.timestamp ? format(new Date(record.timestamp), 'MMM dd, yyyy') : '-'}
@@ -327,39 +271,20 @@ export default function DrrmTraining() {
                   <td style={{ fontSize: '13px' }}>{record.civil_status || '-'}</td>
                 </tr>
               ))}
+              <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={8} />
             </tbody>
           </table>
         </div>
       )}
 
-      {/* Pagination */}
       {filteredRecords.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px', flexWrap: 'wrap', gap: '10px' }}>
-          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            Showing <strong>{(safePage - 1) * pageSize + 1}</strong>–<strong>{Math.min(safePage * pageSize, filteredRecords.length)}</strong> of <strong>{filteredRecords.length}</strong> records
-          </span>
-          <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-            <button onClick={() => setCurrentPage(1)} disabled={safePage === 1}
-              style={{ padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', cursor: safePage === 1 ? 'not-allowed' : 'pointer', opacity: safePage === 1 ? 0.4 : 1, fontSize: '14px' }}>
-              <i className="ri-skip-back-line" /></button>
-            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={safePage === 1}
-              style={{ padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', cursor: safePage === 1 ? 'not-allowed' : 'pointer', opacity: safePage === 1 ? 0.4 : 1, fontSize: '14px' }}>
-              <i className="ri-arrow-left-s-line" /></button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
-              .reduce((acc, p, idx, arr) => { if (idx > 0 && p - arr[idx-1] > 1) acc.push('...'); acc.push(p); return acc }, [])
-              .map((item, idx) => item === '...'
-                ? <span key={`e${idx}`} style={{ padding: '0 4px', color: 'var(--text-muted)', fontSize: '13px' }}>…</span>
-                : <button key={item} onClick={() => setCurrentPage(item)} style={{ padding: '6px 11px', borderRadius: '7px', fontSize: '13px', fontWeight: '700', border: `1px solid ${safePage === item ? 'var(--primary)' : 'var(--border-light)'}`, background: safePage === item ? 'var(--primary)' : 'var(--bg-surface)', color: safePage === item ? '#fff' : 'var(--text)', cursor: 'pointer' }}>{item}</button>
-              )}
-            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
-              style={{ padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', cursor: safePage === totalPages ? 'not-allowed' : 'pointer', opacity: safePage === totalPages ? 0.4 : 1, fontSize: '14px' }}>
-              <i className="ri-arrow-right-s-line" /></button>
-            <button onClick={() => setCurrentPage(totalPages)} disabled={safePage === totalPages}
-              style={{ padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', cursor: safePage === totalPages ? 'not-allowed' : 'pointer', opacity: safePage === totalPages ? 0.4 : 1, fontSize: '14px' }}>
-              <i className="ri-skip-forward-line" /></button>
-          </div>
-        </div>
+        <ListPagination
+          currentPage={safePage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalRecords={filteredRecords.length}
+          onPageChange={setCurrentPage}
+        />
       )}
 
       {/* Modal */}
@@ -516,65 +441,18 @@ export default function DrrmTraining() {
           </div>
         </form>
       </Modal>
-      {/* Export Modal */}
-      {isExportOpen && (
-        <div onClick={e => { if (e.target === e.currentTarget) setIsExportOpen(false) }}
-          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div style={{ background: 'var(--bg-surface)', borderRadius: 'var(--radius-lg)', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', width: '100%', maxWidth: '460px', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid var(--border-light)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <i className="ri-file-excel-2-line" style={{ fontSize: '20px', color: '#16a34a' }} />
-                </div>
-                <div>
-                  <div style={{ fontWeight: '800', fontSize: '16px' }}>Export to Excel</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>drrm_training.xlsx</div>
-                </div>
-              </div>
-              <button onClick={() => setIsExportOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '20px', padding: '4px' }}>
-                <i className="ri-close-line" /></button>
-            </div>
-            <div style={{ padding: '24px' }}>
-              <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: 'var(--text-muted)' }}>
-                Select a date range to filter which records to export. Leave both empty to export all.
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>From</label>
-                  <input type="date" value={exportFrom} onChange={e => setExportFrom(e.target.value)}
-                    style={{ width: '100%', padding: '9px 10px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-app)', fontSize: '13px', boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>To</label>
-                  <input type="date" value={exportTo} min={exportFrom || undefined} onChange={e => setExportTo(e.target.value)}
-                    style={{ width: '100%', padding: '9px 10px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-app)', fontSize: '13px', boxSizing: 'border-box' }} />
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderRadius: '10px', background: exportPreviewRows.length > 0 ? '#f0fdf4' : '#fef2f2', border: `1px solid ${exportPreviewRows.length > 0 ? '#bbf7d0' : '#fecaca'}`, marginBottom: '24px' }}>
-                <i className={exportPreviewRows.length > 0 ? 'ri-checkbox-circle-line' : 'ri-error-warning-line'} style={{ fontSize: '22px', color: exportPreviewRows.length > 0 ? '#16a34a' : '#dc2626', flexShrink: 0 }} />
-                <div>
-                  <div style={{ fontWeight: '800', fontSize: '15px', color: exportPreviewRows.length > 0 ? '#15803d' : '#b91c1c' }}>
-                    {exportPreviewRows.length} {exportPreviewRows.length === 1 ? 'record' : 'records'} will be exported
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    {exportFrom && exportTo ? `${format(new Date(exportFrom),'MMM dd, yyyy')} – ${format(new Date(exportTo),'MMM dd, yyyy')}`
-                      : exportFrom ? `From ${format(new Date(exportFrom),'MMM dd, yyyy')} onwards`
-                      : exportTo ? `Up to ${format(new Date(exportTo),'MMM dd, yyyy')}`
-                      : 'All dates — no filter applied'}
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                <button onClick={() => setIsExportOpen(false)} style={{ padding: '9px 20px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-app)', fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)', cursor: 'pointer' }}>Cancel</button>
-                <button onClick={handleExport} disabled={exportPreviewRows.length === 0}
-                  style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '9px 22px', borderRadius: '8px', background: exportPreviewRows.length > 0 ? '#16a34a' : '#9ca3af', color: '#fff', border: 'none', fontSize: '13px', fontWeight: '700', cursor: exportPreviewRows.length > 0 ? 'pointer' : 'not-allowed' }}>
-                  <i className="ri-download-2-line" /> Download XLSX
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ExportModal
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        records={records}
+        filename="drrm_training.xlsx"
+        sheetName="DRRM Training"
+        dateField="timestamp"
+        columns={DRRM_EXPORT_COLUMNS}
+        headers={DRRM_EXPORT_HEADERS}
+        onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onError={(msg) => toast.error(msg)}
+      />
     </div>
   )
 }

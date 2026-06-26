@@ -5,6 +5,12 @@ import { compressImage } from '../../utils/imageCompression'
 import { logAudit } from '../../services/audit'
 import { format } from 'date-fns'
 import Modal from '../../components/Modal'
+import ModuleToolbar from '../../components/ModuleToolbar'
+import ListPagination from '../../components/ListPagination'
+import ExportModal from '../../components/ExportModal'
+import TableGhostRows from '../../components/TableGhostRows'
+import PhotoUploadPanel from '../../components/PhotoUploadPanel'
+import useListPagination from '../../hooks/useListPagination'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
@@ -60,6 +66,34 @@ const INITIAL_FORM_STATE = {
   photos: []
 }
 
+const INCIDENT_EXPORT_COLUMNS = [
+  'record_id', 'date', 'time_of_call', 'team',
+  'place_of_incident', 'exact_place',
+  'nature_of_incident', 'severity',
+  'name', 'age', 'address', 'injury_illness_complaint',
+  'vehicle', 'vehicle_other', 'helmet', 'liquor',
+  'time_of_arrival_at_scene', 'time_of_departure_at_scene',
+  'time_of_arrival_at_hosp', 'time_of_departure_at_hosp', 'back_to_base',
+  'action_given', 'refused_transfer',
+  'transfer_from', 'transfer_to', 'transfer_to_other', 'ambulance',
+  'remarks',
+]
+
+const INCIDENT_EXPORT_HEADERS = {
+  record_id: 'Record ID', date: 'Date', time_of_call: 'Time of Call', team: 'Team',
+  place_of_incident: 'Place of Incident', exact_place: 'Exact Place',
+  nature_of_incident: 'Nature of Incident', severity: 'Severity',
+  name: 'Victim Name', age: 'Age', address: 'Address', injury_illness_complaint: 'Injury / Illness',
+  vehicle: 'Vehicle', vehicle_other: 'Vehicle (Other)', helmet: 'Helmet', liquor: 'Liquor',
+  time_of_arrival_at_scene: 'Arrival at Scene', time_of_departure_at_scene: 'Departure at Scene',
+  time_of_arrival_at_hosp: 'Arrival at Hospital', time_of_departure_at_hosp: 'Departure at Hospital',
+  back_to_base: 'Back to Base',
+  action_given: 'Action Given', refused_transfer: 'Refused Transfer',
+  transfer_from: 'Transfer From', transfer_to: 'Transfer To',
+  transfer_to_other: 'Transfer To (Other)', ambulance: 'Ambulance',
+  remarks: 'Remarks',
+}
+
 export default function Incidents() {
   const [incidents, setIncidents] = useState([])
   const [loading, setLoading] = useState(true)
@@ -86,9 +120,7 @@ export default function Incidents() {
   const [filterTeam, setFilterTeam] = useState('')
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
 
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [isExportOpen, setIsExportOpen] = useState(false)
 
   useEffect(() => {
     loadIncidents()
@@ -126,97 +158,10 @@ export default function Incidents() {
   }).sort((a, b) => {
     const da = new Date(a.date || a.created_at || 0)
     const db = new Date(b.date || b.created_at || 0)
-    return da - db
+    return db - da
   })
 
-  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / pageSize))
-  const safePage = Math.min(currentPage, totalPages)
-  const pagedRecords = filteredRecords.slice((safePage - 1) * pageSize, safePage * pageSize)
-
-  // ── Export modal state ────────────────────────────────────────────────────
-  const [isExportOpen, setIsExportOpen] = useState(false)
-  const [exportFrom, setExportFrom] = useState('')
-  const [exportTo, setExportTo] = useState('')
-
-  const exportPreviewRows = incidents.filter(item => {
-    if (!exportFrom && !exportTo) return true
-    const dateStr = item.date || item.created_at
-    if (!dateStr) return false
-    const d = new Date(dateStr)
-    if (exportFrom && d < new Date(exportFrom)) return false
-    if (exportTo) {
-      const end = new Date(exportTo)
-      end.setHours(23, 59, 59, 999)
-      if (d > end) return false
-    }
-    return true
-  }).sort((a, b) => new Date(a.date || a.created_at || 0) - new Date(b.date || b.created_at || 0))
-
-  const handleExport = () => {
-    if (!window.XLSX) {
-      toast.error('Export library not loaded. Check your internet connection.')
-      return
-    }
-    if (exportPreviewRows.length === 0) {
-      toast.error('No records match the selected date range.')
-      return
-    }
-
-    const COLUMNS = [
-      'record_id', 'date', 'time_of_call', 'team',
-      'place_of_incident', 'exact_place',
-      'nature_of_incident', 'severity',
-      'name', 'age', 'address', 'injury_illness_complaint',
-      'vehicle', 'vehicle_other', 'helmet', 'liquor',
-      'time_of_arrival_at_scene', 'time_of_departure_at_scene',
-      'time_of_arrival_at_hosp', 'time_of_departure_at_hosp', 'back_to_base',
-      'action_given', 'refused_transfer',
-      'transfer_from', 'transfer_to', 'transfer_to_other', 'ambulance',
-      'remarks'
-    ]
-
-    const HEADERS = {
-      record_id: 'Record ID', date: 'Date', time_of_call: 'Time of Call', team: 'Team',
-      place_of_incident: 'Place of Incident', exact_place: 'Exact Place',
-      nature_of_incident: 'Nature of Incident', severity: 'Severity',
-      name: 'Victim Name', age: 'Age', address: 'Address', injury_illness_complaint: 'Injury / Illness',
-      vehicle: 'Vehicle', vehicle_other: 'Vehicle (Other)', helmet: 'Helmet', liquor: 'Liquor',
-      time_of_arrival_at_scene: 'Arrival at Scene', time_of_departure_at_scene: 'Departure at Scene',
-      time_of_arrival_at_hosp: 'Arrival at Hospital', time_of_departure_at_hosp: 'Departure at Hospital',
-      back_to_base: 'Back to Base',
-      action_given: 'Action Given', refused_transfer: 'Refused Transfer',
-      transfer_from: 'Transfer From', transfer_to: 'Transfer To',
-      transfer_to_other: 'Transfer To (Other)', ambulance: 'Ambulance',
-      remarks: 'Remarks'
-    }
-
-    const rows = exportPreviewRows.map(inc => {
-      const row = {}
-      COLUMNS.forEach(col => {
-        let val = inc[col]
-        if (col === 'refused_transfer') val = val ? 'Yes' : 'No'
-        if (val === null || val === undefined) val = ''
-        row[HEADERS[col]] = val
-      })
-      return row
-    })
-
-    const ws = window.XLSX.utils.json_to_sheet(rows)
-
-    // Auto column widths
-    const colWidths = Object.keys(HEADERS).map(k => ({ wch: Math.max(HEADERS[k].length + 2, 14) }))
-    ws['!cols'] = colWidths
-
-    const wb = window.XLSX.utils.book_new()
-    window.XLSX.utils.book_append_sheet(wb, ws, 'Incidents')
-
-    const fromLabel = exportFrom || 'all'
-    const toLabel = exportTo || 'all'
-    window.XLSX.writeFile(wb, `incidents_${fromLabel}_to_${toLabel}.xlsx`)
-
-    setIsExportOpen(false)
-    toast.success(`Exported ${exportPreviewRows.length} records successfully.`)
-  }
+  const { currentPage, setCurrentPage, pageSize, setPageSize, totalPages, safePage, pagedRecords } = useListPagination(filteredRecords)
 
   const loadIncidents = async () => {
     try {
@@ -225,7 +170,7 @@ export default function Incidents() {
       const { data, error } = await supabase
         .from('incidents')
         .select('*')
-        .order('date', { ascending: true })
+        .order('date', { ascending: false })
 
       if (error) throw error
       setIncidents(data || [])
@@ -501,91 +446,30 @@ export default function Incidents() {
       </div>
 
 
-      {/* ── Inline filters bar ── */}
-      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '14px' }}>
-        {/* Search */}
-        <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '160px' }}>
-          <i className="ri-search-line" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '15px', pointerEvents: 'none' }} />
-          <input
-            type="text"
-            placeholder="Search records…"
-            value={searchTerm}
-            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1) }}
-            style={{ width: '100%', padding: '8px 10px 8px 32px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: 'var(--text)', boxSizing: 'border-box' }}
-          />
-        </div>
-
-        {/* Team filter */}
-        <select
-          value={filterTeam}
-          onChange={e => { setFilterTeam(e.target.value); setCurrentPage(1) }}
-          style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: filterTeam ? 'var(--text)' : 'var(--text-muted)', cursor: 'pointer', minWidth: '130px' }}
+      {incidents.length > 0 && (
+        <ModuleToolbar
+          onSearch={(v) => { setSearchTerm(v); setCurrentPage(1) }}
+          onDateRangeChange={(r) => { setDateRange(r); setCurrentPage(1) }}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          onExportClick={() => setIsExportOpen(true)}
+          onClearFilters={() => { setSearchTerm(''); setFilterTeam(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
+          hasActiveFilters={Boolean(searchTerm || filterTeam || dateRange.start || dateRange.end)}
         >
-          <option value="">All Teams</option>
-          <option value="Alpha">Alpha</option>
-          <option value="Bravo">Bravo</option>
-          <option value="Charlie">Charlie</option>
-          <option value="Delta">Delta</option>
-          <option value="Other">Other</option>
-        </select>
-
-        {/* Date range */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <input
-            type="date"
-            value={dateRange.start}
-            onChange={e => { setDateRange(p => ({ ...p, start: e.target.value })); setCurrentPage(1) }}
-            style={{ padding: '7px 8px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: 'var(--text)' }}
-          />
-          <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>–</span>
-          <input
-            type="date"
-            value={dateRange.end}
-            onChange={e => { setDateRange(p => ({ ...p, end: e.target.value })); setCurrentPage(1) }}
-            style={{ padding: '7px 8px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: 'var(--text)' }}
-          />
-        </div>
-
-        {/* Clear all filters */}
-        {(searchTerm || filterTeam || dateRange.start || dateRange.end) && (
-          <button
-            onClick={() => { setSearchTerm(''); setFilterTeam(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
-            style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
-          >
-            <i className="ri-close-line" /> Clear
-          </button>
-        )}
-
-        {/* Page size selector + Export — right side */}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
-          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Show</span>
           <select
-            value={pageSize}
-            onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
-            style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: 'var(--text)', cursor: 'pointer' }}
+            value={filterTeam}
+            onChange={e => { setFilterTeam(e.target.value); setCurrentPage(1) }}
+            style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: filterTeam ? 'var(--text)' : 'var(--text-muted)', cursor: 'pointer', minWidth: '130px' }}
           >
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
+            <option value="">All Teams</option>
+            <option value="Alpha">Alpha</option>
+            <option value="Bravo">Bravo</option>
+            <option value="Charlie">Charlie</option>
+            <option value="Delta">Delta</option>
+            <option value="Other">Other</option>
           </select>
-          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>per page</span>
-
-          <div style={{ width: '1px', height: '20px', background: 'var(--border-light)' }} />
-
-          <button
-            onClick={() => { setExportFrom(''); setExportTo(''); setIsExportOpen(true) }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              padding: '7px 14px', borderRadius: '8px',
-              background: '#16a34a', color: '#fff',
-              border: 'none', fontSize: '13px', fontWeight: '700',
-              cursor: 'pointer', whiteSpace: 'nowrap'
-            }}
-          >
-            <i className="ri-file-excel-2-line" style={{ fontSize: '15px' }} /> Export XLSX
-          </button>
-        </div>
-      </div>
+        </ModuleToolbar>
+      )}
 
       {incidents.length === 0 ? (
         <div className="empty-state">
@@ -657,75 +541,20 @@ export default function Incidents() {
                   </td>
                 </tr>
               ))}
-              {/* Ghost rows — pad to pageSize so table height never changes */}
-              {Array.from({ length: Math.max(0, pageSize - pagedRecords.length) }).map((_, i) => (
-                <tr key={`ghost-${i}`} style={{ height: '49px', pointerEvents: 'none' }}>
-                  <td colSpan={7} style={{ borderBottom: '1px solid var(--border-light)' }} />
-                </tr>
-              ))}
+              <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={7} />
             </tbody>
           </table>
         </div>
       )}
 
-      {/* ── Pagination bar ── */}
       {filteredRecords.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px', flexWrap: 'wrap', gap: '10px' }}>
-          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            Showing <strong>{(safePage - 1) * pageSize + 1}</strong>–<strong>{Math.min(safePage * pageSize, filteredRecords.length)}</strong> of <strong>{filteredRecords.length}</strong> records
-          </span>
-          <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-            <button
-              onClick={() => setCurrentPage(1)}
-              disabled={safePage === 1}
-              style={{ padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', cursor: safePage === 1 ? 'not-allowed' : 'pointer', opacity: safePage === 1 ? 0.4 : 1, fontSize: '14px', lineHeight: 1 }}
-              title="First page"
-            ><i className="ri-skip-back-line" /></button>
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={safePage === 1}
-              style={{ padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', cursor: safePage === 1 ? 'not-allowed' : 'pointer', opacity: safePage === 1 ? 0.4 : 1, fontSize: '14px', lineHeight: 1 }}
-            ><i className="ri-arrow-left-s-line" /></button>
-
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
-              .reduce((acc, p, idx, arr) => {
-                if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...')
-                acc.push(p)
-                return acc
-              }, [])
-              .map((item, idx) =>
-                item === '...' ? (
-                  <span key={`ellipsis-${idx}`} style={{ padding: '0 4px', color: 'var(--text-muted)', fontSize: '13px' }}>…</span>
-                ) : (
-                  <button
-                    key={item}
-                    onClick={() => setCurrentPage(item)}
-                    style={{
-                      padding: '6px 11px', borderRadius: '7px', fontSize: '13px', fontWeight: '700',
-                      border: `1px solid ${safePage === item ? 'var(--primary)' : 'var(--border-light)'}`,
-                      background: safePage === item ? 'var(--primary)' : 'var(--bg-surface)',
-                      color: safePage === item ? '#fff' : 'var(--text)',
-                      cursor: 'pointer', transition: 'all 0.15s'
-                    }}
-                  >{item}</button>
-                )
-              )
-            }
-
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={safePage === totalPages}
-              style={{ padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', cursor: safePage === totalPages ? 'not-allowed' : 'pointer', opacity: safePage === totalPages ? 0.4 : 1, fontSize: '14px', lineHeight: 1 }}
-            ><i className="ri-arrow-right-s-line" /></button>
-            <button
-              onClick={() => setCurrentPage(totalPages)}
-              disabled={safePage === totalPages}
-              style={{ padding: '6px 10px', borderRadius: '7px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', cursor: safePage === totalPages ? 'not-allowed' : 'pointer', opacity: safePage === totalPages ? 0.4 : 1, fontSize: '14px', lineHeight: 1 }}
-              title="Last page"
-            ><i className="ri-skip-forward-line" /></button>
-          </div>
-        </div>
+        <ListPagination
+          currentPage={safePage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalRecords={filteredRecords.length}
+          onPageChange={setCurrentPage}
+        />
       )}
 
       {/* Add/Edit Modal */}
@@ -1076,154 +905,18 @@ export default function Incidents() {
               )}
 
               {activeTab === 'photos' && (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                    <h4 style={{ margin: 0, color: 'var(--primary)' }}>Incident Photos</h4>
-                    {!isViewing && (
-                      <div style={{ position: 'relative' }}>
-                        <input
-                          type="file"
-                          multiple
-                          accept="image/*"
-                          onChange={handleFileUpload}
-                          disabled={isUploading}
-                          style={{
-                            position: 'absolute',
-                            top: 0, left: 0, right: 0, bottom: 0,
-                            opacity: 0, cursor: isUploading ? 'not-allowed' : 'pointer',
-                            width: '100%'
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="btn-primary"
-                          disabled={isUploading || isSaving}
-                          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                        >
-                          {(isUploading || isSaving) ? <i className="ri-loader-4-line ri-spin" style={{ fontSize: '16px' }}></i> : <i className="ri-camera-line" style={{ fontSize: '16px' }}></i>}
-                          {(isUploading || isSaving) ? 'Uploading...' : 'Add Photos'}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {(!formData.photos || formData.photos.length === 0) && pendingPhotos.length === 0 ? (
-                    <div style={{
-                      padding: '40px 20px',
-                      textAlign: 'center',
-                      background: '#f8fafc',
-                      borderRadius: '8px',
-                      border: '2px dashed var(--border-light)',
-                      color: 'var(--text-muted)'
-                    }}>
-                      <i className="ri-camera-line" style={{ fontSize: '48px', margin: '0 auto 16px', opacity: 0.5, display: 'block' }}></i>
-                      <p style={{ margin: 0 }}>No photos uploaded for this incident yet.</p>
-                      {!isViewing && <p style={{ fontSize: '13px', marginTop: '8px' }}>Click the upload button above to add some.</p>}
-                    </div>
-                  ) : (
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-                      gap: '16px'
-                    }}>
-                      {/* Existing Photos */}
-                      {formData.photos && formData.photos.map((url, idx) => (
-                        <div key={`existing-${idx}`} style={{ 
-                          position: 'relative', 
-                          aspectRatio: '1', 
-                          borderRadius: '8px', 
-                          overflow: 'hidden',
-                          border: '1px solid var(--border-light)'
-                        }}>
-                          <a href={url} target="_blank" rel="noopener noreferrer">
-                            <img 
-                              src={url} 
-                              alt={`Incident photo ${idx + 1}`} 
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                            />
-                          </a>
-                          {!isViewing && (
-                            <button
-                              type="button"
-                              onClick={(e) => { e.preventDefault(); removeExistingPhoto(idx); }}
-                              style={{
-                                position: 'absolute',
-                                top: '6px',
-                                right: '6px',
-                                background: 'rgba(239, 68, 68, 0.9)',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '50%',
-                                width: '24px',
-                                height: '24px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                              }}
-                              title="Remove photo"
-                            >
-                              <i className="ri-close-line" style={{ fontSize: '14px' }}></i>
-                            </button>
-                          )}
-                        </div>
-                      ))}
-
-                      {/* Pending Photos */}
-                      {pendingPhotos.map((file, idx) => {
-                        const objectUrl = URL.createObjectURL(file);
-                        return (
-                          <div key={`pending-${idx}`} style={{ 
-                            position: 'relative', 
-                            aspectRatio: '1', 
-                            borderRadius: '8px', 
-                            overflow: 'hidden',
-                            border: '1px solid var(--primary)',
-                            opacity: isUploading ? 0.6 : 1
-                          }}>
-                            <img 
-                              src={objectUrl} 
-                              alt={`Pending photo ${idx + 1}`} 
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                              onLoad={() => URL.revokeObjectURL(objectUrl)}
-                            />
-                            {!isViewing && !isUploading && (
-                              <button
-                                type="button"
-                                onClick={(e) => { e.preventDefault(); removePendingPhoto(idx); }}
-                                style={{
-                                  position: 'absolute',
-                                  top: '6px',
-                                  right: '6px',
-                                  background: 'rgba(239, 68, 68, 0.9)',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '50%',
-                                  width: '24px',
-                                  height: '24px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  cursor: 'pointer',
-                                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                                }}
-                                title="Remove photo"
-                              >
-                                <i className="ri-close-line" style={{ fontSize: '14px' }}></i>
-                              </button>
-                            )}
-                            {isUploading && (
-                              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', color: 'white' }}>
-                                <i className="ri-loader-4-line ri-spin" style={{ fontSize: '24px' }}></i>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
+                <PhotoUploadPanel
+                  title="Incident Photos"
+                  emptyMessage="No photos uploaded for this incident yet."
+                  photos={formData.photos}
+                  pendingPhotos={pendingPhotos}
+                  isViewing={isViewing}
+                  isUploading={isUploading}
+                  isSaving={isSaving}
+                  onFileUpload={handleFileUpload}
+                  onRemoveExisting={removeExistingPhoto}
+                  onRemovePending={removePendingPhoto}
+                />
               )}
             </div>
           </fieldset>
@@ -1269,128 +962,19 @@ export default function Incidents() {
           </div>
         </form>
       </Modal>
-      {/* ── Export Modal ── */}
-      {isExportOpen && (
-        <div
-          onClick={e => { if (e.target === e.currentTarget) setIsExportOpen(false) }}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 1000,
-            background: 'rgba(0,0,0,0.45)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '16px'
-          }}
-        >
-          <div style={{
-            background: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-lg)',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-            width: '100%', maxWidth: '460px',
-            overflow: 'hidden'
-          }}>
-            {/* Header */}
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '20px 24px', borderBottom: '1px solid var(--border-light)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <i className="ri-file-excel-2-line" style={{ fontSize: '20px', color: '#16a34a' }} />
-                </div>
-                <div>
-                  <div style={{ fontWeight: '800', fontSize: '16px' }}>Export to Excel</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>incidents_report.xlsx</div>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsExportOpen(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '20px', lineHeight: 1, padding: '4px' }}
-              ><i className="ri-close-line" /></button>
-            </div>
-
-            {/* Body */}
-            <div style={{ padding: '24px' }}>
-              <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: 'var(--text-muted)' }}>
-                Select a date range to filter which records to export. Leave both fields empty to export all records.
-              </p>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>From</label>
-                  <input
-                    type="date"
-                    value={exportFrom}
-                    onChange={e => setExportFrom(e.target.value)}
-                    style={{ width: '100%', padding: '9px 10px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-app)', fontSize: '13px', color: 'var(--text)', boxSizing: 'border-box' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>To</label>
-                  <input
-                    type="date"
-                    value={exportTo}
-                    min={exportFrom || undefined}
-                    onChange={e => setExportTo(e.target.value)}
-                    style={{ width: '100%', padding: '9px 10px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-app)', fontSize: '13px', color: 'var(--text)', boxSizing: 'border-box' }}
-                  />
-                </div>
-              </div>
-
-              {/* Row preview */}
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '12px',
-                padding: '14px 16px', borderRadius: '10px',
-                background: exportPreviewRows.length > 0 ? '#f0fdf4' : '#fef2f2',
-                border: `1px solid ${exportPreviewRows.length > 0 ? '#bbf7d0' : '#fecaca'}`,
-                marginBottom: '24px'
-              }}>
-                <i
-                  className={exportPreviewRows.length > 0 ? 'ri-checkbox-circle-line' : 'ri-error-warning-line'}
-                  style={{ fontSize: '22px', color: exportPreviewRows.length > 0 ? '#16a34a' : '#dc2626', flexShrink: 0 }}
-                />
-                <div>
-                  <div style={{ fontWeight: '800', fontSize: '15px', color: exportPreviewRows.length > 0 ? '#15803d' : '#b91c1c' }}>
-                    {exportPreviewRows.length} {exportPreviewRows.length === 1 ? 'record' : 'records'} will be exported
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    {exportFrom && exportTo
-                      ? `${format(new Date(exportFrom), 'MMM dd, yyyy')} – ${format(new Date(exportTo), 'MMM dd, yyyy')}`
-                      : exportFrom
-                        ? `From ${format(new Date(exportFrom), 'MMM dd, yyyy')} onwards`
-                        : exportTo
-                          ? `Up to ${format(new Date(exportTo), 'MMM dd, yyyy')}`
-                          : 'All dates — no filter applied'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                <button
-                  onClick={() => setIsExportOpen(false)}
-                  style={{ padding: '9px 20px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-app)', fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)', cursor: 'pointer' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleExport}
-                  disabled={exportPreviewRows.length === 0}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '7px',
-                    padding: '9px 22px', borderRadius: '8px',
-                    background: exportPreviewRows.length > 0 ? '#16a34a' : '#9ca3af',
-                    color: '#fff', border: 'none',
-                    fontSize: '13px', fontWeight: '700',
-                    cursor: exportPreviewRows.length > 0 ? 'pointer' : 'not-allowed',
-                    transition: 'background 0.15s'
-                  }}
-                >
-                  <i className="ri-download-2-line" /> Download XLSX
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ExportModal
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        records={incidents}
+        filename="incidents_report.xlsx"
+        sheetName="Incidents"
+        dateField="date"
+        columns={INCIDENT_EXPORT_COLUMNS}
+        headers={INCIDENT_EXPORT_HEADERS}
+        transformValue={(col, val) => (col === 'refused_transfer' ? (val ? 'Yes' : 'No') : val)}
+        onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onError={(msg) => toast.error(msg)}
+      />
     </div>
   )
 }

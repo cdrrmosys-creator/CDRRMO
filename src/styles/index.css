@@ -671,6 +671,18 @@ tbody tr:hover {
   cursor: pointer;
 }
 
+.data-table tbody tr:nth-child(even):not(.table-ghost-row) {
+  background: var(--primary-bg);
+}
+
+.data-table tbody tr.table-ghost-row {
+  background: var(--bg-surface) !important;
+}
+
+.data-table tbody tr.table-row-clickable:hover {
+  background: #fee2e2 !important;
+}
+
 tbody td {
   padding: 16px;
   font-size: 14px;
