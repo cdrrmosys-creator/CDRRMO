@@ -117,6 +117,7 @@ export default function ModuleToolbar({
           <input
             max={new Date().toISOString().split('T')[0]} type="date"
             value={dateEnd}
+            min={dateStart || undefined}
             onChange={e => handleDateEndChange(e.target.value)}
             style={{ padding: '7px 8px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: 'var(--text)' }}
           />

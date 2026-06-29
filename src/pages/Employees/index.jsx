@@ -996,6 +996,38 @@ export default function Employees() {
                   return
                 }
               }
+
+              // Strict format validation before leaving tabs that contain formatted data
+              const currentTabId = TABS[currentIdx].id
+              
+              let fieldsToValidate = {}
+              if (currentTabId === 'personal') {
+                fieldsToValidate = {
+                  'Employee Name': { rule: 'name',   value: formData.name },
+                  'Contact No.':   { rule: 'mobile', value: formData.contact }
+                }
+              } else if (currentTabId === 'designation') {
+                fieldsToValidate = {
+                  'Email': { rule: 'email', value: formData.email }
+                }
+              } else if (currentTabId === 'profile') {
+                fieldsToValidate = {
+                  'Emergency Contact': { rule: 'mobile', value: formData.emergency_contact_no }
+                }
+              }
+
+              if (Object.keys(fieldsToValidate).length > 0) {
+                const errors = validateForm(fieldsToValidate)
+                if (Object.keys(errors).length > 0) {
+                  Object.values(errors).forEach(msg => toast.error(msg))
+                  return
+                }
+              }
+
+              if (currentTabId === 'designation' && emailError) {
+                toast.error('Please fix the email error before continuing.')
+                return
+              }
               // Only after passing validation: mark current + next as visited and advance
               setVisitedTabs(prev => new Set([...prev, TABS[currentIdx].id, TABS[currentIdx + 1].id]))
               setActiveTab(TABS[currentIdx + 1].id)

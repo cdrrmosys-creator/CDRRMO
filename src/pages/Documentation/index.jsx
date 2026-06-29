@@ -604,7 +604,7 @@ export default function Documentation() {
             display: flex;
             align-items: center;
             padding: 10px 14px;
-            background: #fff;
+            background: var(--bg-surface);
             border: 1px solid var(--border-light);
             border-radius: 8px;
             margin-bottom: 8px;
