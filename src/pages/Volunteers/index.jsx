@@ -462,7 +462,7 @@ export default function Volunteers() {
                     border: '1.5px solid var(--border-light)',
                     borderRadius: '10px',
                     padding: '14px 16px',
-                    background: formData.with_insurance ? '#f0f7ff' : '#fafafa',
+                    background: formData.with_insurance ? 'var(--primary-bg)' : 'var(--bg-app)',
                     transition: 'background 0.2s'
                   }}>
                     <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '10px', marginBottom: formData.with_insurance ? '12px' : 0 }}>

@@ -409,7 +409,7 @@ export default function TrainingRegistrations() {
                   padding: '14px 16px',
                   border: '1.5px solid var(--border-light)',
                   borderRadius: '10px',
-                  background: '#fafafa'
+                  background: 'var(--bg-app)'
                 }}>
                   {TRAINING_OPTIONS.map(training => {
                     const checked = (formData.trainings || []).includes(training)
@@ -424,8 +424,8 @@ export default function TrainingRegistrations() {
                           padding: '8px 14px',
                           borderRadius: '8px',
                           border: `1.5px solid ${checked ? 'var(--primary)' : 'var(--border-light)'}`,
-                          background: checked ? 'var(--primary-bg, #eff6ff)' : '#fff',
-                          color: checked ? 'var(--primary)' : 'var(--text-primary)',
+                          background: checked ? 'var(--primary-bg)' : 'var(--bg-surface)',
+                          color: checked ? 'var(--primary)' : 'var(--text-main)',
                           fontWeight: checked ? '700' : '500',
                           transition: 'all 0.15s',
                           userSelect: 'none'

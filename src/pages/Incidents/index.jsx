@@ -584,7 +584,7 @@ export default function Incidents() {
                     fontWeight: '700',
                     fontSize: '13px',
                     whiteSpace: 'nowrap',
-                    background: activeTab === tab.id ? 'var(--primary)' : '#f3f4f6',
+                    background: activeTab === tab.id ? 'var(--primary)' : 'var(--bg-app)',
                     color: activeTab === tab.id ? '#fff' : 'var(--text-muted)',
                     border: 'none',
                     cursor: 'pointer',

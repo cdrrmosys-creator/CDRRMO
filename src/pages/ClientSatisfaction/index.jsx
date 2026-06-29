@@ -59,8 +59,9 @@ const PRIMARY = '#f59e0b' // amber color for ratings
 // Custom tooltip for chart
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
-  const avgPayload = payload.find(p => p.dataKey === 'avg')
-  const bars = payload.filter(p => p.dataKey !== 'avg')
+  const data = payload[0].payload
+  const avg = data.avg
+  const bars = payload
 
   return (
     <div style={{
@@ -70,7 +71,7 @@ function CustomTooltip({ active, payload, label }) {
     }}>
       {label && <div style={{ fontWeight:'700', marginBottom:'6px', color:'var(--text)' }}>{label}</div>}
       <div style={{ fontWeight: '600', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid var(--border-light)' }}>
-        Average Rating: <span style={{ color: PRIMARY }}>{avgPayload ? avgPayload.value : '-'} / 5</span>
+        Average Rating: <span style={{ color: PRIMARY }}>{avg !== undefined ? avg : '-'} / 5</span>
       </div>
       {bars.map((p, i) => (
         <div key={i} style={{ display:'flex', alignItems:'center', gap:'6px', color: p.color, marginBottom:'4px' }}>
@@ -676,7 +677,7 @@ export default function ClientSatisfaction() {
 
             <h4 style={{ margin: '24px 0 16px 0', paddingBottom: '8px', borderBottom: '1px solid var(--border-light)', color: 'var(--primary)' }}>Survey Questionnaire</h4>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', background: 'var(--bg-app)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
               {QUESTIONS.map(q => (
                 <div className="form-group" key={q.key} style={{ marginBottom: '0' }}>
                   <label style={{ fontSize: '13px', color: 'var(--text)', marginBottom: '8px', fontWeight: '600' }}>{q.label}</label>

@@ -1438,10 +1438,10 @@ export default function Employees() {
                           <button type="button" onClick={() => saveChildEntry(idx)} style={entrySaveBtnStyle}>
                             <i className="ri-save-line" /> Save
                           </button>
-                          <button type="button" onClick={() => setFormData(p => ({ ...p, children: p.children.filter((_, i) => i !== idx) }))}
-                            style={{ padding: '8px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', flexShrink: 0, marginBottom: '2px' }}>
-                            <i className="ri-delete-bin-line" />
-                          </button>
+                            <button type="button" onClick={() => setFormData(p => ({ ...p, children: p.children.filter((_, i) => i !== idx) }))}
+                              style={{ padding: '8px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', flexShrink: 0, alignSelf: 'flex-end', marginBottom: '2px' }}>
+                              <i className="ri-delete-bin-line" />
+                            </button>
                         </>
                       )}
                       </div>
@@ -1472,7 +1472,7 @@ export default function Employees() {
                         </div>
                       )}
                       <div className="form-row" style={{ marginBottom: 0 }}>
-                        <div className="form-group" style={{ flex: 2 }}>
+                        <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                           <label>Job Description</label>
                           <input type="text" value={we.job_description} onChange={e => markListEntryDirty('work_experience', idx, { job_description: e.target.value })} />
                         </div>
