@@ -23,6 +23,8 @@ const INITIAL_FORM_STATE = {
   record_id: '',
   location: '',
   date: '',
+  date_of_request: '',
+  status: 'Pending',
   trees_pruned: '',
   conducted_by: '',
   remarks: '',
@@ -270,6 +272,8 @@ export default function Pruning() {
       record_id: rec.record_id || '',
       location: rec.location || '',
       date: rec.date || '',
+      date_of_request: rec.date_of_request || '',
+      status: rec.status || 'Pending',
       trees_pruned: rec.trees_pruned || '',
       conducted_by: rec.conducted_by || '',
       remarks: rec.remarks || '',
@@ -553,56 +557,53 @@ export default function Pruning() {
           <table>
             <thead>
               <tr>
-                <th>Record ID</th>
-                <th>Location</th>
-                <th>Date</th>
+                <th>Date of Request</th>
+                <th>Place</th>
+                <th>Status</th>
                 <th>Trees Pruned</th>
                 <th>Conducted By</th>
-                <th>Remarks</th>
                 <th>Photos</th>
               </tr>
             </thead>
             <tbody>
               {pagedRecords.map((record) => (
-                <tr 
-                  key={record.id}
-                  onClick={() => handleViewDetails(record)}
-                  style={{ cursor: 'pointer', height: '49px' }}
-                  className="table-row-clickable"
-                >
-                  <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
-                  <td style={{ fontWeight: '700' }}>{record.location || '-'}</td>
-                  <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
-                    {record.date 
-                      ? format(new Date(record.date), 'MMM dd, yyyy')
-                      : '-'}
-                  </td>
-                  <td style={{ fontFamily: 'monospace', fontSize: '15px' }}>{record.trees_pruned || 0}</td>
-                  <td>{record.conducted_by || '-'}</td>
-                  <td>
-                    <div style={{
-                      maxWidth: '250px',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      fontSize: '13px',
-                      color: 'var(--text-muted)'
-                    }}>
-                      {record.remarks || '-'}
-                    </div>
-                  </td>
-                  <td onClick={(e) => e.stopPropagation()}>
-                    {record.photos && record.photos.length > 0 ? (
-                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', maxWidth: '120px' }}>
-                        {record.photos.map((url, i) => (
-                          <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'none' }}>
-                            <i className="ri-image-line" title="View Photo" style={{ fontSize: '16px' }}></i>
-                          </a>
-                        ))}
-                      </div>
-                    ) : '-'}
-                  </td>
-                </tr>
+                  <tr 
+                    key={record.id}
+                    onClick={() => handleViewDetails(record)}
+                    style={{ cursor: 'pointer', height: '49px' }}
+                    className="table-row-clickable"
+                  >
+                    <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
+                      {record.date_of_request 
+                        ? format(new Date(record.date_of_request), 'MMM dd, yyyy')
+                        : record.date ? format(new Date(record.date), 'MMM dd, yyyy') : '-'}
+                    </td>
+                    <td style={{ fontWeight: '700' }}>{record.location || '-'}</td>
+                    <td>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '4px',
+                        padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '700',
+                        background: record.status === 'Completed' ? 'rgba(22,163,74,0.12)' : record.status === 'In Progress' ? 'rgba(234,179,8,0.12)' : 'rgba(220,38,38,0.10)',
+                        color: record.status === 'Completed' ? '#16a34a' : record.status === 'In Progress' ? '#ca8a04' : '#dc2626',
+                        border: `1px solid ${record.status === 'Completed' ? 'rgba(22,163,74,0.3)' : record.status === 'In Progress' ? 'rgba(234,179,8,0.3)' : 'rgba(220,38,38,0.25)'}`,
+                      }}>
+                        {record.status || 'Pending'}
+                      </span>
+                    </td>
+                    <td style={{ fontFamily: 'monospace', fontSize: '15px' }}>{record.trees_pruned || 0}</td>
+                    <td>{record.conducted_by || '-'}</td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      {record.photos && record.photos.length > 0 ? (
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', maxWidth: '120px' }}>
+                          {record.photos.map((url, i) => (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'none' }}>
+                              <i className="ri-image-line" title="View Photo" style={{ fontSize: '16px' }}></i>
+                            </a>
+                          ))}
+                        </div>
+                      ) : '-'}
+                    </td>
+                  </tr>
               ))}
               <TableGhostRows count={pageSize - pagedRecords.length} colSpan={7} />
             </tbody>
@@ -671,16 +672,7 @@ export default function Pruning() {
               <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div className="form-row">
-                    <div className="form-group">
-                      <label>Record ID *</label>
-                      <input 
-                        type="text" 
-                        name="record_id" 
-                        value={formData.record_id} 
-                        onChange={handleInputChange} 
-                        required 
-                        disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
-                    </div>
+                    
                     <div className="form-group">
                       <label>Location *</label>
                       <input 
@@ -696,14 +688,34 @@ export default function Pruning() {
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Date *</label>
+                      <label>Date of Request *</label>
+                      <input 
+                        type="date" 
+                        name="date_of_request" 
+                        value={formData.date_of_request} 
+                        onChange={handleInputChange} 
+                        required 
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Operation Date</label>
                       <input 
                         type="date" 
                         name="date" 
                         value={formData.date} 
                         onChange={handleInputChange} 
-                        required 
                       />
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Status *</label>
+                      <select name="status" value={formData.status} onChange={handleInputChange} required>
+                        <option value="Pending">Pending</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                      </select>
                     </div>
                     <div className="form-group">
                       <label>Trees Pruned / Trimmed</label>

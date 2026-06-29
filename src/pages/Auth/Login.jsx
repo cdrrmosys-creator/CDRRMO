@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { useToast } from '../../components/Toast'
+import ForgotPasswordModal from '../../components/ForgotPasswordModal'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -13,6 +14,7 @@ export default function Login() {
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [shake, setShake] = useState(false)
+  const [showForgot, setShowForgot] = useState(false)
 
   const triggerShake = () => {
     setShake(true)
@@ -123,6 +125,24 @@ export default function Login() {
                     }}
                   ></i>
                 </div>
+              </div>
+
+              {/* Forgot password link */}
+              <div style={{ textAlign: 'right', marginTop: '-8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowForgot(true)}
+                  style={{
+                    background: 'transparent', border: 'none',
+                    color: 'rgba(255,255,255,0.5)', fontSize: '12px',
+                    cursor: 'pointer', textDecoration: 'underline',
+                    padding: '2px 0', transition: 'color 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.85)'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.5)'}
+                >
+                  Forgot password?
+                </button>
               </div>
 
               <div
@@ -259,6 +279,7 @@ export default function Login() {
           </div>
         </div>
       </div>
+      {showForgot && <ForgotPasswordModal onClose={() => setShowForgot(false)} />}
     </div>
   )
 }

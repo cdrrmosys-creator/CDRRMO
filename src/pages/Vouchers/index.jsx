@@ -22,7 +22,13 @@ const INITIAL_FORM_STATE = {
   status: 'Pending',
   has_insurance: false,
   insurance_number: '',
-  insurance_id: ''
+  insurance_id: '',
+  payee: '',
+  particular: '',
+  check_number: '',
+  or_number: '',
+  account_code: '',
+  bank_name: ''
 }
 
 export default function Vouchers() {
@@ -136,20 +142,26 @@ export default function Vouchers() {
     setIsModalOpen(true)
   }
 
-  const handleOpenEdit = (v) => {
+  const handleOpenEdit = (rec) => {
     setIsEditing(true)
     setIsViewing(false)
-    setSelectedId(v.id)
+    setSelectedId(rec.id)
     setFormData({
-      record_id: v.record_id || '',
-      beneficiary_name: v.beneficiary_name || '',
-      amount: v.amount || '',
-      purpose: v.purpose || '',
-      date: v.date || '',
-      status: v.status || 'Pending',
-      has_insurance: v.has_insurance || false,
-      insurance_number: v.insurance_number || '',
-      insurance_id: v.insurance_id || ''
+      record_id: rec.record_id || '',
+      beneficiary_name: rec.beneficiary_name || '',
+      amount: rec.amount || '',
+      purpose: rec.purpose || '',
+      date: rec.date || '',
+      status: rec.status || 'Pending',
+      has_insurance: rec.has_insurance || false,
+      insurance_number: rec.insurance_number || '',
+      insurance_id: rec.insurance_id || '',
+      payee: rec.payee || '',
+      particular: rec.particular || '',
+      check_number: rec.check_number || '',
+      or_number: rec.or_number || '',
+      account_code: rec.account_code || '',
+      bank_name: rec.bank_name || ''
     })
     setIsModalOpen(true)
   }
@@ -400,12 +412,11 @@ export default function Vouchers() {
           <table>
             <thead>
               <tr>
-                <th>Record ID</th>
                 <th>Date</th>
-                <th>Beneficiary</th>
-                <th>Purpose</th>
+                <th>Beneficiary/Payee</th>
+                <th>Check No.</th>
+                <th>Purpose / Particular</th>
                 <th>Amount</th>
-                <th>Insurance</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -417,37 +428,22 @@ export default function Vouchers() {
                   style={{ cursor: 'pointer', height: '49px' }}
                   className="table-row-clickable"
                 >
-                  <td><code style={{ fontWeight: '700' }}>{voucher.record_id || '-'}</code></td>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
                     {voucher.date 
                       ? format(new Date(voucher.date), 'MMM dd, yyyy')
                       : '-'}
                   </td>
-                  <td style={{ fontWeight: '700' }}>{voucher.beneficiary_name || '-'}</td>
+                  <td style={{ fontWeight: '700' }}>
+                    {voucher.beneficiary_name || voucher.payee || '-'}
+                  </td>
+                  <td style={{ fontFamily: 'monospace' }}>{voucher.check_number || '-'}</td>
                   <td>
-                    <div style={{
-                      maxWidth: '250px',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      fontSize: '13px'
-                    }}>
-                      {voucher.purpose || '-'}
+                    <div style={{ maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px' }}>
+                      {voucher.particular || voucher.purpose || '-'}
                     </div>
                   </td>
                   <td style={{ fontFamily: 'monospace', fontWeight: '700', color: '#16a34a' }}>
                     {formatCurrency(voucher.amount)}
-                  </td>
-                  <td>
-                    {voucher.has_insurance ? (
-                      <span style={{ padding: '4px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: '700', background: '#dbeafe', color: '#1e40af' }}>
-                        With Insurance
-                      </span>
-                    ) : (
-                      <span style={{ padding: '4px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: '700', background: '#f3f4f6', color: '#4b5563' }}>
-                        Without Insurance
-                      </span>
-                    )}
                   </td>
                   <td onClick={(e) => isAdmin ? e.stopPropagation() : undefined}>
                     {isAdmin ? (
@@ -520,16 +516,7 @@ export default function Vouchers() {
         <form onSubmit={handleSubmit} className="modal-form">
           <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
           <div className="form-row">
-            <div className="form-group">
-              <label>Record ID *</label>
-              <input 
-                type="text" 
-                name="record_id" 
-                value={formData.record_id} 
-                onChange={handleInputChange} 
-                required 
-               disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
-            </div>
+            
             <div className="form-group">
               <label>Beneficiary Name *</label>
               <input 
@@ -568,14 +555,47 @@ export default function Vouchers() {
             </div>
           </div>
 
+          <div className="form-row">
+            <div className="form-group">
+              <label>Payee</label>
+              <input type="text" name="payee" value={formData.payee} onChange={handleInputChange} placeholder="Name of Payee" />
+            </div>
+            <div className="form-group">
+              <label>Bank Name</label>
+              <input type="text" name="bank_name" value={formData.bank_name} onChange={handleInputChange} placeholder="e.g. Landbank" />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Check Number</label>
+              <input type="text" name="check_number" value={formData.check_number} onChange={handleInputChange} placeholder="Check No." />
+            </div>
+            <div className="form-group">
+              <label>OR Number</label>
+              <input type="text" name="or_number" value={formData.or_number} onChange={handleInputChange} placeholder="Official Receipt No." />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Account Code</label>
+              <input type="text" name="account_code" value={formData.account_code} onChange={handleInputChange} placeholder="Account Code" />
+            </div>
+            <div className="form-group">
+              <label>Status *</label>
+              <select name="status" value={formData.status} onChange={handleInputChange} required>
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="Paid">Paid</option>
+                <option value="Rejected">Rejected</option>
+              </select>
+            </div>
+          </div>
+
           <div className="form-group">
-            <label>Status *</label>
-            <select name="status" value={formData.status} onChange={handleInputChange} required>
-              <option value="Pending">Pending</option>
-              <option value="Approved">Approved</option>
-              <option value="Paid">Paid</option>
-              <option value="Rejected">Rejected</option>
-            </select>
+            <label>Particular / Details</label>
+            <textarea name="particular" value={formData.particular} onChange={handleInputChange} rows={3} placeholder="Particulars of the voucher..." />
           </div>
 
           <div style={{

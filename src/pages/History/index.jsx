@@ -19,7 +19,12 @@ const INITIAL_FORM_STATE = {
   event_title: '',
   date: '',
   description: '',
+  disaster_type: '',
   category: '',
+  casualties: '',
+  evacuees: '',
+  affected_families: '',
+  damage_cost: '',
   files: []
 }
 
@@ -153,7 +158,12 @@ const handleOpenAdd = () => {
       event_title: rec.event_title || '',
       date: rec.date || '',
       description: rec.description || '',
+      disaster_type: rec.disaster_type || rec.category || '',
       category: rec.category || '',
+      casualties: rec.casualties ?? '',
+      evacuees: rec.evacuees ?? '',
+      affected_families: rec.affected_families ?? '',
+      damage_cost: rec.damage_cost ?? '',
       files: rec.files || []
     })
     setIsModalOpen(true)
@@ -435,7 +445,6 @@ const handleOpenAdd = () => {
           <table>
             <thead>
               <tr>
-                <th>Record ID</th>
                 <th>Event Title</th>
                 <th>Date</th>
                 <th>Category</th>
@@ -451,7 +460,6 @@ const handleOpenAdd = () => {
                   style={{ cursor: 'pointer', height: '49px' }}
                   className="table-row-clickable"
                 >
-                  <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
                   <td style={{ fontWeight: '700' }}>{record.event_title || '-'}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
                     {record.date 
@@ -595,16 +603,7 @@ const handleOpenAdd = () => {
               <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div className="form-row">
-                    <div className="form-group">
-                      <label>Record ID *</label>
-                      <input 
-                        type="text" 
-                        name="record_id" 
-                        value={formData.record_id} 
-                        onChange={handleInputChange} 
-                        required 
-                        disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
-                    </div>
+                    
                     <div className="form-group">
                       <label>Event Title *</label>
                       <input 
@@ -621,23 +620,44 @@ const handleOpenAdd = () => {
                   <div className="form-row">
                     <div className="form-group">
                       <label>Date *</label>
-                      <input 
-                        type="date" 
-                        name="date" 
-                        value={formData.date} 
-                        onChange={handleInputChange} 
-                        required 
-                      />
+                      <input type="date" name="date" value={formData.date} onChange={handleInputChange} required />
                     </div>
                     <div className="form-group">
-                      <label>Category</label>
-                      <select name="category" value={formData.category} onChange={handleInputChange}>
-                        <option value="">General</option>
-                        <option value="Disaster">Disaster</option>
-                        <option value="Milestone">Milestone</option>
-                        <option value="Operation">Operation</option>
-                        <option value="Policy">Policy</option>
+                      <label>Disaster / Hazard Type *</label>
+                      <select name="disaster_type" value={formData.disaster_type} onChange={handleInputChange} required>
+                        <option value="">-- Select Type --</option>
+                        <option value="Typhoon">Typhoon</option>
+                        <option value="Flooding">Flooding</option>
+                        <option value="Landslide (Rain-induced)">Landslide (Rain-induced)</option>
+                        <option value="Landslide (EQ-induced)">Landslide (EQ-induced)</option>
+                        <option value="Earthquake">Earthquake</option>
+                        <option value="Fire">Fire</option>
+                        <option value="Drought">Drought</option>
+                        <option value="Armed Conflict">Armed Conflict</option>
+                        <option value="Others">Others</option>
                       </select>
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>No. of Casualties</label>
+                      <input type="number" name="casualties" value={formData.casualties} onChange={handleInputChange} min="0" placeholder="0" />
+                    </div>
+                    <div className="form-group">
+                      <label>No. of Evacuees</label>
+                      <input type="number" name="evacuees" value={formData.evacuees} onChange={handleInputChange} min="0" placeholder="0" />
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>No. of Affected Families</label>
+                      <input type="number" name="affected_families" value={formData.affected_families} onChange={handleInputChange} min="0" placeholder="0" />
+                    </div>
+                    <div className="form-group">
+                      <label>Estimated Damage Cost (₱)</label>
+                      <input type="number" name="damage_cost" value={formData.damage_cost} onChange={handleInputChange} min="0" step="0.01" placeholder="0.00" />
                     </div>
                   </div>
 

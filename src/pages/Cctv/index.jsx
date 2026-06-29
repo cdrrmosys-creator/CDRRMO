@@ -19,6 +19,15 @@ const INITIAL_FORM_STATE = {
   report_title: '',
   date_start: '',
   date_end: '',
+  operator: '',
+  asst_operator: '',
+  client_name: '',
+  client_contact: '',
+  client_address: '',
+  exact_place: '',
+  nature_of_incident: '',
+  time_of_incident: '',
+  others: '',
   prepared_by: '',
   summary: '',
   files: []
@@ -150,6 +159,15 @@ export default function Cctv() {
       report_title: rec.report_title || '',
       date_start: rec.date_start || '',
       date_end: rec.date_end || '',
+      operator: rec.operator || '',
+      asst_operator: rec.asst_operator || '',
+      client_name: rec.client_name || '',
+      client_contact: rec.client_contact || '',
+      client_address: rec.client_address || '',
+      exact_place: rec.exact_place || '',
+      nature_of_incident: rec.nature_of_incident || '',
+      time_of_incident: rec.time_of_incident || '',
+      others: rec.others || '',
       prepared_by: rec.prepared_by || '',
       summary: rec.summary || '',
       files: rec.files || []
@@ -410,7 +428,6 @@ export default function Cctv() {
           <table>
             <thead>
               <tr>
-                <th>Record ID</th>
                 <th>Report Title</th>
                 <th>Date Covered</th>
                 <th>Prepared By</th>
@@ -425,7 +442,6 @@ export default function Cctv() {
                   style={{ cursor: 'pointer', height: '49px' }}
                   className="table-row-clickable"
                 >
-                  <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
                   <td style={{ fontWeight: '700' }}>{record.report_title || '-'}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
                     {record.date_start ? format(new Date(record.date_start), 'MMM dd, yyyy') : '-'}
@@ -557,16 +573,7 @@ export default function Cctv() {
               <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div className="form-row">
-                    <div className="form-group">
-                      <label>Record ID *</label>
-                      <input 
-                        type="text" 
-                        name="record_id" 
-                        value={formData.record_id} 
-                        onChange={handleInputChange} 
-                        required 
-                        disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
-                    </div>
+                    
                     <div className="form-group">
                       <label>Report Title *</label>
                       <input 
@@ -603,26 +610,63 @@ export default function Cctv() {
                     </div>
                   </div>
                   
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Operator</label>
+                      <input type="text" name="operator" value={formData.operator} onChange={handleInputChange} placeholder="e.g. Officer Juan Dela Cruz" />
+                    </div>
+                    <div className="form-group">
+                      <label>Asst. Operator</label>
+                      <input type="text" name="asst_operator" value={formData.asst_operator} onChange={handleInputChange} placeholder="e.g. Officer Maria Santos" />
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: '2px solid var(--border-light)', marginTop: '4px', paddingTop: '14px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      <i className="ri-cctv-line" style={{ marginRight: '6px' }}></i>Incident Details
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Client's Name</label>
+                        <input type="text" name="client_name" value={formData.client_name} onChange={handleInputChange} placeholder="e.g. Juan Dela Cruz" />
+                      </div>
+                      <div className="form-group">
+                        <label>Contact No.</label>
+                        <input type="text" name="client_contact" value={formData.client_contact} onChange={handleInputChange} placeholder="e.g. 09123456789" />
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Client's Address</label>
+                      <input type="text" name="client_address" value={formData.client_address} onChange={handleInputChange} placeholder="e.g. Brgy. Singasina, Palayan City" />
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Exact Place of Incident</label>
+                        <input type="text" name="exact_place" value={formData.exact_place} onChange={handleInputChange} placeholder="e.g. Near Provincial Capitol" />
+                      </div>
+                      <div className="form-group">
+                        <label>Time of Incident</label>
+                        <input type="time" name="time_of_incident" value={formData.time_of_incident} onChange={handleInputChange} />
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Nature of Incident</label>
+                      <input type="text" name="nature_of_incident" value={formData.nature_of_incident} onChange={handleInputChange} placeholder="e.g. Vehicular Accident, Theft, Missing Person" />
+                    </div>
+                    <div className="form-group">
+                      <label>Others</label>
+                      <input type="text" name="others" value={formData.others} onChange={handleInputChange} placeholder="Other notes" />
+                    </div>
+                  </div>
+
                   <div className="form-group">
                     <label>Prepared By</label>
-                    <input 
-                      type="text" 
-                      name="prepared_by" 
-                      value={formData.prepared_by} 
-                      onChange={handleInputChange} 
-                      placeholder="e.g. Officer Name"
-                    />
+                    <input type="text" name="prepared_by" value={formData.prepared_by} onChange={handleInputChange} placeholder="e.g. Officer Name" />
                   </div>
 
                   <div className="form-group">
                     <label>Summary / Remarks</label>
-                    <textarea 
-                      name="summary" 
-                      value={formData.summary} 
-                      onChange={handleInputChange} 
-                      rows={5} 
-                      placeholder="Detail the summary of CCTV activities for the week..."
-                    />
+                    <textarea name="summary" value={formData.summary} onChange={handleInputChange} rows={4} placeholder="Detail the summary of CCTV activities for the week..." />
                   </div>
                 </div>
               </fieldset>

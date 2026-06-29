@@ -12,6 +12,7 @@ import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
+import CalendarView from '../../components/CalendarView'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
@@ -22,7 +23,9 @@ const INITIAL_FORM_STATE = {
   date: '',
   location: '',
   type_of_assistance: '',
-  requestor: ''
+  requestor: '',
+  description: '',
+  remarks: ''
 }
 
 export default function EventsAssistance() {
@@ -49,6 +52,8 @@ export default function EventsAssistance() {
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [isExportOpen, setIsExportOpen] = useState(false)
+  const [viewMode, setViewMode] = useState('list')
+  const [currentMonth, setCurrentMonth] = useState(new Date())
 
   useEffect(() => {
     loadRecords()
@@ -181,7 +186,9 @@ const handleOpenAdd = () => {
       date: rec.date || '',
       location: rec.location || '',
       type_of_assistance: rec.type_of_assistance || '',
-      requestor: rec.requestor || ''
+      requestor: rec.requestor || '',
+      description: rec.description || '',
+      remarks: rec.remarks || ''
     })
     setIsModalOpen(true)
   }
@@ -299,10 +306,34 @@ const handleOpenAdd = () => {
           <i className="ri-calendar-event-line" style={{ marginRight: '12px' }}></i>
           Events Assistance
         </h2>
-        <button className="btn-add" onClick={handleOpenAdd} style={{ display: (isAdmin || canCreate) ? '' : 'none' }}>
-          <i className="ri-add-line"></i>
-          Request Assistance
-        </button>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', background: 'var(--bg-surface)', border: '1px solid var(--border-light)', borderRadius: '8px', padding: '4px' }}>
+            <button
+              onClick={() => setViewMode('list')}
+              style={{
+                padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+                background: viewMode === 'list' ? 'var(--primary)' : 'transparent',
+                color: viewMode === 'list' ? '#fff' : 'var(--text-muted)'
+              }}
+            >
+              <i className="ri-list-check" style={{ marginRight: '6px' }}></i> List
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              style={{
+                padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+                background: viewMode === 'calendar' ? 'var(--primary)' : 'transparent',
+                color: viewMode === 'calendar' ? '#fff' : 'var(--text-muted)'
+              }}
+            >
+              <i className="ri-calendar-line" style={{ marginRight: '6px' }}></i> Calendar
+            </button>
+          </div>
+          <button className="btn-add" onClick={handleOpenAdd} style={{ display: (isAdmin || canCreate) ? '' : 'none' }}>
+            <i className="ri-add-line"></i>
+            Request Assistance
+          </button>
+        </div>
       </div>
 
       
@@ -386,31 +417,43 @@ const handleOpenAdd = () => {
         />
       )}
 
-{records.length === 0 ? (
-        <div className="empty-state">
-          <i className="ri-calendar-event-line"></i>
-          <h3>No Events Assistance Records</h3>
-          <p>Click "Request Assistance" to log your first event assistance entry.</p>
-        </div>
-      ) : filteredRecords.length === 0 ? (
-        <div className="empty-state">
-          <i className="ri-filter-off-line"></i>
-          <h3>No Matching Records</h3>
-          <p>Try adjusting your search or filters.</p>
-        </div>
+      {viewMode === 'calendar' ? (
+        <CalendarView 
+          events={filteredRecords.map(r => ({
+            id: r.id,
+            title: r.event_name,
+            date: r.date,
+            color: '#3b82f6',
+            onClick: () => handleViewDetails(r)
+          }))}
+          currentMonth={currentMonth}
+          onMonthChange={setCurrentMonth}
+        />
       ) : (
         <>
-        <div className="data-table">
-          <table>
+        {records.length === 0 ? (
+          <div className="empty-state">
+            <i className="ri-calendar-event-line"></i>
+            <h3>No Assistance Requests</h3>
+            <p>Click "Request Assistance" to add a new record.</p>
+          </div>
+        ) : filteredRecords.length === 0 ? (
+          <div className="empty-state">
+            <i className="ri-filter-off-line"></i>
+            <h3>No Matching Records</h3>
+            <p>Try adjusting your search or filters.</p>
+          </div>
+        ) : (
+          <>
+          <div className="data-table">
+            <table>
             <thead>
               <tr>
-                <th>Record ID</th>
-                <th>Event Name</th>
                 <th>Date</th>
-                <th>Location</th>
+                <th>Event Name</th>
                 <th>Type of Assistance</th>
+                <th>Location</th>
                 <th>Requestor</th>
-                
               </tr>
             </thead>
             <tbody>
@@ -421,14 +464,12 @@ const handleOpenAdd = () => {
                   style={{ cursor: 'pointer', height: '49px' }}
                   className="table-row-clickable"
                 >
-                  <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
-                  <td style={{ fontWeight: '700' }}>{record.event_name || '-'}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
                     {record.date 
                       ? format(new Date(record.date), 'MMM dd, yyyy')
                       : '-'}
                   </td>
-                  <td>{record.location || '-'}</td>
+                  <td style={{ fontWeight: '700' }}>{record.event_name || '-'}</td>
                   <td>
                     <span style={{
                       display: 'inline-block',
@@ -442,21 +483,23 @@ const handleOpenAdd = () => {
                       {record.type_of_assistance || '-'}
                     </span>
                   </td>
+                  <td>{record.location || '-'}</td>
                   <td>{record.requestor || '-'}</td>
-                  
                 </tr>
               ))}
               <TableGhostRows count={pageSize - pagedRecords.length} colSpan={6} />
             </tbody>
           </table>
         </div>
-        <ListPagination
-          currentPage={safePage}
-          totalPages={totalPages}
-          pageSize={pageSize}
-          totalRecords={filteredRecords.length}
-          onPageChange={setCurrentPage}
-        />
+          <ListPagination
+            currentPage={safePage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalRecords={filteredRecords.length}
+            onPageChange={setCurrentPage}
+          />
+          </>
+        )}
         </>
       )}
 
@@ -480,16 +523,7 @@ const handleOpenAdd = () => {
         <form onSubmit={handleSubmit} className="modal-form">
           <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
           <div className="form-row">
-            <div className="form-group">
-              <label>Record ID *</label>
-              <input 
-                type="text" 
-                name="record_id" 
-                value={formData.record_id} 
-                onChange={handleInputChange} 
-                required 
-               disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
-            </div>
+            
             <div className="form-group">
               <label>Event Name *</label>
               <input 
@@ -515,13 +549,13 @@ const handleOpenAdd = () => {
               />
             </div>
             <div className="form-group">
-              <label>Location</label>
-              <input 
-                type="text" 
-                name="location" 
-                value={formData.location} 
-                onChange={handleInputChange} 
-                placeholder="e.g. Palayan City Plaza"
+              <label>Location *</label>
+              <input
+                type="text"
+                name="location"
+                value={formData.location}
+                onChange={handleInputChange}
+                required
               />
             </div>
           </div>
@@ -550,6 +584,27 @@ const handleOpenAdd = () => {
             </div>
           </div>
 
+          <div className="form-group">
+            <label>Description (Optional)</label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              rows={3}
+              placeholder="Provide a description of the assistance needed..."
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Remarks (Optional)</label>
+            <textarea
+              name="remarks"
+              value={formData.remarks}
+              onChange={handleInputChange}
+              rows={2}
+              placeholder="Additional notes or remarks..."
+            />
+          </div>
           </fieldset>
 
           <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

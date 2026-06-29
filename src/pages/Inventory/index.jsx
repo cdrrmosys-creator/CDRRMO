@@ -29,6 +29,9 @@ const INITIAL_FORM_STATE = {
   acquisition_cost: '',
   date_acquired: '',
   property_custodian: '',
+  end_user: '',
+  estimated_life: '',
+  fund_cluster: '',
   serviceable: true,
   remarks: '',
   photos: []
@@ -112,27 +115,30 @@ const handleOpenAdd = () => {
     setIsModalOpen(true)
   }
 
-  const handleOpenEdit = (item) => {
+  const handleOpenEdit = (rec) => {
     setIsEditing(true)
     setIsViewing(false)
-    setSelectedId(item.id)
+    setSelectedId(rec.id)
     setPendingPhotos([])
     setFormData({
-      record_id: item.record_id || '',
-      stock_number: item.stock_number || '',
-      property_no: item.property_no || '',
-      serial_no: item.serial_no || '',
-      item_name: item.item_name || '',
-      category: item.category || '',
-      quantity: item.quantity || '',
-      unit: item.unit || '',
-      condition: item.condition || 'Good',
-      acquisition_cost: item.acquisition_cost || '',
-      date_acquired: item.date_acquired || '',
-      property_custodian: item.property_custodian || '',
-      serviceable: item.serviceable !== false, // default true
-      remarks: item.remarks || '',
-      photos: item.photos || []
+      record_id: rec.record_id || '',
+      stock_number: rec.stock_number || '',
+      property_no: rec.property_no || '',
+      serial_no: rec.serial_no || '',
+      item_name: rec.item_name || '',
+      category: rec.category || '',
+      quantity: rec.quantity || '',
+      unit: rec.unit || '',
+      condition: rec.condition || 'Good',
+      acquisition_cost: rec.acquisition_cost || '',
+      date_acquired: rec.date_acquired || '',
+      property_custodian: rec.property_custodian || '',
+      end_user: rec.end_user || '',
+      estimated_life: rec.estimated_life || '',
+      fund_cluster: rec.fund_cluster || '',
+      serviceable: rec.serviceable !== undefined ? rec.serviceable : true,
+      remarks: rec.remarks || '',
+      photos: rec.photos || []
     })
     setIsModalOpen(true)
   }
@@ -455,11 +461,11 @@ const handleOpenAdd = () => {
           <table>
             <thead>
               <tr>
-                <th>Record ID</th>
                 <th>Item Name</th>
                 <th>Category</th>
                 <th>Quantity</th>
                 <th>Status</th>
+                <th>End User</th>
                 <th>Date Acquired</th>
                 
               </tr>
@@ -472,7 +478,6 @@ const handleOpenAdd = () => {
                   style={{ cursor: 'pointer', height: '49px' }}
                   className="table-row-clickable"
                 >
-                  <td><code style={{ fontWeight: '700' }}>{item.record_id || '-'}</code></td>
                   <td style={{ fontWeight: '700' }}>{item.item_name || '-'}</td>
                   <td>
                     <span style={{
@@ -493,14 +498,14 @@ const handleOpenAdd = () => {
                   <td>{item.serviceable !== false ? (
                     <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: '#d1fae5', color: '#065f46' }}>Serviceable</span>
                   ) : (
-                    <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: '#fee2e2', color: '#991b1b' }}>Not Serviceable</span>
+                    <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: '#fee2e2', color: '#991b1b' }}>Unserviceable</span>
                   )}</td>
-                  <td>
+                  <td>{item.end_user || '-'}</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
                     {item.date_acquired 
                       ? format(new Date(item.date_acquired), 'MMM dd, yyyy')
                       : 'Not recorded'}
                   </td>
-                  
                 </tr>
               ))}
               <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={6} />
@@ -577,10 +582,7 @@ const handleOpenAdd = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
                   <div className="form-row" style={{ gap: '12px' }}>
-                    <div className="form-group" style={{ flex: 1 }}>
-                      <label>Record ID *</label>
-                      <input type="text" name="record_id" value={formData.record_id} onChange={handleInputChange} required disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280', padding: '8px' }} />
-                    </div>
+                    
                     <div className="form-group" style={{ flex: 2 }}>
                       <label>Item Name *</label>
                       <input type="text" name="item_name" value={formData.item_name} onChange={handleInputChange} required placeholder="e.g. VHF Handheld Radio, Rescue Rope" style={{ padding: '8px' }} />
@@ -621,8 +623,19 @@ const handleOpenAdd = () => {
                       <input type="text" name="serial_no" value={formData.serial_no} onChange={handleInputChange} style={{ padding: '8px' }} />
                     </div>
                     <div className="form-group">
+                      <label>Fund Cluster</label>
+                      <input type="text" name="fund_cluster" value={formData.fund_cluster} onChange={handleInputChange} placeholder="e.g. General Fund" style={{ padding: '8px' }} />
+                    </div>
+                  </div>
+
+                  <div className="form-row" style={{ gap: '12px' }}>
+                    <div className="form-group">
                       <label>Property Custodian</label>
                       <input type="text" name="property_custodian" value={formData.property_custodian} onChange={handleInputChange} style={{ padding: '8px' }} />
+                    </div>
+                    <div className="form-group">
+                      <label>End User / Recipient</label>
+                      <input type="text" name="end_user" value={formData.end_user} onChange={handleInputChange} placeholder="e.g. Rescue Team Alpha" style={{ padding: '8px' }} />
                     </div>
                   </div>
 
@@ -640,12 +653,17 @@ const handleOpenAdd = () => {
                   <div className="form-row" style={{ gap: '12px' }}>
                     <div className="form-group">
                       <label>Acquisition Cost</label>
-                      <input type="number" name="acquisition_cost" value={formData.acquisition_cost} onChange={handleInputChange} step="0.01" min="0" placeholder="0.00" style={{ padding: '8px' }} />
+                      <input type="number" step="0.01" name="acquisition_cost" value={formData.acquisition_cost} onChange={handleInputChange} placeholder="0.00" style={{ padding: '8px' }} />
                     </div>
                     <div className="form-group">
                       <label>Date Acquired *</label>
                       <input type="date" name="date_acquired" value={formData.date_acquired} onChange={handleInputChange} required style={{ padding: '8px' }} />
                     </div>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label>Estimated Useful Life</label>
+                    <input type="text" name="estimated_life" value={formData.estimated_life} onChange={handleInputChange} placeholder="e.g. 5 Years" style={{ padding: '8px' }} />
                   </div>
 
                   <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '8px', padding: '8px 0' }}>

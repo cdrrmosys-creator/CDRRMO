@@ -354,7 +354,6 @@ const handleOpenAdd = () => {
           <table>
             <thead>
               <tr>
-                <th>Record ID</th>
                 <th>Event Title</th>
                 <th>Type</th>
                 <th>Date(s)</th>
@@ -371,7 +370,6 @@ const handleOpenAdd = () => {
                   style={{ cursor: 'pointer', height: '49px' }}
                   className="table-row-clickable"
                 >
-                  <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
                   <td style={{ fontWeight: '700' }}>{record.event_title || '-'}</td>
                   <td>{getEventTypeBadge(record.event_type)}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600', whiteSpace: 'nowrap' }}>
@@ -416,16 +414,7 @@ const handleOpenAdd = () => {
         <form onSubmit={handleSubmit} className="modal-form">
           <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
           <div className="form-row">
-            <div className="form-group">
-              <label>Record ID *</label>
-              <input
-                type="text"
-                name="record_id"
-                value={formData.record_id}
-                onChange={handleInputChange}
-                required
-               disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
-            </div>
+            
             <div className="form-group">
               <label>Event Type *</label>
               <select name="event_type" value={formData.event_type} onChange={handleInputChange} required>

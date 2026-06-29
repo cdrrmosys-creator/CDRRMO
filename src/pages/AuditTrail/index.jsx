@@ -215,7 +215,6 @@ export default function AuditTrail() {
                 <th>User</th>
                 <th>Action</th>
                 <th>Module</th>
-                <th>Record ID</th>
                 <th>Details</th>
               </tr>
             </thead>
@@ -230,7 +229,6 @@ export default function AuditTrail() {
                   <td style={{ fontWeight: '700' }}>{record.user_email || '-'}</td>
                   <td>{getActionBadge(record.action)}</td>
                   <td><code style={{ fontWeight: '600', color: 'var(--primary)' }}>{record.module || '-'}</code></td>
-                  <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
                   <td>
                     <div style={{
                       maxWidth: '300px',

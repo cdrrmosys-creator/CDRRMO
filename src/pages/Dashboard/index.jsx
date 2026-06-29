@@ -4,27 +4,24 @@ import { supabase } from '../../services/supabase'
 import { format, subMonths, startOfMonth, endOfMonth, subDays, startOfDay, endOfDay, subWeeks, startOfWeek, endOfWeek } from 'date-fns'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-  PieChart, Pie, Cell, Tooltip as PieTooltip,
-  AreaChart, Area,
+  PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts'
 
 // ── Design tokens ────────────────────────────────────────────────────────────
 const PRIMARY   = '#dc2626'
 const COLORS    = {
-  employees : '#dc2626',
+  personnel : '#dc2626',
   incidents : '#ea580c',
-  vehicles  : '#0891b2',
-  volunteers: '#16a34a',
-  inventory : '#7c3aed',
-  drivers   : '#b45309',
+  transport : '#0891b2',
+  pruning   : '#16a34a',
+  events    : '#7c3aed',
+  vouchers  : '#b45309',
 }
 
-const SEVERITY_PALETTE = ['#16a34a','#d97706','#ea580c','#dc2626']
 const DUTY_PALETTE     = ['#16a34a','#dc2626','#2563eb','#d97706']
 const TEAM_PALETTE     = { Alpha:'#2563eb', Bravo:'#16a34a', Charlie:'#d97706', Delta:'#dc2626', Unknown:'#6b7280' }
-const VEH_PALETTE      = ['#16a34a','#d97706','#dc2626','#6b7280']
-const VOL_PALETTE      = ['#16a34a','#dc2626','#6b7280']
-const INV_PALETTE      = ['#16a34a','#dc2626']
+const ASSIST_PALETTE   = ['#0891b2', '#16a34a', '#7c3aed']
+const VOUCHER_COLOR    = '#b45309'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function groupBy(arr, key) {
@@ -44,6 +41,8 @@ function Card({ title, icon, children, style = {}, rightElement }) {
       borderRadius: 'var(--radius-lg)',
       padding: '24px',
       boxShadow: 'var(--shadow-sm)',
+      display: 'flex',
+      flexDirection: 'column',
       ...style
     }}>
       {(title || rightElement) && (
@@ -57,7 +56,9 @@ function Card({ title, icon, children, style = {}, rightElement }) {
           {rightElement && <div>{rightElement}</div>}
         </div>
       )}
-      {children}
+      <div style={{ flex: 1, minHeight: 0 }}>
+        {children}
+      </div>
     </div>
   )
 }
@@ -87,7 +88,7 @@ function CustomTooltip({ active, payload, label }) {
         <div key={i} style={{ display:'flex', alignItems:'center', gap:'6px', color: p.color }}>
           <span style={{ width:'8px', height:'8px', borderRadius:'50%', background:p.color, display:'inline-block' }} />
           <span style={{ color:'var(--text-muted)' }}>{p.name}:</span>
-          <span style={{ fontWeight:'700', color:'var(--text)' }}>{p.value}</span>
+          <span style={{ fontWeight:'700', color:'var(--text)' }}>{typeof p.value === 'number' && p.name === 'Amount (PHP)' ? `₱${p.value.toLocaleString()}` : p.value}</span>
         </div>
       ))}
     </div>
@@ -132,17 +133,22 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [loading, setLoading]         = useState(true)
   const [counts, setCounts]           = useState({})
+  
   const [empStatusData, setEmpStatus] = useState([])
   const [incTeamData, setIncTeam]     = useState([])
-  const [vehStatusData, setVehStatus] = useState([])
-  const [volStatusData, setVolStatus] = useState([])
-  const [invCondData, setInvCond]     = useState([])
+  
+  const [assistData, setAssistData]   = useState([])
+  const [voucherData, setVoucherData] = useState([])
+  
   const [chartData, setChartData]     = useState([])
-  const [trendPeriod, setTrendPeriod] = useState('month') // 'day', 'week', 'month'
-  const [allIncidents, setAllIncidents] = useState([])
+  const [trendPeriod, setTrendPeriod] = useState('month')
   const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'))
   const [selectedYear, setSelectedYear] = useState('2025')
+  
+  const [allIncidents, setAllIncidents] = useState([])
+  
   const [recentInc, setRecentInc]     = useState([])
+  const [recentReq, setRecentReq]     = useState([])
 
   useEffect(() => { fetchAll() }, [])
 
@@ -195,9 +201,8 @@ export default function Dashboard() {
 
     if (allIncidents.length > 0) {
       allIncidents.forEach(inc => {
-        const rawDate = inc.date || inc.created_at;
-        if (!rawDate) return;
-        const t = new Date(rawDate).getTime();
+        if (!inc.date) return;
+        const t = new Date(inc.date).getTime();
         data.forEach(m => { if (t >= m.start && t <= m.end) m.count++ })
       })
     }
@@ -208,32 +213,41 @@ export default function Dashboard() {
   const fetchAll = async () => {
     setLoading(true)
     try {
-      // ── Counts ──────────────────────────────────────────────────────────────
-      const [empC, incC, vehC, volC, invC, drvC] = await Promise.all([
-        supabase.from('employees').select('id', { count:'exact', head:true }),
-        supabase.from('incidents').select('id', { count:'exact', head:true }),
-        supabase.from('vehicles').select('id', { count:'exact', head:true }),
-        supabase.from('volunteers').select('id', { count:'exact', head:true }),
-        supabase.from('inventory').select('id', { count:'exact', head:true }),
-        supabase.from('drivers').select('id', { count:'exact', head:true }),
+      const [
+        { count: empC, data: empD },
+        { count: volC },
+        { count: incC, data: incD },
+        { count: drownC, data: drownD },
+        { count: transC, data: transD },
+        { count: pruneC, data: pruneD },
+        { count: evtsC, data: evtsD },
+        { count: vouchC, data: vouchD }
+      ] = await Promise.all([
+        supabase.from('employees').select('duty_status', { count: 'exact' }),
+        supabase.from('volunteers').select('id, status', { count: 'exact' }),
+        supabase.from('incidents').select('severity, nature_of_incident, date, time_of_call, place_of_incident, record_id, team').order('date', { ascending: false }),
+        supabase.from('drowning_incidents').select('date, location, victim_name'),
+        supabase.from('transport').select('date, patient_name, destination'),
+        supabase.from('pruning_trimming').select('date_of_request, location, status'),
+        supabase.from('events_assistance').select('date, event_name, location'),
+        supabase.from('vouchers').select('date, amount')
       ])
+
+      const totalPersonnel = (empC || 0) + (volC || 0)
+      const totalIncidents = (incD?.length || 0) + (drownD?.length || 0)
+      const pendingPruning = (pruneD || []).filter(p => p.status === 'Pending').length
+
       setCounts({
-        employees: empC.count ?? 0, incidents: incC.count ?? 0,
-        vehicles: vehC.count ?? 0,  volunteers: volC.count ?? 0,
-        inventory: invC.count ?? 0, drivers: drvC.count ?? 0,
+        personnel: totalPersonnel,
+        incidents: totalIncidents,
+        transport: transD?.length || 0,
+        pruning: pendingPruning,
+        events: evtsD?.length || 0,
+        vouchers: vouchD?.length || 0,
       })
 
-      // ── Breakdown data ───────────────────────────────────────────────────────
-      const [empD, incD, vehD, volD, invD] = await Promise.all([
-        supabase.from('employees').select('duty_status'),
-        supabase.from('incidents').select('severity, nature_of_incident, date, time_of_call, place_of_incident, record_id, team').order('date', { ascending:false }),
-        supabase.from('vehicles').select('status'),
-        supabase.from('volunteers').select('status'),
-        supabase.from('inventory').select('serviceable'),
-      ])
-
       // Employee duty status
-      const eg = groupBy(empD.data, 'duty_status')
+      const eg = groupBy(empD, 'duty_status')
       setEmpStatus([
         { name:'On Duty',  value: eg['On Duty']  || 0 },
         { name:'Off Duty', value: eg['Off Duty'] || 0 },
@@ -241,20 +255,17 @@ export default function Dashboard() {
         { name:'On Leave', value: eg['On Leave'] || 0 },
       ])
 
-      // Incidents by team — normalize casing/whitespace before grouping
+      // Incidents by team
       const normalizeTeam = (val) => {
         if (!val) return 'Others'
         const v = String(val).trim()
         const map = { alpha: 'Alpha', bravo: 'Bravo', charlie: 'Charlie', delta: 'Delta' }
         return map[v.toLowerCase()] || v
       }
-      const normalizedInc = (incD.data || []).map(r => ({ ...r, _team: normalizeTeam(r.team) }))
+      const normalizedInc = (incD || []).map(r => ({ ...r, _team: normalizeTeam(r.team) }))
       const tg = groupBy(normalizedInc, '_team')
-      console.log('Team groupBy result (normalized):', tg)
       const knownTeams = ['Alpha', 'Bravo', 'Charlie', 'Delta']
-      const othersCount = Object.entries(tg)
-        .filter(([k]) => !knownTeams.includes(k))
-        .reduce((s, [, v]) => s + v, 0)
+      const othersCount = Object.entries(tg).filter(([k]) => !knownTeams.includes(k)).reduce((s, [, v]) => s + v, 0)
       setIncTeam([
         { name: 'Alpha',   value: tg['Alpha']   || 0, fill: TEAM_PALETTE.Alpha },
         { name: 'Bravo',   value: tg['Bravo']   || 0, fill: TEAM_PALETTE.Bravo },
@@ -263,37 +274,42 @@ export default function Dashboard() {
         { name: 'Others',  value: othersCount,         fill: TEAM_PALETTE.Unknown },
       ])
 
-      // Recent incidents
-      setRecentInc((incD.data || []).slice(0, 5))
-      setAllIncidents(incD.data || [])
+      // Combine Incidents + Drowning for trend chart
+      const combinedInc = [
+        ...(incD || []).map(i => ({ date: i.date || i.created_at, type: 'General' })),
+        ...(drownD || []).map(i => ({ date: i.date, type: 'Drowning' }))
+      ]
+      setAllIncidents(combinedInc)
+      setRecentInc((incD || []).slice(0, 5))
 
-      // Vehicle status
-      const vg = groupBy(vehD.data, 'status')
-      setVehStatus([
-        { name:'Available',   value: vg['Available']   || 0 },
-        { name:'In Use',      value: vg['In Use']      || 0 },
-        { name:'Maintenance', value: vg['Maintenance'] || 0 },
-        { name:'Unavailable', value: vg['Unavailable'] || 0 },
+      // Assistance Pie Data
+      setAssistData([
+        { name: 'Transport', value: transD?.length || 0 },
+        { name: 'Pruning', value: pruneD?.length || 0 },
+        { name: 'Events', value: evtsD?.length || 0 }
       ])
 
-      // Volunteer status
-      const og = groupBy(volD.data, 'status')
-      setVolStatus([
-        { name:'Active',   value: og['Active']   || 0 },
-        { name:'Inactive', value: og['Inactive'] || 0 },
-        { name:'Expired',  value: og['Expired']  || 0 },
-      ])
+      // Voucher Bar Data (Last 6 Months)
+      const vMap = {}
+      ;(vouchD || []).forEach(v => {
+        if(!v.date) return
+        const m = format(new Date(v.date), 'MMM yyyy')
+        const val = typeof v.amount === 'string' ? parseFloat(v.amount.replace(/[^0-9.-]+/g,"")) : (v.amount || 0)
+        vMap[m] = (vMap[m] || 0) + val
+      })
+      const vArr = Object.keys(vMap).map(k => ({ name: k, amount: vMap[k] }))
+      vArr.sort((a,b) => new Date(a.name) - new Date(b.name))
+      setVoucherData(vArr.slice(-6))
 
-      // Inventory condition
-      const invCounts = (invD.data || []).reduce((acc, item) => {
-        if (item.serviceable !== false) acc['Serviceable'] = (acc['Serviceable'] || 0) + 1;
-        else acc['Not Serviceable'] = (acc['Not Serviceable'] || 0) + 1;
-        return acc;
-      }, {})
-      setInvCond([
-        { name:'Serviceable',     value: invCounts['Serviceable']     || 0 },
-        { name:'Not Serviceable', value: invCounts['Not Serviceable'] || 0 },
-      ])
+      // Recent Service Requests Feed
+      const reqList = [
+        ...(transD || []).map(r => ({ date: r.date, title: 'Transport: ' + (r.patient_name || 'Patient'), location: r.destination, type: 'Transport', icon: 'ri-taxi-line' })),
+        ...(pruneD || []).map(r => ({ date: r.date_of_request, title: 'Pruning & Trimming', location: r.location, type: 'Pruning', icon: 'ri-scissors-line' })),
+        ...(evtsD || []).map(r => ({ date: r.date, title: 'Event: ' + (r.event_name || 'Event'), location: r.location, type: 'Event', icon: 'ri-calendar-event-line' }))
+      ]
+      reqList.sort((a,b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
+      setRecentReq(reqList.slice(0, 5))
+
     } catch (err) {
       console.error('Dashboard error:', err)
     } finally {
@@ -303,12 +319,12 @@ export default function Dashboard() {
 
   // Stats grid data
   const statCards = [
-    { label:'Total Employees', value: counts.employees, color: COLORS.employees, icon:'ri-team-line',            sub:'Personnel on record', path:'/employees' },
-    { label:'Total Incidents',  value: counts.incidents,  color: COLORS.incidents,  icon:'ri-alarm-warning-line', sub:'Reported incidents', path:'/incidents' },
-    { label:'Vehicles',         value: counts.vehicles,   color: COLORS.vehicles,   icon:'ri-truck-line',         sub:'Fleet size', path:'/vehicles' },
-    { label:'Volunteers',       value: counts.volunteers, color: COLORS.volunteers, icon:'ri-user-star-line',     sub:'Registered volunteers', path:'/volunteers' },
-    { label:'Inventory Items',  value: counts.inventory,  color: COLORS.inventory,  icon:'ri-archive-drawer-line',sub:'Items tracked', path:'/inventory' },
-    { label:'Drivers',          value: counts.drivers,    color: COLORS.drivers,    icon:'ri-steering-2-line',    sub:'Registered drivers', path:'/drivers' },
+    { label:'Personnel on Duty', value: counts.personnel, color: COLORS.personnel, icon:'ri-team-line',            sub:'Employees & Volunteers', path:'/employees' },
+    { label:'Total Incidents',  value: counts.incidents,  color: COLORS.incidents,  icon:'ri-alarm-warning-line', sub:'Incidents & Drowning', path:'/incidents' },
+    { label:'Transport Assist', value: counts.transport,  color: COLORS.transport,  icon:'ri-taxi-line',          sub:'Patient Transfers', path:'/transport' },
+    { label:'Pending Pruning',  value: counts.pruning,    color: COLORS.pruning,    icon:'ri-scissors-line',      sub:'Actionable Requests', path:'/pruning' },
+    { label:'Events Assisted',  value: counts.events,     color: COLORS.events,     icon:'ri-calendar-event-line',sub:'Security & Medic', path:'/events-assistance' },
+    { label:'Vouchers Processed',value: counts.vouchers,  color: COLORS.vouchers,   icon:'ri-file-text-line',     sub:'Financial records', path:'/vouchers' },
   ]
 
   return (
@@ -334,8 +350,6 @@ export default function Dashboard() {
           <i className="ri-refresh-line" /> Refresh
         </button>
       </div>
-
-
 
       {/* ── Stat cards ─────────────────────────────────────────────────────── */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(155px,1fr))', gap:'16px', marginBottom:'24px' }}>
@@ -366,7 +380,7 @@ export default function Dashboard() {
 
       {/* ── Row: Incident Trend area chart (wide) ──────────────────────── */}
       <Card 
-        title="Incident Trend" 
+        title="Incident & Response Trend" 
         icon="ri-line-chart-line" 
         style={{ marginBottom:'20px' }}
         rightElement={
@@ -435,11 +449,9 @@ export default function Dashboard() {
         )}
       </Card>
 
-      {/* ── Row: Employee status bar + Incident severity pie ─────────────── */}
+      {/* ── Row: Personnel & Incidents ────────────────────────────────────────── */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginBottom:'20px' }}>
-
-        {/* Employee Duty Status — vertical bar */}
-        <Card title="Employee Duty Status" icon="ri-team-line">
+        <Card title="Personnel Duty Status" icon="ri-team-line">
           {loading ? <Skeleton /> : (
             <>
               <ResponsiveContainer width="100%" height={200}>
@@ -448,7 +460,7 @@ export default function Dashboard() {
                   <XAxis dataKey="name" tick={{ fontSize:11, fontWeight:600 }} axisLine={false} tickLine={false} />
                   <YAxis allowDecimals={false} tick={{ fontSize:11 }} axisLine={false} tickLine={false} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="value" name="Employees" radius={[6,6,0,0]}>
+                  <Bar dataKey="value" name="Personnel" radius={[6,6,0,0]}>
                     {empStatusData.map((_, i) => <Cell key={i} fill={DUTY_PALETTE[i % DUTY_PALETTE.length]} />)}
                   </Bar>
                 </BarChart>
@@ -458,7 +470,6 @@ export default function Dashboard() {
           )}
         </Card>
 
-        {/* Incidents by Team — horizontal bar */}
         <Card title="Incidents by Team" icon="ri-alarm-warning-line">
           {loading ? <Skeleton /> : counts.incidents === 0 ? (
             <div style={{ textAlign:'center', padding:'40px 0', color:'var(--text-muted)' }}>
@@ -466,8 +477,8 @@ export default function Dashboard() {
               No incident data yet.
             </div>
           ) : (
-            <>
-              <div style={{ display:'flex', flexDirection:'column', gap:'10px', marginTop:'4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
+              <div style={{ display:'flex', flexDirection:'column', gap:'14px', marginTop:'4px' }}>
                 {(() => {
                   const max = Math.max(...incTeamData.map(d => d.value), 1)
                   return incTeamData.map(({ name, value, fill }) => (
@@ -491,180 +502,179 @@ export default function Dashboard() {
                   ))
                 })()}
               </div>
-              <div style={{ marginTop:'16px', paddingTop:'12px', borderTop:'1px solid var(--border-light)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontSize:'12px', color:'var(--text-muted)' }}>Total incidents</span>
-                <span style={{ fontSize:'18px', fontWeight:'900', color:'var(--text)' }}>{incTeamData.reduce((s, d) => s + d.value, 0)}</span>
-              </div>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* ── Row: Finances & Non-Emergency Services ────────────────────────────── */}
+      <div style={{ display:'grid', gridTemplateColumns:'1.5fr 1fr', gap:'20px', marginBottom:'20px' }}>
+        
+        {/* Voucher BarChart */}
+        <Card title="Financial Disbursements (Vouchers)" icon="ri-bank-card-line">
+          {loading ? <Skeleton /> : voucherData.length === 0 ? (
+             <div style={{ textAlign:'center', padding:'40px 0', color:'var(--text-muted)' }}>
+               No voucher data yet.
+             </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={voucherData} margin={{ top:4, right:8, left:-10, bottom:0 }} barSize={40}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize:11, fontWeight:600 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize:11 }} tickFormatter={(val) => val >= 1000 ? (val/1000).toFixed(0)+'k' : val} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
+                <Bar dataKey="amount" name="Amount (PHP)" fill={VOUCHER_COLOR} radius={[6,6,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </Card>
+        
+        {/* Assistance Distribution PieChart */}
+        <Card title="Service Request Types" icon="ri-pie-chart-2-line">
+          {loading ? <Skeleton /> : (
+            <>
+              <ResponsiveContainer width="100%" height={180}>
+                <PieChart>
+                  <Pie
+                    data={assistData.some(d => d.value > 0) ? assistData : [{ name:'No data', value:1 }]}
+                    cx="50%" cy="50%"
+                    innerRadius={42} outerRadius={75}
+                    paddingAngle={3} dataKey="value"
+                    labelLine={false} label={renderPieLabel}
+                  >
+                    {assistData.some(d => d.value > 0)
+                      ? assistData.map((_, i) => <Cell key={i} fill={ASSIST_PALETTE[i % ASSIST_PALETTE.length]} />)
+                      : <Cell fill="var(--border-light)" />
+                    }
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <LegendPills items={assistData.map((d, i) => ({ name:d.name, value:d.value, color:ASSIST_PALETTE[i] }))} />
             </>
           )}
         </Card>
       </div>
 
-      {/* ── Row: Vehicle status + Volunteer status + Inventory condition ───── */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'20px', marginBottom:'20px' }}>
-
-        {/* Vehicle Fleet — pie */}
-        <Card title="Fleet Status" icon="ri-truck-line">
-          {loading ? <Skeleton /> : (
-            <>
-              <ResponsiveContainer width="100%" height={170}>
-                <PieChart>
-                  <Pie
-                    data={vehStatusData.some(d => d.value > 0) ? vehStatusData : [{ name:'No data', value:1 }]}
-                    cx="50%" cy="50%"
-                    innerRadius={42} outerRadius={70}
-                    paddingAngle={3} dataKey="value"
-                    labelLine={false} label={renderPieLabel}
-                  >
-                    {vehStatusData.some(d => d.value > 0)
-                      ? vehStatusData.map((_, i) => <Cell key={i} fill={VEH_PALETTE[i % VEH_PALETTE.length]} />)
-                      : <Cell fill="var(--border-light)" />
-                    }
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-              <LegendPills items={vehStatusData.map((d, i) => ({ name:d.name, value:d.value, color:VEH_PALETTE[i] }))} />
-            </>
-          )}
-        </Card>
-
-        {/* Volunteer Status — pie */}
-        <Card title="Volunteer Status" icon="ri-user-star-line">
-          {loading ? <Skeleton /> : (
-            <>
-              <ResponsiveContainer width="100%" height={170}>
-                <PieChart>
-                  <Pie
-                    data={volStatusData.some(d => d.value > 0) ? volStatusData : [{ name:'No data', value:1 }]}
-                    cx="50%" cy="50%"
-                    innerRadius={42} outerRadius={70}
-                    paddingAngle={3} dataKey="value"
-                    labelLine={false} label={renderPieLabel}
-                  >
-                    {volStatusData.some(d => d.value > 0)
-                      ? volStatusData.map((_, i) => <Cell key={i} fill={VOL_PALETTE[i % VOL_PALETTE.length]} />)
-                      : <Cell fill="var(--border-light)" />
-                    }
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-              <LegendPills items={volStatusData.map((d, i) => ({ name:d.name, value:d.value, color:VOL_PALETTE[i] }))} />
-            </>
-          )}
-        </Card>
-
-        {/* Inventory Condition — pie */}
-        <Card title="Inventory Condition" icon="ri-archive-drawer-line">
-          {loading ? <Skeleton /> : (
-            <>
-              <ResponsiveContainer width="100%" height={170}>
-                <PieChart>
-                  <Pie
-                    data={invCondData.some(d => d.value > 0) ? invCondData : [{ name:'No data', value:1 }]}
-                    cx="50%" cy="50%"
-                    innerRadius={42} outerRadius={70}
-                    paddingAngle={3} dataKey="value"
-                    labelLine={false} label={renderPieLabel}
-                  >
-                    {invCondData.some(d => d.value > 0)
-                      ? invCondData.map((_, i) => <Cell key={i} fill={INV_PALETTE[i % INV_PALETTE.length]} />)
-                      : <Cell fill="var(--border-light)" />
-                    }
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-              <LegendPills items={invCondData.map((d, i) => ({ name:d.name, value:d.value, color:INV_PALETTE[i] }))} />
-            </>
-          )}
-        </Card>
-      </div>
-
-      {/* ── Recent Incidents feed ────────────────────────────────────────────── */}
-      <Card title="Recent Incidents" icon="ri-history-line">
-        {loading ? (
-          <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
-            {[1,2,3].map(i => <Skeleton key={i} h="64px" />)}
-          </div>
-        ) : recentInc.length === 0 ? (
-          <div style={{ textAlign:'center', padding:'32px 0', color:'var(--text-muted)' }}>
-            <i className="ri-alarm-warning-line" style={{ fontSize:'40px', display:'block', marginBottom:'8px' }} />
-            No incidents on record yet.
-          </div>
-        ) : (
-          recentInc.map((inc, i) => {
-            const teamColor = TEAM_PALETTE[inc.team] || TEAM_PALETTE.Unknown
-            return (
-              <div key={inc.record_id || i} style={{
-                display:'flex', alignItems:'flex-start', gap:'14px',
-                padding:'14px 0',
-                borderBottom: i < recentInc.length - 1 ? '1px solid var(--border-light)' : 'none'
-              }}>
-                {/* Icon */}
-                <div style={{
-                  width:'40px', height:'40px', borderRadius:'10px', flexShrink:0,
-                  background:'#fee2e2', color:'#dc2626',
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                  marginTop:'1px'
+      {/* ── Row: Feeds ────────────────────────────────────────────────────────── */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px' }}>
+        
+        {/* Recent Emergencies */}
+        <Card title="Recent Emergencies" icon="ri-alarm-warning-line">
+          {loading ? (
+            <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
+              {[1,2,3].map(i => <Skeleton key={i} h="64px" />)}
+            </div>
+          ) : recentInc.length === 0 ? (
+            <div style={{ textAlign:'center', padding:'32px 0', color:'var(--text-muted)' }}>
+              No emergencies on record.
+            </div>
+          ) : (
+            recentInc.map((inc, i) => {
+              const teamColor = TEAM_PALETTE[inc.team] || TEAM_PALETTE.Unknown
+              return (
+                <div key={inc.record_id || i} style={{
+                  display:'flex', alignItems:'flex-start', gap:'14px',
+                  padding:'14px 0', borderBottom: i < recentInc.length - 1 ? '1px solid var(--border-light)' : 'none'
                 }}>
-                  <i className="ri-alarm-warning-fill" style={{ fontSize:'18px' }} />
-                </div>
-
-                {/* Main info */}
-                <div style={{ flex:1, minWidth:0 }}>
-                  {/* Title row */}
-                  <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'5px', flexWrap:'wrap' }}>
-                    <span style={{ fontWeight:'700', fontSize:'14px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                      {inc.nature_of_incident || 'Unknown Incident'}
+                  <div style={{
+                    width:'40px', height:'40px', borderRadius:'10px', flexShrink:0,
+                    background:'#fee2e2', color:'#dc2626', display:'flex', alignItems:'center', justifyContent:'center', marginTop:'1px'
+                  }}>
+                    <i className="ri-alarm-warning-fill" style={{ fontSize:'18px' }} />
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'5px', flexWrap:'wrap' }}>
+                      <span style={{ fontWeight:'700', fontSize:'14px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                        {inc.nature_of_incident || 'Emergency'}
+                      </span>
+                    </div>
+                    <div style={{ display:'flex', gap:'14px', flexWrap:'wrap', alignItems:'center', fontSize:'12px', color:'var(--text-muted)' }}>
+                      {inc.place_of_incident && (
+                        <span style={{ display:'flex', alignItems:'center', gap:'4px' }}>
+                          <i className="ri-map-pin-2-fill" style={{ color:'#dc2626', fontSize:'13px' }} />
+                          {inc.place_of_incident}
+                        </span>
+                      )}
+                      {inc.date && (
+                        <span style={{ display:'flex', alignItems:'center', gap:'4px' }}>
+                          <i className="ri-calendar-line" style={{ fontSize:'13px' }} />
+                          {format(new Date(inc.date), 'MMM dd')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {inc.team && (
+                    <span style={{
+                      padding:'3px 11px', borderRadius:'10px', fontSize:'11px', fontWeight:'800',
+                      background:`${teamColor}18`, color:teamColor, border:`1px solid ${teamColor}40`, flexShrink:0
+                    }}>
+                      {inc.team}
                     </span>
-                    {inc.record_id && (
-                      <code style={{ fontSize:'11px', color:'var(--text-muted)', background:'var(--bg-app)', padding:'1px 6px', borderRadius:'4px', whiteSpace:'nowrap' }}>
-                        {inc.record_id}
-                      </code>
-                    )}
-                  </div>
-
-                  {/* Meta row */}
-                  <div style={{ display:'flex', gap:'14px', flexWrap:'wrap', alignItems:'center', fontSize:'12px', color:'var(--text-muted)' }}>
-                    {inc.place_of_incident && (
-                      <span style={{ display:'flex', alignItems:'center', gap:'4px' }}>
-                        <i className="ri-map-pin-2-fill" style={{ color:'#dc2626', fontSize:'13px' }} />
-                        {inc.place_of_incident}
-                      </span>
-                    )}
-                    {inc.date && (
-                      <span style={{ display:'flex', alignItems:'center', gap:'4px' }}>
-                        <i className="ri-calendar-line" style={{ fontSize:'13px' }} />
-                        {format(new Date(inc.date), 'MMM dd, yyyy')}
-                      </span>
-                    )}
-                    {inc.time_of_call && (
-                      <span style={{ display:'flex', alignItems:'center', gap:'4px' }}>
-                        <i className="ri-time-line" style={{ fontSize:'13px' }} />
-                        {inc.time_of_call}
-                      </span>
-                    )}
-                  </div>
+                  )}
                 </div>
+              )
+            })
+          )}
+        </Card>
 
-                {/* Team badge */}
-                {inc.team && (
+        {/* Recent Services */}
+        <Card title="Recent Service Requests" icon="ri-customer-service-2-line">
+          {loading ? (
+            <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
+              {[1,2,3].map(i => <Skeleton key={i} h="64px" />)}
+            </div>
+          ) : recentReq.length === 0 ? (
+            <div style={{ textAlign:'center', padding:'32px 0', color:'var(--text-muted)' }}>
+              No service requests on record.
+            </div>
+          ) : (
+            recentReq.map((req, i) => {
+              return (
+                <div key={i} style={{
+                  display:'flex', alignItems:'flex-start', gap:'14px',
+                  padding:'14px 0', borderBottom: i < recentReq.length - 1 ? '1px solid var(--border-light)' : 'none'
+                }}>
+                  <div style={{
+                    width:'40px', height:'40px', borderRadius:'10px', flexShrink:0,
+                    background:'var(--bg-app)', color:'var(--primary)', display:'flex', alignItems:'center', justifyContent:'center', marginTop:'1px', border: '1px solid var(--border-light)'
+                  }}>
+                    <i className={req.icon} style={{ fontSize:'18px' }} />
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'5px', flexWrap:'wrap' }}>
+                      <span style={{ fontWeight:'700', fontSize:'14px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                        {req.title}
+                      </span>
+                    </div>
+                    <div style={{ display:'flex', gap:'14px', flexWrap:'wrap', alignItems:'center', fontSize:'12px', color:'var(--text-muted)' }}>
+                      {req.location && (
+                        <span style={{ display:'flex', alignItems:'center', gap:'4px' }}>
+                          <i className="ri-map-pin-2-fill" style={{ color:'var(--primary)', fontSize:'13px' }} />
+                          {req.location}
+                        </span>
+                      )}
+                      {req.date && (
+                        <span style={{ display:'flex', alignItems:'center', gap:'4px' }}>
+                          <i className="ri-calendar-line" style={{ fontSize:'13px' }} />
+                          {format(new Date(req.date), 'MMM dd')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                   <span style={{
                     padding:'3px 11px', borderRadius:'10px', fontSize:'11px', fontWeight:'800',
-                    background:`${teamColor}18`, color:teamColor,
-                    border:`1px solid ${teamColor}40`,
-                    flexShrink:0, whiteSpace:'nowrap', marginTop:'2px'
+                    background:'var(--bg-app)', color:'var(--text-main)', border:'1px solid var(--border-light)', flexShrink:0
                   }}>
-                    {inc.team}
+                    {req.type}
                   </span>
-                )}
-              </div>
-            )
-          })
-        )}
-      </Card>
+                </div>
+              )
+            })
+          )}
+        </Card>
+
+      </div>
     </div>
   )
 }

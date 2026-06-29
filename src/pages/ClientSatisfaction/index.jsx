@@ -499,7 +499,6 @@ export default function ClientSatisfaction() {
           <table>
             <thead>
               <tr>
-                <th>Record ID</th>
                 <th>Client Name</th>
                 <th>Date</th>
                 <th>Service Provided</th>
@@ -514,7 +513,6 @@ export default function ClientSatisfaction() {
                   style={{ cursor: 'pointer', height: '49px' }}
                   className="table-row-clickable"
                 >
-                  <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
                   <td style={{ fontWeight: '700' }}>{record.client_name || '-'}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
                     {record.date 

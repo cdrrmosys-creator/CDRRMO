@@ -389,8 +389,13 @@ export default function Topbar() {
                 : <i className="ri-user-line" style={{ fontSize: '16px', color: 'var(--text-muted)' }}></i>
               }
             </div>
-            <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>
-              {currentEmployee.name || currentEmployee.email}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)', lineHeight: '1.2' }}>
+                {currentEmployee.name || currentEmployee.email}
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '600', marginTop: '2px' }}>
+                View Profile
+              </div>
             </div>
           </div>
         ) : (

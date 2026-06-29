@@ -12,6 +12,7 @@ import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
+import CalendarView from '../../components/CalendarView'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
 
 const PRIMARY = '#dc2626'
@@ -20,11 +21,14 @@ const INITIAL_FORM_STATE = {
   record_id: '',
   facility_name: 'Multi-Purpose Facility',
   date: '',
+  end_date: '',
   start_time: '',
   end_time: '',
   purpose: '',
   booked_by: '',
-  contact_number: ''
+  conducted_by: '',
+  contact_number: '',
+  description: ''
 }
 
 // Custom tooltip for chart
@@ -92,6 +96,8 @@ export default function Venues() {
   const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'))
   const [selectedYear, setSelectedYear] = useState(() => format(new Date(), 'yyyy'))
   const [chartData, setChartData] = useState([])
+  const [viewMode, setViewMode] = useState('list')
+  const [currentMonth, setCurrentMonth] = useState(new Date())
 
   const isAdmin = useIsAdmin()
   const { canCreate, canUpdate, canDelete } = usePermissions('venues')
@@ -258,11 +264,14 @@ export default function Venues() {
       record_id: rec.record_id || '',
       facility_name: rec.facility_name || 'Multi-Purpose Facility',
       date: rec.date || '',
+      end_date: rec.end_date || '',
       start_time: rec.start_time || '',
       end_time: rec.end_time || '',
       purpose: rec.purpose || '',
       booked_by: rec.booked_by || '',
-      contact_number: rec.contact_number || ''
+      conducted_by: rec.conducted_by || '',
+      contact_number: rec.contact_number || '',
+      description: rec.description || ''
     })
     setIsModalOpen(true)
   }
@@ -379,10 +388,34 @@ export default function Venues() {
           <i className="ri-building-line" style={{ marginRight: '12px' }}></i>
           Venue Bookings
         </h2>
-        <button className="btn-add" onClick={handleOpenAdd} style={{ display: (isAdmin || canCreate) ? '' : 'none' }}>
-          <i className="ri-add-line"></i>
-          Book Venue
-        </button>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', background: 'var(--bg-surface)', border: '1px solid var(--border-light)', borderRadius: '8px', padding: '4px' }}>
+            <button
+              onClick={() => setViewMode('list')}
+              style={{
+                padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+                background: viewMode === 'list' ? 'var(--primary)' : 'transparent',
+                color: viewMode === 'list' ? '#fff' : 'var(--text-muted)'
+              }}
+            >
+              <i className="ri-list-check" style={{ marginRight: '6px' }}></i> List
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              style={{
+                padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+                background: viewMode === 'calendar' ? 'var(--primary)' : 'transparent',
+                color: viewMode === 'calendar' ? '#fff' : 'var(--text-muted)'
+              }}
+            >
+              <i className="ri-calendar-line" style={{ marginRight: '6px' }}></i> Calendar
+            </button>
+          </div>
+          <button className="btn-add" onClick={handleOpenAdd} style={{ display: (isAdmin || canCreate) ? '' : 'none' }}>
+            <i className="ri-add-line"></i>
+            Book Venue
+          </button>
+        </div>
       </div>
 
       <Card 
@@ -453,7 +486,7 @@ export default function Venues() {
         </ResponsiveContainer>
       </Card>
       
-      {records.length > 0 && (
+      {records.length > 0 && viewMode === 'list' && (
         <ModuleToolbar
           onSearch={v => { setSearchTerm(v); setCurrentPage(1) }}
           onFilterChange={v => { setFilter(v); setCurrentPage(1) }}
@@ -466,76 +499,82 @@ export default function Venues() {
         />
       )}
 
-      {records.length === 0 ? (
-        <div className="empty-state">
-          <i className="ri-building-line"></i>
-          <h3>No Venue Bookings</h3>
-          <p>Click "Book Venue" to create your first venue booking.</p>
-        </div>
-      ) : filteredRecords.length === 0 ? (
-        <div className="empty-state">
-          <i className="ri-filter-off-line"></i>
-          <h3>No Matching Records</h3>
-          <p>Try adjusting your search or filters.</p>
-        </div>
+      {viewMode === 'calendar' ? (
+        <CalendarView 
+          events={filteredRecords.map(r => ({
+            id: r.id,
+            title: r.facility_name,
+            date: r.date,
+            color: '#dc2626',
+            onClick: () => handleViewDetails(r)
+          }))}
+          currentMonth={currentMonth}
+          onMonthChange={setCurrentMonth}
+        />
       ) : (
         <>
-        <div className="data-table">
-          <table>
-            <thead>
-              <tr>
-                <th>Record ID</th>
-                <th>Facility Name</th>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Purpose</th>
-                <th>Booked By</th>
-                <th>Contact No.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pagedRecords.map((record) => (
-                <tr 
-                  key={record.id}
-                  onClick={() => handleViewDetails(record)}
-                  style={{ cursor: 'pointer', height: '49px' }}
-                  className="table-row-clickable"
-                >
-                  <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
-                  <td style={{ fontWeight: '700' }}>{record.facility_name || '-'}</td>
-                  <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
-                    {record.date 
-                      ? format(new Date(record.date), 'MMM dd, yyyy')
-                      : '-'}
-                  </td>
-                  <td>{record.start_time} - {record.end_time}</td>
-                  <td>
-                    <div style={{
-                      maxWidth: '250px',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      fontSize: '13px',
-                      color: 'var(--text-muted)'
-                    }}>
-                      {record.purpose || '-'}
-                    </div>
-                  </td>
-                  <td>{record.booked_by || '-'}</td>
-                  <td>{record.contact_number || '-'}</td>
+        {records.length === 0 ? (
+          <div className="empty-state">
+            <i className="ri-building-line"></i>
+            <h3>No Venues Booked</h3>
+            <p>Click "Book Venue" to add your first reservation.</p>
+          </div>
+        ) : filteredRecords.length === 0 ? (
+          <div className="empty-state">
+            <i className="ri-filter-off-line"></i>
+            <h3>No Matching Records</h3>
+            <p>Try adjusting your search or filters.</p>
+          </div>
+        ) : (
+          <>
+          <div className="data-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Venue</th>
+                  <th>Inclusive Date</th>
+                  <th>Event's Name</th>
+                  <th>Client/Requestor</th>
+                  <th>Conducted By</th>
+                  <th>Contact No.</th>
                 </tr>
-              ))}
-              <TableGhostRows count={pageSize - pagedRecords.length} colSpan={7} />
-            </tbody>
-          </table>
-        </div>
-        <ListPagination
-          currentPage={safePage}
-          totalPages={totalPages}
-          pageSize={pageSize}
-          totalRecords={filteredRecords.length}
-          onPageChange={setCurrentPage}
-        />
+              </thead>
+              <tbody>
+                {pagedRecords.map((record) => (
+                  <tr 
+                    key={record.id}
+                    onClick={() => handleViewDetails(record)}
+                    style={{ cursor: 'pointer', height: '49px' }}
+                    className="table-row-clickable"
+                  >
+                    <td style={{ fontWeight: '700' }}>{record.facility_name || '-'}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
+                      {record.date ? format(new Date(record.date), 'MMM dd') : '-'}
+                      {record.end_date && record.end_date !== record.date ? ` – ${format(new Date(record.end_date), 'MMM dd, yyyy')}` : record.date ? `, ${format(new Date(record.date), 'yyyy')}` : ''}
+                    </td>
+                    <td>
+                      <div style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px' }}>
+                        {record.purpose || '-'}
+                      </div>
+                    </td>
+                    <td>{record.booked_by || '-'}</td>
+                    <td>{record.conducted_by || '-'}</td>
+                    <td>{record.contact_number || '-'}</td>
+                  </tr>
+                ))}
+                <TableGhostRows count={pageSize - pagedRecords.length} colSpan={7} />
+              </tbody>
+            </table>
+          </div>
+          <ListPagination
+            currentPage={safePage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalRecords={filteredRecords.length}
+            onPageChange={setCurrentPage}
+          />
+          </>
+        )}
         </>
       )}
 
@@ -559,16 +598,7 @@ export default function Venues() {
         <form onSubmit={handleSubmit} className="modal-form">
           <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
           <div className="form-row">
-            <div className="form-group">
-              <label>Record ID *</label>
-              <input 
-                type="text" 
-                name="record_id" 
-                value={formData.record_id} 
-                onChange={handleInputChange} 
-                required 
-                disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
-            </div>
+            
             <div className="form-group">
               <label>Facility Name *</label>
               <select name="facility_name" value={formData.facility_name} onChange={handleInputChange} required>
@@ -586,25 +616,23 @@ export default function Venues() {
 
           <div className="form-row">
             <div className="form-group">
-              <label>Date *</label>
-              <input 
-                type="date" 
-                name="date" 
-                value={formData.date} 
-                onChange={handleInputChange} 
-                required 
-              />
+              <label>Start Date *</label>
+              <input type="date" name="date" value={formData.date} onChange={handleInputChange} required />
             </div>
             <div className="form-group">
-              <label>Booked By *</label>
-              <input 
-                type="text" 
-                name="booked_by" 
-                value={formData.booked_by} 
-                onChange={handleInputChange} 
-                required 
-                placeholder="e.g. CDRRMO-Operations"
-              />
+              <label>End Date (Inclusive)</label>
+              <input type="date" name="end_date" value={formData.end_date} onChange={handleInputChange} min={formData.date} />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Client / Requestor *</label>
+              <input type="text" name="booked_by" value={formData.booked_by} onChange={handleInputChange} required placeholder="e.g. CDRRMO-Operations" />
+            </div>
+            <div className="form-group">
+              <label>Conducted By</label>
+              <input type="text" name="conducted_by" value={formData.conducted_by} onChange={handleInputChange} placeholder="e.g. CDRRMO Training Division" />
             </div>
           </div>
 
@@ -634,24 +662,17 @@ export default function Venues() {
           <div className="form-row">
             <div className="form-group">
               <label>Contact Number</label>
-              <input 
-                type="text" 
-                name="contact_number" 
-                value={formData.contact_number} 
-                onChange={handleInputChange} 
-                placeholder="e.g. 09123456789"
-              />
+              <input type="text" name="contact_number" value={formData.contact_number} onChange={handleInputChange} placeholder="e.g. 09123456789" />
             </div>
             <div className="form-group">
-              <label>Purpose</label>
-              <input 
-                type="text" 
-                name="purpose" 
-                value={formData.purpose} 
-                onChange={handleInputChange} 
-                placeholder="e.g. Basic Life Support Training Seminar"
-              />
+              <label>Purpose *</label>
+              <textarea name="purpose" value={formData.purpose} onChange={handleInputChange} required rows={2} placeholder="State the purpose of this booking..." />
             </div>
+          </div>
+
+          <div className="form-group">
+            <label>Description / Additional Details</label>
+            <textarea name="description" value={formData.description} onChange={handleInputChange} rows={3} placeholder="Additional notes, setup requirements, etc." />
           </div>
 
           </fieldset>

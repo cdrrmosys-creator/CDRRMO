@@ -10,6 +10,7 @@ import ChangePassword from './pages/Auth/ChangePassword'
 import Dashboard from './pages/Dashboard'
 import Employees from './pages/Employees'
 import Incidents from './pages/Incidents'
+import DrowningIncidents from './pages/DrowningIncidents'
 import Vouchers from './pages/Vouchers'
 import Inventory from './pages/Inventory'
 import Vehicles from './pages/Vehicles'
@@ -33,6 +34,7 @@ import CalendarEvents from './pages/CalendarEvents'
 import AuditTrail from './pages/AuditTrail'
 import Kloudtrack from './pages/Kloudtrack'
 import UserPermissions from './pages/UserPermissions'
+import PasswordResetRequests from './pages/PasswordResetRequests'
 import Layout from './components/Layout'
 
 function App() {
@@ -83,6 +85,7 @@ function App() {
               <Route path="employees" element={<Employees />} />
               <Route path="kloudtrack" element={<Kloudtrack />} />
               <Route path="incidents" element={<Incidents />} />
+              <Route path="drowning-incidents" element={<DrowningIncidents />} />
               <Route path="vouchers" element={<Vouchers />} />
               <Route path="inventory" element={<Inventory />} />
               <Route path="vehicles" element={<Vehicles />} />
@@ -105,6 +108,7 @@ function App() {
               <Route path="calendar" element={<CalendarEvents />} />
               <Route path="audit-trail" element={<AuditTrail />} />
               <Route path="user-permissions" element={<UserPermissions />} />
+              <Route path="password-reset-requests" element={<PasswordResetRequests />} />
             </Route>
 
             {/* Fallback */}

@@ -272,7 +272,6 @@ export default function TrainingRegistrations() {
           <table>
             <thead>
               <tr>
-                <th>Record ID</th>
                 <th>Full Name</th>
                 <th>Gender</th>
                 <th>Contact No.</th>
@@ -285,7 +284,6 @@ export default function TrainingRegistrations() {
             <tbody>
               {pagedRecords.map(record => (
                 <tr key={record.id} onClick={() => handleViewDetails(record)} style={{ cursor: 'pointer', height: '49px' }} className="table-row-clickable">
-                  <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
                   <td style={{ fontWeight: '700' }}>{record.full_name || '-'}</td>
                   <td>{getGenderBadge(record.gender)}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px' }}>{record.contact_number || '-'}</td>
@@ -339,10 +337,7 @@ export default function TrainingRegistrations() {
 
               {/* Row 1: Record ID + Full Name */}
               <div className="form-row">
-                <div className="form-group">
-                  <label>Record ID</label>
-                  <input type="text" name="record_id" value={formData.record_id} onChange={handleInputChange} disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
-                </div>
+                
                 <div className="form-group">
                   <label>Full Name *</label>
                   <input type="text" name="full_name" value={formData.full_name} onChange={handleInputChange} required placeholder="e.g. Juan dela Cruz" />

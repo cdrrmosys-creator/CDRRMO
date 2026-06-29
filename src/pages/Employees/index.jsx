@@ -1177,6 +1177,18 @@ export default function Employees() {
                         max={new Date().toISOString().split('T')[0]}
                         required
                       />
+                      {formData.dob && (() => {
+                        const today = new Date()
+                        const birth = new Date(formData.dob)
+                        let age = today.getFullYear() - birth.getFullYear()
+                        const m = today.getMonth() - birth.getMonth()
+                        if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
+                        return age >= 0 ? (
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                            Age: <strong style={{ color: 'var(--primary)' }}>{age} years old</strong>
+                          </span>
+                        ) : null
+                      })()}
                     </div>
                     <div className="form-group">
                       <label>Place of Birth <span style={{ color: "#dc2626" }}>*</span></label>

@@ -304,7 +304,6 @@ const handleOpenAdd = () => {
           <table>
             <thead>
               <tr>
-                <th>Record ID</th>
                 <th>Map Title</th>
                 <th>Type</th>
                 <th>Coverage Area</th>
@@ -321,7 +320,6 @@ const handleOpenAdd = () => {
                   style={{ cursor: 'pointer', height: '49px' }}
                   className="table-row-clickable"
                 >
-                  <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
                   <td style={{ fontWeight: '700' }}>{record.map_title || '-'}</td>
                   <td>{record.type || '-'}</td>
                   <td>{record.coverage_area || '-'}</td>
@@ -376,16 +374,7 @@ const handleOpenAdd = () => {
         <form onSubmit={handleSubmit} className="modal-form">
           <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
           <div className="form-row">
-            <div className="form-group">
-              <label>Record ID *</label>
-              <input 
-                type="text" 
-                name="record_id" 
-                value={formData.record_id} 
-                onChange={handleInputChange} 
-                required 
-               disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
-            </div>
+            
             <div className="form-group">
               <label>Map Title *</label>
               <input 

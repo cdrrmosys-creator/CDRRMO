@@ -63,6 +63,11 @@ const INITIAL_FORM_STATE = {
   ambulance: '',
   refused_transfer: false,
   exact_place: '',
+  specific_location: '',
+  caller_name: '',
+  caller_contact: '',
+  casualties: '',
+  fatalities: '',
   photos: []
 }
 
@@ -487,8 +492,7 @@ export default function Incidents() {
         <div className="data-table">
           <table style={{ tableLayout: 'fixed', width: '100%' }}>
             <colgroup>
-              <col style={{ width: '12%'  }} />{/* Record ID */}
-              <col style={{ width: '11%'  }} />{/* Date */}
+              <col style={{ width: '13%'  }} />{/* Date */}
               <col style={{ width: '9%'   }} />{/* Time of Call */}
               <col style={{ width: '8%'   }} />{/* Team */}
               <col style={{ width: '25%'  }} />{/* Nature */}
@@ -497,7 +501,6 @@ export default function Incidents() {
             </colgroup>
             <thead>
               <tr>
-                <th>Record ID</th>
                 <th>Date</th>
                 <th>Time of Call</th>
                 <th>Team</th>
@@ -514,9 +517,6 @@ export default function Incidents() {
                   style={{ cursor: 'pointer', height: '49px' }}
                   className="table-row-clickable"
                 >
-                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <code style={{ fontWeight: '700' }}>{incident.record_id || '-'}</code>
-                  </td>
                   <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px' }}>
                     {incident.date ? format(new Date(incident.date), 'MMM dd, yyyy') : '-'}
                   </td>
@@ -541,7 +541,7 @@ export default function Incidents() {
                   </td>
                 </tr>
               ))}
-              <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={7} />
+              <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={6} />
             </tbody>
           </table>
         </div>
@@ -602,10 +602,7 @@ export default function Incidents() {
                 <>
                   <h4 style={{ margin: '0 0 8px 0', color: 'var(--primary)' }}>General Info</h4>
                   <div className="form-row" style={{ gap: '12px' }}>
-                    <div className="form-group" style={{ marginBottom: '8px' }}>
-                      <label style={{ marginBottom: '4px', fontWeight: '600' }}>Record ID *</label>
-                      <input type="text" name="record_id" value={formData.record_id} onChange={handleInputChange} required disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280', padding: '6px' }} />
-                    </div>
+                    
                     <div className="form-group">
                     <label style={{ marginBottom: '4px', fontWeight: '600' }}>TEAM *</label>
                     {isViewing ? (

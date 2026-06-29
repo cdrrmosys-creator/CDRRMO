@@ -15,6 +15,7 @@ import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
+import CalendarView from '../../components/CalendarView'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
@@ -54,6 +55,8 @@ export default function Activities() {
   const [filter, setFilter] = useState('')
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [viewMode, setViewMode] = useState('list')
+  const [currentMonth, setCurrentMonth] = useState(new Date())
 
   useEffect(() => {
     loadRecords()
@@ -311,10 +314,34 @@ const handleOpenAdd = () => {
           <i className="ri-rocket-line" style={{ marginRight: '12px' }}></i>
           Activities Log
         </h2>
-        <button className="btn-add" onClick={handleOpenAdd} style={{ display: (isAdmin || canCreate) ? '' : 'none' }}>
-          <i className="ri-add-line"></i>
-          Add Activity
-        </button>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', background: 'var(--bg-surface)', border: '1px solid var(--border-light)', borderRadius: '8px', padding: '4px' }}>
+            <button
+              onClick={() => setViewMode('list')}
+              style={{
+                padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+                background: viewMode === 'list' ? 'var(--primary)' : 'transparent',
+                color: viewMode === 'list' ? '#fff' : 'var(--text-muted)'
+              }}
+            >
+              <i className="ri-list-check" style={{ marginRight: '6px' }}></i> List
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              style={{
+                padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+                background: viewMode === 'calendar' ? 'var(--primary)' : 'transparent',
+                color: viewMode === 'calendar' ? '#fff' : 'var(--text-muted)'
+              }}
+            >
+              <i className="ri-calendar-line" style={{ marginRight: '6px' }}></i> Calendar
+            </button>
+          </div>
+          <button className="btn-add" onClick={handleOpenAdd} style={{ display: (isAdmin || canCreate) ? '' : 'none' }}>
+            <i className="ri-add-line"></i>
+            Add Activity
+          </button>
+        </div>
       </div>
 
       
@@ -398,25 +425,38 @@ const handleOpenAdd = () => {
         />
       )}
 
-      {records.length === 0 ? (
-        <div className="empty-state">
-          <i className="ri-rocket-line"></i>
-          <h3>No Activities Logged</h3>
-          <p>Click "Add Activity" to create your first activity log.</p>
-        </div>
-      ) : filteredRecords.length === 0 ? (
-        <div className="empty-state">
-          <i className="ri-filter-off-line"></i>
-          <h3>No Matching Records</h3>
-          <p>Try adjusting your search or filters.</p>
-        </div>
+      {viewMode === 'calendar' ? (
+        <CalendarView 
+          events={filteredRecords.map(r => ({
+            id: r.id,
+            title: r.activity_title,
+            date: r.date,
+            color: '#10b981',
+            onClick: () => handleViewDetails(r)
+          }))}
+          currentMonth={currentMonth}
+          onMonthChange={setCurrentMonth}
+        />
       ) : (
         <>
-        <div className="data-table">
-          <table>
-            <thead>
+        {records.length === 0 ? (
+          <div className="empty-state">
+            <i className="ri-rocket-line"></i>
+            <h3>No Activities Logged</h3>
+            <p>Click "Add Activity" to create your first activity log.</p>
+          </div>
+        ) : filteredRecords.length === 0 ? (
+          <div className="empty-state">
+            <i className="ri-filter-off-line"></i>
+            <h3>No Matching Records</h3>
+            <p>Try adjusting your search or filters.</p>
+          </div>
+        ) : (
+          <>
+          <div className="data-table">
+            <table>
+              <thead>
               <tr>
-                <th>Record ID</th>
                 <th>Activity Title</th>
                 <th>Date</th>
                 <th>Location</th>
@@ -433,7 +473,6 @@ const handleOpenAdd = () => {
                   style={{ cursor: 'pointer', height: '49px' }}
                   className="table-row-clickable"
                 >
-                  <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
                   <td style={{ fontWeight: '700' }}>{record.activity_title || '-'}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
                     {record.date 
@@ -468,6 +507,8 @@ const handleOpenAdd = () => {
           totalRecords={filteredRecords.length}
           onPageChange={setCurrentPage}
         />
+        </>
+      )}
         </>
       )}
 
@@ -507,10 +548,7 @@ const handleOpenAdd = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
                   <div className="form-row">
-                    <div className="form-group">
-                      <label>Record ID *</label>
-                      <input type="text" name="record_id" value={formData.record_id} onChange={handleInputChange} required disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
-                    </div>
+                    
                     <div className="form-group">
                       <label>Date *</label>
                       <input type="date" name="date" value={formData.date} onChange={handleInputChange} required />

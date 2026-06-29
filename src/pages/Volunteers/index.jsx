@@ -20,6 +20,13 @@ const INITIAL_FORM_STATE = {
   record_id: '',
   volunteer_name: '',
   organization: '',
+  birthdate: '',
+  address: '',
+  contact_no: '',
+  civil_status: '',
+  blood_type: '',
+  emergency_contact_person: '',
+  emergency_contact_no: '',
   accreditation_no: '',
   date: '',
   status: 'Active',
@@ -117,6 +124,13 @@ export default function Volunteers() {
       record_id: rec.record_id || '',
       volunteer_name: rec.volunteer_name || '',
       organization: rec.organization || '',
+      birthdate: rec.birthdate || '',
+      address: rec.address || '',
+      contact_no: rec.contact_no || '',
+      civil_status: rec.civil_status || '',
+      blood_type: rec.blood_type || '',
+      emergency_contact_person: rec.emergency_contact_person || '',
+      emergency_contact_no: rec.emergency_contact_no || '',
       accreditation_no: rec.accreditation_no || '',
       date: rec.date || '',
       status: rec.status || 'Active',
@@ -281,7 +295,6 @@ export default function Volunteers() {
           <table>
             <thead>
               <tr>
-                <th>Record ID</th>
                 <th>Volunteer Name</th>
                 <th>Organization</th>
                 <th>Accreditation No.</th>
@@ -293,7 +306,6 @@ export default function Volunteers() {
             <tbody>
               {pagedRecords.map((record) => (
                 <tr key={record.id} onClick={() => handleViewDetails(record)} style={{ cursor: 'pointer', height: '49px' }} className="table-row-clickable">
-                  <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
                   <td style={{ fontWeight: '700' }}>{record.volunteer_name || '-'}</td>
                   <td>{record.organization || '-'}</td>
                   <td><code style={{ fontSize: '13px' }}>{record.accreditation_no || '-'}</code></td>
@@ -362,10 +374,7 @@ export default function Volunteers() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
                   <div className="form-row">
-                    <div className="form-group">
-                      <label>Record ID *</label>
-                      <input type="text" name="record_id" value={formData.record_id} onChange={handleInputChange} required disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
-                    </div>
+                    
                     <div className="form-group">
                       <label>Volunteer Name *</label>
                       <input type="text" name="volunteer_name" value={formData.volunteer_name} onChange={handleInputChange} required placeholder="e.g. Juan dela Cruz" />
@@ -374,12 +383,62 @@ export default function Volunteers() {
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Organization / Group</label>
+                      <label>Group / Organization</label>
                       <input type="text" name="organization" value={formData.organization} onChange={handleInputChange} placeholder="e.g. Red Cross Youth, React Ph" />
                     </div>
                     <div className="form-group">
                       <label>Accreditation No. *</label>
                       <input type="text" name="accreditation_no" value={formData.accreditation_no} onChange={handleInputChange} required placeholder="e.g. ACC-2026-0045" />
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Birthdate</label>
+                      <input type="date" name="birthdate" value={formData.birthdate} onChange={handleInputChange} />
+                    </div>
+                    <div className="form-group">
+                      <label>Civil Status</label>
+                      <select name="civil_status" value={formData.civil_status} onChange={handleInputChange}>
+                        <option value="">-- Select --</option>
+                        <option value="Single">Single</option>
+                        <option value="Married">Married</option>
+                        <option value="Widowed">Widowed</option>
+                        <option value="Separated">Separated</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Contact No.</label>
+                      <input type="text" name="contact_no" value={formData.contact_no} onChange={handleInputChange} placeholder="e.g. 09123456789" />
+                    </div>
+                    <div className="form-group">
+                      <label>Blood Type</label>
+                      <select name="blood_type" value={formData.blood_type} onChange={handleInputChange}>
+                        <option value="">-- Select --</option>
+                        <option value="A+">A+</option><option value="A-">A-</option>
+                        <option value="B+">B+</option><option value="B-">B-</option>
+                        <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                        <option value="O+">O+</option><option value="O-">O-</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Address</label>
+                    <input type="text" name="address" value={formData.address} onChange={handleInputChange} placeholder="e.g. Brgy. Singasina, Palayan City, Nueva Ecija" />
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Emergency Contact Person</label>
+                      <input type="text" name="emergency_contact_person" value={formData.emergency_contact_person} onChange={handleInputChange} placeholder="e.g. Maria dela Cruz" />
+                    </div>
+                    <div className="form-group">
+                      <label>Emergency Contact No.</label>
+                      <input type="text" name="emergency_contact_no" value={formData.emergency_contact_no} onChange={handleInputChange} placeholder="e.g. 09987654321" />
                     </div>
                   </div>
 

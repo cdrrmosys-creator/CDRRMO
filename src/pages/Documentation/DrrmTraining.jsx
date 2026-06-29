@@ -246,7 +246,6 @@ export default function DrrmTraining() {
           <table>
             <thead>
               <tr>
-                <th>Record ID</th>
                 <th>Timestamp</th>
                 <th>Full Name</th>
                 <th>Gender</th>
@@ -259,7 +258,6 @@ export default function DrrmTraining() {
             <tbody>
               {pagedRecords.map(record => (
                 <tr key={record.id} onClick={() => handleViewDetails(record)} style={{ cursor: 'pointer', height: '49px' }} className="table-row-clickable">
-                  <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
                   <td style={{ whiteSpace: 'nowrap', fontSize: '13px', color: 'var(--text-muted)' }}>
                     {record.timestamp ? format(new Date(record.timestamp), 'MMM dd, yyyy') : '-'}
                   </td>
@@ -297,11 +295,7 @@ export default function DrrmTraining() {
 
               {/* Record ID + Timestamp */}
               <div className="form-row" style={{ gap: '12px' }}>
-                <div className="form-group">
-                  <label>Record ID</label>
-                  <input type="text" name="record_id" value={formData.record_id} disabled
-                    style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
-                </div>
+                
                 <div className="form-group">
                   <label>Timestamp</label>
                   <input type="datetime-local" name="timestamp"

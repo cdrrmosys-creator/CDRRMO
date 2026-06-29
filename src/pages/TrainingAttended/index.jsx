@@ -23,9 +23,10 @@ const INITIAL_FORM_STATE = {
   record_id: '',
   training_title: '',
   date: '',
+  date_end: '',
   venue: '',
   conducted_by: '',
-  attendees: '',
+  participants: [],
   remarks: '',
   photos: []
 }
@@ -152,9 +153,10 @@ export default function TrainingAttended() {
       record_id: rec.record_id || '',
       training_title: rec.training_title || '',
       date: rec.date || '',
+      date_end: rec.date_end || '',
       venue: rec.venue || '',
       conducted_by: rec.conducted_by || '',
-      attendees: rec.attendees || '',
+      participants: Array.isArray(rec.participants) ? rec.participants : (rec.attendees ? [{ name: rec.attendees }] : []),
       remarks: rec.remarks || '',
       photos: rec.photos || []
     })
@@ -369,7 +371,6 @@ export default function TrainingAttended() {
           <table>
             <thead>
               <tr>
-                <th>Record ID</th>
                 <th>Training Title</th>
                 <th>Date</th>
                 <th>Venue</th>
@@ -380,7 +381,6 @@ export default function TrainingAttended() {
             <tbody>
               {pagedRecords.map((record) => (
                 <tr key={record.id} onClick={() => handleViewDetails(record)} style={{ cursor: 'pointer', height: '49px' }} className="table-row-clickable">
-                  <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
                   <td style={{ fontWeight: '700' }}>{record.training_title || '-'}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
                     {record.date ? format(new Date(record.date), 'MMM dd, yyyy') : '-'}
@@ -445,12 +445,12 @@ export default function TrainingAttended() {
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Record ID *</label>
-                      <input type="text" name="record_id" value={formData.record_id} onChange={handleInputChange} required disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
+                      <label>Date Start *</label>
+                      <input type="date" name="date" value={formData.date} onChange={handleInputChange} required />
                     </div>
                     <div className="form-group">
-                      <label>Date *</label>
-                      <input type="date" name="date" value={formData.date} onChange={handleInputChange} required />
+                      <label>Date End (Inclusive)</label>
+                      <input type="date" name="date_end" value={formData.date_end} onChange={handleInputChange} min={formData.date} />
                     </div>
                   </div>
 
@@ -471,8 +471,50 @@ export default function TrainingAttended() {
                   </div>
 
                   <div className="form-group">
-                    <label>Attendees</label>
-                    <textarea name="attendees" value={formData.attendees} onChange={handleInputChange} rows={2} placeholder="Enter names of personnel who attended, comma-separated..." />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <label style={{ marginBottom: 0 }}>Participants</label>
+                      {!isViewing && (
+                        <button
+                          type="button"
+                          onClick={() => setFormData(p => ({ ...p, participants: [...(p.participants || []), { name: '' }] }))}
+                          style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--primary)', background: 'transparent', color: 'var(--primary)', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
+                        >
+                          <i className="ri-add-line"></i> Add
+                        </button>
+                      )}
+                    </div>
+                    {(formData.participants || []).length === 0 ? (
+                      <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', background: '#f8fafc', borderRadius: '8px', border: '1px dashed var(--border-light)' }}>No participants added yet.</div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {(formData.participants || []).map((p, idx) => (
+                          <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)', width: '20px', flexShrink: 0 }}>{idx + 1}.</span>
+                            <input
+                              type="text"
+                              value={p.name || ''}
+                              onChange={e => {
+                                const updated = [...(formData.participants || [])]
+                                updated[idx] = { ...updated[idx], name: e.target.value }
+                                setFormData(prev => ({ ...prev, participants: updated }))
+                              }}
+                              placeholder="Full name"
+                              disabled={isViewing}
+                              style={{ flex: 1, padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-light)', fontSize: '13px' }}
+                            />
+                            {!isViewing && (
+                              <button
+                                type="button"
+                                onClick={() => setFormData(p => ({ ...p, participants: p.participants.filter((_, i) => i !== idx) }))}
+                                style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', flexShrink: 0 }}
+                              >
+                                <i className="ri-delete-bin-line"></i>
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="form-group">

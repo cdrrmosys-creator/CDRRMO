@@ -13,6 +13,7 @@ import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
+import CalendarView from '../../components/CalendarView'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
 import { uploadFile, deleteFiles } from '../../services/storage'
 import { compressImage } from '../../utils/imageCompression'
@@ -23,6 +24,8 @@ const INITIAL_FORM_STATE = {
   record_id: '',
   vehicle: '',
   driver: '',
+  team: '',
+  responder: '',
   destination: '',
   date_time: '',
   purpose: '',
@@ -30,6 +33,16 @@ const INITIAL_FORM_STATE = {
   remarks: '',
   is_rescheduled: false,
   reschedule_date: '',
+  patient_name: '',
+  patient_age: '',
+  patient_address: '',
+  patient_contact: '',
+  person_notified: '',
+  emergency_contact: '',
+  injury_illness: '',
+  action_given: '',
+  others_specify: '',
+  description: '',
   photos: []
 }
 
@@ -107,6 +120,8 @@ export default function Transport() {
   const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'))
   const [selectedYear, setSelectedYear] = useState(() => format(new Date(), 'yyyy'))
   const [chartData, setChartData] = useState([])
+  const [viewMode, setViewMode] = useState('list')
+  const [currentMonth, setCurrentMonth] = useState(new Date())
 
   const isAdmin = useIsAdmin()
   const { canCreate, canUpdate, canDelete } = usePermissions('transport')
@@ -306,6 +321,8 @@ export default function Transport() {
       record_id: rec.record_id || '',
       vehicle: rec.vehicle || '',
       driver: rec.driver || '',
+      team: rec.team || '',
+      responder: rec.responder || '',
       destination: rec.destination || '',
       date_time: formattedDateTime,
       purpose: rec.purpose || '',
@@ -313,6 +330,16 @@ export default function Transport() {
       remarks: rec.remarks || '',
       is_rescheduled: rec.is_rescheduled || false,
       reschedule_date: formattedRescheduleDate,
+      patient_name: rec.patient_name || '',
+      patient_age: rec.patient_age || '',
+      patient_address: rec.patient_address || '',
+      patient_contact: rec.patient_contact || '',
+      person_notified: rec.person_notified || '',
+      emergency_contact: rec.emergency_contact || '',
+      injury_illness: rec.injury_illness || '',
+      action_given: rec.action_given || '',
+      others_specify: rec.others_specify || '',
+      description: rec.description || '',
       photos: rec.photos || []
     })
     setIsModalOpen(true)
@@ -491,10 +518,34 @@ export default function Transport() {
           <i className="ri-taxi-line" style={{ marginRight: '12px' }}></i>
           Transport Dispatch
         </h2>
-        <button className="btn-add" onClick={handleOpenAdd} style={{ display: (isAdmin || canCreate) ? '' : 'none' }}>
-          <i className="ri-add-line"></i>
-          Add Dispatch
-        </button>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', background: 'var(--bg-surface)', border: '1px solid var(--border-light)', borderRadius: '8px', padding: '4px' }}>
+            <button
+              onClick={() => setViewMode('list')}
+              style={{
+                padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+                background: viewMode === 'list' ? 'var(--primary)' : 'transparent',
+                color: viewMode === 'list' ? '#fff' : 'var(--text-muted)'
+              }}
+            >
+              <i className="ri-list-check" style={{ marginRight: '6px' }}></i> List
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              style={{
+                padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600',
+                background: viewMode === 'calendar' ? 'var(--primary)' : 'transparent',
+                color: viewMode === 'calendar' ? '#fff' : 'var(--text-muted)'
+              }}
+            >
+              <i className="ri-calendar-line" style={{ marginRight: '6px' }}></i> Calendar
+            </button>
+          </div>
+          <button className="btn-add" onClick={handleOpenAdd} style={{ display: (isAdmin || canCreate) ? '' : 'none' }}>
+            <i className="ri-add-line"></i>
+            Add Dispatch
+          </button>
+        </div>
       </div>
 
       <Card 
@@ -579,29 +630,43 @@ export default function Transport() {
         />
       )}
 
-      {records.length === 0 ? (
-        <div className="empty-state">
-          <i className="ri-taxi-line"></i>
-          <h3>No Transport Records</h3>
-          <p>Click "Add Dispatch" to create your first transport record.</p>
-        </div>
-      ) : filteredRecords.length === 0 ? (
-        <div className="empty-state">
-          <i className="ri-filter-off-line"></i>
-          <h3>No Matching Records</h3>
-          <p>Try adjusting your search or filters.</p>
-        </div>
+      {viewMode === 'calendar' ? (
+        <CalendarView 
+          events={filteredRecords.map(r => ({
+            id: r.id,
+            title: `Transport: ${r.vehicle || r.destination}`,
+            date: r.date_time,
+            color: '#dc2626',
+            onClick: () => handleViewDetails(r)
+          }))}
+          currentMonth={currentMonth}
+          onMonthChange={setCurrentMonth}
+        />
       ) : (
         <>
-        <div className="data-table">
-          <table>
-            <thead>
+        {records.length === 0 ? (
+          <div className="empty-state">
+            <i className="ri-taxi-line"></i>
+            <h3>No Transport Records</h3>
+            <p>Click "Add Dispatch" to create your first transport record.</p>
+          </div>
+        ) : filteredRecords.length === 0 ? (
+          <div className="empty-state">
+            <i className="ri-filter-off-line"></i>
+            <h3>No Matching Records</h3>
+            <p>Try adjusting your search or filters.</p>
+          </div>
+        ) : (
+          <>
+          <div className="data-table">
+            <table>
+              <thead>
               <tr>
-                <th>Record ID</th>
                 <th>Date & Time</th>
                 <th>Vehicle</th>
                 <th>Driver</th>
                 <th>Destination</th>
+                <th>Patient Name</th>
                 <th>Contact Person</th>
                 <th>Status</th>
               </tr>
@@ -614,7 +679,6 @@ export default function Transport() {
                   style={{ cursor: 'pointer', height: '49px' }}
                   className="table-row-clickable"
                 >
-                  <td><code style={{ fontWeight: '700' }}>{record.record_id || '-'}</code></td>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
                     {record.date_time 
                       ? format(new Date(record.date_time), 'MMM dd, yyyy hh:mm a')
@@ -623,6 +687,7 @@ export default function Transport() {
                   <td style={{ fontWeight: '700' }}>{record.vehicle || '-'}</td>
                   <td>{record.driver || '-'}</td>
                   <td>{record.destination || '-'}</td>
+                  <td style={{ fontWeight: '600', color: 'var(--primary)' }}>{record.patient_name || '-'}</td>
                   <td>{record.contact_person || '-'}</td>
                   <td>
                     {record.is_rescheduled ? (
@@ -641,13 +706,15 @@ export default function Transport() {
             </tbody>
           </table>
         </div>
-        <ListPagination
-          currentPage={safePage}
-          totalPages={totalPages}
-          pageSize={pageSize}
-          totalRecords={filteredRecords.length}
-          onPageChange={setCurrentPage}
-        />
+          <ListPagination
+            currentPage={safePage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalRecords={filteredRecords.length}
+            onPageChange={setCurrentPage}
+          />
+          </>
+        )}
         </>
       )}
 
@@ -704,16 +771,7 @@ export default function Transport() {
               <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div className="form-row">
-                    <div className="form-group">
-                      <label>Record ID *</label>
-                      <input 
-                        type="text" 
-                        name="record_id" 
-                        value={formData.record_id} 
-                        onChange={handleInputChange} 
-                        required 
-                        disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
-                    </div>
+                    
                     <div className="form-group">
                       <label>Date & Time *</label>
                       <input 
@@ -755,72 +813,96 @@ export default function Transport() {
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Destination *</label>
-                      <input 
-                        type="text" 
-                        name="destination" 
-                        value={formData.destination} 
-                        onChange={handleInputChange} 
-                        required 
-                        placeholder="e.g. Brgy. Atate, Palayan City"
-                      />
+                      <label>Team Name</label>
+                      <input type="text" name="team" value={formData.team} onChange={handleInputChange} placeholder="e.g. Alpha Team" />
+                    </div>
+                    <div className="form-group">
+                      <label>Responder</label>
+                      <input type="text" name="responder" value={formData.responder} onChange={handleInputChange} placeholder="e.g. Juan Dela Cruz" />
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Destination / Exact Place *</label>
+                      <input type="text" name="destination" value={formData.destination} onChange={handleInputChange} required placeholder="e.g. Brgy. Atate, Palayan City" />
                     </div>
                     <div className="form-group">
                       <label>Contact Person</label>
-                      <input 
-                        type="text" 
-                        name="contact_person" 
-                        value={formData.contact_person} 
-                        onChange={handleInputChange} 
-                        placeholder="e.g. Juan Dela Cruz (09123456789)"
-                      />
+                      <input type="text" name="contact_person" value={formData.contact_person} onChange={handleInputChange} placeholder="e.g. Juan Dela Cruz (09123456789)" />
+                    </div>
+                  </div>
+
+                  {/* Patient Information Section */}
+                  <div style={{ borderTop: '2px solid var(--border-light)', marginTop: '4px', paddingTop: '14px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '0.5px', color: 'var(--primary)', marginBottom: '10px', textTransform: 'uppercase' }}>
+                      <i className="ri-user-heart-line" style={{ marginRight: '6px' }}></i>Patient Information
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Patient Name</label>
+                        <input type="text" name="patient_name" value={formData.patient_name} onChange={handleInputChange} placeholder="e.g. Juan Dela Cruz" />
+                      </div>
+                      <div className="form-group">
+                        <label>Patient Age</label>
+                        <input type="text" name="patient_age" value={formData.patient_age} onChange={handleInputChange} placeholder="e.g. 35" />
+                      </div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Patient Address</label>
+                        <input type="text" name="patient_address" value={formData.patient_address} onChange={handleInputChange} placeholder="e.g. Brgy. Poblacion, Palayan City" />
+                      </div>
+                      <div className="form-group">
+                        <label>Patient Contact No.</label>
+                        <input type="text" name="patient_contact" value={formData.patient_contact} onChange={handleInputChange} placeholder="e.g. 09123456789" />
+                      </div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Person Notified</label>
+                        <input type="text" name="person_notified" value={formData.person_notified} onChange={handleInputChange} placeholder="e.g. Maria Dela Cruz" />
+                      </div>
+                      <div className="form-group">
+                        <label>Emergency Contact</label>
+                        <input type="text" name="emergency_contact" value={formData.emergency_contact} onChange={handleInputChange} placeholder="e.g. 09987654321" />
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Injury / Illness / Complaint</label>
+                      <input type="text" name="injury_illness" value={formData.injury_illness} onChange={handleInputChange} placeholder="e.g. Chest pain, Vehicular accident" />
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Action Given</label>
+                        <input type="text" name="action_given" value={formData.action_given} onChange={handleInputChange} placeholder="e.g. CPR administered, Wound dressing" />
+                      </div>
+                      <div className="form-group">
+                        <label>Others (Specify)</label>
+                        <input type="text" name="others_specify" value={formData.others_specify} onChange={handleInputChange} placeholder="e.g. Referred to hospital" />
+                      </div>
                     </div>
                   </div>
 
                   <div className="form-group">
                     <label>Purpose</label>
-                    <input 
-                      type="text" 
-                      name="purpose" 
-                      value={formData.purpose} 
-                      onChange={handleInputChange} 
-                      placeholder="e.g. Rescue deployment, Logistics transport"
-                    />
+                    <textarea name="purpose" value={formData.purpose} onChange={handleInputChange} rows={2} />
                   </div>
-
+                  
                   <div className="form-group">
-                    <label>Remarks</label>
-                    <textarea 
-                      name="remarks" 
-                      value={formData.remarks} 
-                      onChange={handleInputChange} 
-                      placeholder="Any additional remarks..."
-                      rows="3"
-                    />
+                    <label>Description / Additional Details</label>
+                    <textarea name="description" value={formData.description} onChange={handleInputChange} rows={3} placeholder="Provide any additional details or descriptions..." />
                   </div>
 
                   <div className="form-group" style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, cursor: 'pointer', fontWeight: '700' }}>
-                      <input 
-                        type="checkbox" 
-                        name="is_rescheduled" 
-                        checked={formData.is_rescheduled}
-                        onChange={handleInputChange}
-                        style={{ width: '18px', height: '18px' }}
-                      />
+                      <input type="checkbox" name="is_rescheduled" checked={formData.is_rescheduled} onChange={handleInputChange} style={{ width: '18px', height: '18px' }} />
                       Rescheduled
                     </label>
-                    
                     {formData.is_rescheduled && (
                       <div style={{ marginTop: '16px' }}>
                         <label>Reschedule Date & Time *</label>
-                        <input 
-                          type="datetime-local" 
-                          name="reschedule_date" 
-                          value={formData.reschedule_date} 
-                          onChange={handleInputChange} 
-                          required={formData.is_rescheduled}
-                        />
+                        <input type="datetime-local" name="reschedule_date" value={formData.reschedule_date} onChange={handleInputChange} required={formData.is_rescheduled} />
                       </div>
                     )}
                   </div>
