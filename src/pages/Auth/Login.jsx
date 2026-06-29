@@ -69,9 +69,9 @@ export default function Login() {
 
 
       {/* Main auth container */}
-      <div className="split-auth-container">
+      <div className="split-auth-container" style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
         {/* Left Column - Login Form */}
-        <div className="auth-col-left">
+        <div className="auth-col-left" style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
           <div className="auth-form-card">
             <div className="auth-form-header">
               <h2>Let’s Get Started</h2>
@@ -194,7 +194,7 @@ export default function Login() {
         </div>
 
         {/* Right Column - Branding */}
-        <div className="auth-col-right">
+        <div className="auth-col-right" style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
           <div className="official-info-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div className="official-header-split">
               <div className="official-logos-split">
