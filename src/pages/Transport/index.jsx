@@ -894,7 +894,7 @@ export default function Transport() {
                     <textarea name="description" value={formData.description} onChange={handleInputChange} rows={3} placeholder="Provide any additional details or descriptions..." />
                   </div>
 
-                  <div className="form-group" style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                  <div className="form-group" style={{ background: 'var(--bg-app)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, cursor: 'pointer', fontWeight: '700' }}>
                       <input type="checkbox" name="is_rescheduled" checked={formData.is_rescheduled} onChange={handleInputChange} style={{ width: '18px', height: '18px' }} />
                       Rescheduled

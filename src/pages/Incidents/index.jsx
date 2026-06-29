@@ -804,7 +804,7 @@ export default function Incidents() {
                         { label: 'Departure at Hospital',  value: formData.time_of_departure_at_hosp },
                         { label: 'Back to Base',           value: formData.back_to_base },
                       ].map(({ label, value }) => (
-                        <div key={label} style={{ background: '#f8fafc', borderRadius: '8px', padding: '12px 16px', border: '1px solid var(--border-light)' }}>
+                        <div key={label} style={{ background: 'var(--bg-app)', borderRadius: '8px', padding: '12px 16px', border: '1px solid var(--border-light)' }}>
                           <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>{label}</div>
                           <div style={{ fontSize: '16px', fontWeight: '700', color: value ? 'var(--text)' : 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
                             {value ? formatTime(value) : <span style={{ fontSize: '13px', fontWeight: '400' }}>— not recorded —</span>}
@@ -859,7 +859,7 @@ export default function Incidents() {
                   </div>
 
                   {!formData.refused_transfer && (
-                    <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                    <div style={{ padding: '12px', background: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
                       <div className="form-row" style={{ gap: '12px' }}>
                         <div className="form-group" style={{ marginBottom: '8px' }}>
                           <label style={{ marginBottom: '4px', fontWeight: '600' }}>Transfer From *</label>

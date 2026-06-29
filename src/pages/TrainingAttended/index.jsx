@@ -484,7 +484,7 @@ export default function TrainingAttended() {
                       )}
                     </div>
                     {(formData.participants || []).length === 0 ? (
-                      <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', background: '#f8fafc', borderRadius: '8px', border: '1px dashed var(--border-light)' }}>No participants added yet.</div>
+                      <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', background: 'var(--bg-app)', borderRadius: '8px', border: '1px dashed var(--border-light)' }}>No participants added yet.</div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {(formData.participants || []).map((p, idx) => (

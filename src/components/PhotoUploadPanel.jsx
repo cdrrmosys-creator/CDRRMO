@@ -108,7 +108,7 @@ export default function PhotoUploadPanel({
             justifyContent: 'center',
             padding: '40px 20px',
             textAlign: 'center',
-            background: isDragging ? 'var(--primary-bg)' : '#f8fafc',
+            background: isDragging ? 'var(--primary-bg)' : 'var(--bg-app)',
             borderRadius: '8px',
             border: `2px dashed ${isDragging ? 'var(--primary)' : 'var(--border-light)'}`,
             color: isDragging ? 'var(--primary)' : 'var(--text-muted)',

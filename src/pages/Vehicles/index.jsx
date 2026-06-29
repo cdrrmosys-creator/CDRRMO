@@ -553,7 +553,7 @@ const handleOpenAdd = () => {
                 value={formData.vehicle_id} 
                 onChange={handleInputChange} 
                 required 
-               disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
+               disabled style={{ backgroundColor: 'var(--bg-app)', cursor: 'not-allowed', color: 'var(--text-muted)' }} />
             </div>
             <div className="form-group">
               <label>Plate Number *</label>

@@ -304,7 +304,7 @@ export default function PasswordResetRequests() {
       {confirmApprove && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
           onClick={() => setConfirmApprove(null)}>
-          <div style={{ background: 'var(--bg-card)', borderRadius: '16px', padding: '32px', width: '100%', maxWidth: '420px', border: '1px solid var(--border-light)', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}
+          <div style={{ background: 'var(--bg-surface)', borderRadius: '16px', padding: '32px', width: '100%', maxWidth: '420px', border: '1px solid var(--border-light)', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}
             onClick={e => e.stopPropagation()}>
             <div style={{ textAlign: 'center', marginBottom: '24px' }}>
               <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(22,163,74,0.12)', border: '2px solid rgba(22,163,74,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: '24px', color: '#16a34a' }}>
@@ -335,7 +335,7 @@ export default function PasswordResetRequests() {
       {rejectModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
           onClick={() => setRejectModal(null)}>
-          <div style={{ background: 'var(--bg-card)', borderRadius: '16px', padding: '32px', width: '100%', maxWidth: '420px', border: '1px solid var(--border-light)', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}
+          <div style={{ background: 'var(--bg-surface)', borderRadius: '16px', padding: '32px', width: '100%', maxWidth: '420px', border: '1px solid var(--border-light)', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}
             onClick={e => e.stopPropagation()}>
             <div style={{ marginBottom: '20px' }}>
               <h3 style={{ fontWeight: '800', fontSize: '18px', color: 'var(--text-main)', marginBottom: '6px' }}>

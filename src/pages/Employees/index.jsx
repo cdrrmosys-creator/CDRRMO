@@ -1276,7 +1276,7 @@ export default function Employees() {
                         <label>Employee ID</label>
                         <input type="text" name="employee_id" value={formData.employee_id}
                           onChange={handleInputChange} disabled
-                          style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
+                          style={{ backgroundColor: 'var(--bg-app)', cursor: 'not-allowed', color: 'var(--text-muted)' }} />
                       </div>
                     )}
                     {!isEditing && (

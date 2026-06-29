@@ -66,8 +66,7 @@ export default function Login() {
   return (
     <div className="auth-screen">
       {/* Animated background blobs */}
-      <div className="auth-blob blob-1"></div>
-      <div className="auth-blob blob-2"></div>
+
 
       {/* Main auth container */}
       <div className="split-auth-container">
@@ -75,7 +74,7 @@ export default function Login() {
         <div className="auth-col-left">
           <div className="auth-form-card">
             <div className="auth-form-header">
-              <h2>Welcome Back</h2>
+              <h2>Let’s Get Started</h2>
               <p>Sign in to access the CDRRMO Recording System</p>
             </div>
 
@@ -199,20 +198,20 @@ export default function Login() {
           <div className="official-info-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div className="official-header-split">
               <div className="official-logos-split">
-                <img 
-                  src="https://lh3.googleusercontent.com/d/1-26zjRFIZWYnFHm-nUcrdue8wIx_rErz" 
-                  alt="Palayan City Logo" 
+                <img
+                  src="https://lh3.googleusercontent.com/d/1-26zjRFIZWYnFHm-nUcrdue8wIx_rErz"
+                  alt="Palayan City Logo"
                   onError={(e) => { e.target.style.display = 'none' }}
                 />
-                <img 
-                  src="https://lh3.googleusercontent.com/d/1H0xg8TFCBl6A2jPycEZNI6dxyX-HmWZ8" 
-                  alt="CDRRMO Logo" 
+                <img
+                  src="https://lh3.googleusercontent.com/d/1H0xg8TFCBl6A2jPycEZNI6dxyX-HmWZ8"
+                  alt="CDRRMO Logo"
                   style={{ height: '96px' }}
                   onError={(e) => { e.target.style.display = 'none' }}
                 />
-                <img 
-                  src="https://lh3.googleusercontent.com/d/1uY1Kn77Az5a25LLo23oo3uDk8ZOv8_so" 
-                  alt="Rescue Logo" 
+                <img
+                  src="https://lh3.googleusercontent.com/d/1uY1Kn77Az5a25LLo23oo3uDk8ZOv8_so"
+                  alt="Rescue Logo"
                   onError={(e) => { e.target.style.display = 'none' }}
                 />
               </div>

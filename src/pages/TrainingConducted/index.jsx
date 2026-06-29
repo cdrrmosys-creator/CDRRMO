@@ -489,11 +489,11 @@ export default function TrainingConducted() {
                       )}
                     </div>
                     {(formData.participants_data || []).length === 0 ? (
-                      <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', background: '#f8fafc', borderRadius: '8px', border: '1px dashed var(--border-light)' }}>No participants added yet.</div>
+                      <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', background: 'var(--bg-app)', borderRadius: '8px', border: '1px dashed var(--border-light)' }}>No participants added yet.</div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '320px', overflowY: 'auto' }}>
                         {(formData.participants_data || []).map((p, idx) => (
-                          <div key={idx} style={{ border: '1px solid var(--border-light)', borderRadius: '8px', padding: '10px 12px', background: '#fafafa', position: 'relative' }}>
+                          <div key={idx} style={{ border: '1px solid var(--border-light)', borderRadius: '8px', padding: '10px 12px', background: 'var(--bg-app)', position: 'relative' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                               <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--primary)' }}>#{idx + 1}</span>
                               {!isViewing && (
@@ -521,7 +521,7 @@ export default function TrainingConducted() {
                                     <select value={p[field] || ''}
                                       onChange={e => { const u = [...(formData.participants_data||[])]; u[idx] = { ...u[idx], [field]: e.target.value }; setFormData(prev => ({ ...prev, participants_data: u })) }}
                                       disabled={isViewing}
-                                      style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid var(--border-light)', fontSize: '12px', background: isViewing ? '#f3f4f6' : 'white' }}>
+                                      style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid var(--border-light)', fontSize: '12px', background: isViewing ? 'var(--bg-app)' : 'var(--bg-surface)', color: 'var(--text-main)' }}>
                                       {opts.map(o => <option key={o} value={o}>{o || '-- Select --'}</option>)}
                                     </select>
                                   ) : (

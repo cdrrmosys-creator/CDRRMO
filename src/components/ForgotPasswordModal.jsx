@@ -118,11 +118,9 @@ export default function ForgotPasswordModal({ onClose }) {
               Request Submitted!
             </h3>
             <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px', lineHeight: '1.75', marginBottom: '24px' }}>
-              Your password reset request has been submitted.
-              An administrator will review and process it shortly.
-              You will be able to log in with the temporary password{' '}
-              <strong style={{ color: '#facc15', fontFamily: 'monospace', letterSpacing: '1px' }}>123456</strong>{' '}
-              once approved.
+              Your password reset request has been submitted successfully.
+              Please wait for an administrator to review and approve your request.
+              You will be notified once your password has been reset.
             </p>
             <button
               onClick={onClose}

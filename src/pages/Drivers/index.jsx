@@ -358,7 +358,7 @@ export default function Drivers() {
                   <div className="form-row">
                     <div className="form-group">
                       <label>Driver ID *</label>
-                      <input type="text" name="driver_id" value={formData.driver_id} onChange={handleInputChange} required disabled style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed', color: '#6b7280' }} />
+                      <input type="text" name="driver_id" value={formData.driver_id} onChange={handleInputChange} required disabled style={{ backgroundColor: 'var(--bg-app)', cursor: 'not-allowed', color: 'var(--text-muted)' }} />
                     </div>
                     <div className="form-group">
                       <label>Full Name *</label>

@@ -7,8 +7,8 @@ export default function Sidebar() {
   const location = useLocation()
 
   const [expandedGroups, setExpandedGroups] = useState({
-    'Personnel': true,
-    'Operations': true,
+    'Personnel': false,
+    'Operations': false,
     'Facilities': false,
     'Fleet': false,
     'Programs': false,
@@ -126,9 +126,17 @@ export default function Sidebar() {
     <div className="sidebar">
       <div className="sidebar-header">
         <div className="sidebar-logo">
-          <i className="ri-shield-flash-line"></i>
+          <img
+            src="https://lh3.googleusercontent.com/d/1H0xg8TFCBl6A2jPycEZNI6dxyX-HmWZ8"
+            alt="CDRRMO Logo"
+            style={{ width: '36px', height: '36px', objectFit: 'contain' }}
+            onError={(e) => { e.target.style.display = 'none' }}
+          />
         </div>
-        <div className="sidebar-brand">CDRRMO</div>
+        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+          <div className="sidebar-brand">CDRRMO</div>
+          <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>Palayan</div>
+        </div>
       </div>
 
       <div className="sidebar-nav">
