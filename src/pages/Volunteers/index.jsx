@@ -5,6 +5,7 @@ import ListPagination from '../../components/ListPagination'
 import ExportModal from '../../components/ExportModal'
 import TableGhostRows from '../../components/TableGhostRows'
 import { useState, useEffect } from 'react'
+import { validateForm } from '../../utils/validation'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
 import { uploadFile, deleteFiles } from '../../services/storage'
@@ -158,6 +159,18 @@ export default function Volunteers() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    // Pre-submit validation
+    const errors = validateForm({
+      'Volunteer Name': { rule: 'name', value: formData.volunteer_name, required: true },
+      'Contact No.': { rule: 'mobile', value: formData.contact_no },
+      'Emergency Contact No.': { rule: 'mobile', value: formData.emergency_contact_no },
+    })
+    if (Object.keys(errors).length > 0) {
+      Object.values(errors).forEach(msg => toast.error(msg))
+      return
+    }
+
     setIsSaving(true)
     try {
       let newPhotoUrls = []

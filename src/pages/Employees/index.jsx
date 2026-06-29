@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { validateForm } from '../../utils/validation'
 import { supabase, supabaseAdmin } from '../../services/supabase'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
@@ -421,6 +422,23 @@ export default function Employees() {
 
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault()
+
+    // Pre-submit validation
+    const errors = validateForm({
+      'Employee Name':     { rule: 'name',   value: formData.name,      required: true },
+      'Email':             { rule: 'email',  value: formData.email },
+      'Contact No.':       { rule: 'mobile', value: formData.contact },
+      'Emergency Contact': { rule: 'mobile', value: formData.emergency_contact_no },
+    })
+    if (Object.keys(errors).length > 0) {
+      Object.values(errors).forEach(msg => toast.error(msg))
+      return
+    }
+    if (emailError) {
+      toast.error('Please fix the email error before saving.')
+      return
+    }
+
     setIsSaving(true)
 
     // Extract fields that should not be sent to the database

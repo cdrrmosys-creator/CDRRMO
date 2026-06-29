@@ -1,3 +1,4 @@
+import { validateForm } from '../../utils/validation'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { format } from 'date-fns'
@@ -156,6 +157,16 @@ export default function DrowningIncidents() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    // Pre-submit validation
+    const errors = validateForm({
+      'Name of Person': { rule: 'name', value: formData.name_of_person },
+    })
+    if (Object.keys(errors).length > 0) {
+      Object.values(errors).forEach(msg => toast.error(msg))
+      return
+    }
+
     setIsSaving(true)
     try {
       let newPhotoUrls = []

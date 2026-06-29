@@ -3,6 +3,7 @@ import ListPagination from '../../components/ListPagination'
 import ExportModal from '../../components/ExportModal'
 import TableGhostRows from '../../components/TableGhostRows'
 import useListPagination from '../../hooks/useListPagination'
+import { validateForm } from '../../utils/validation'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
@@ -323,6 +324,17 @@ export default function ClientSatisfaction() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    // Pre-submit validation
+    const errors = validateForm({
+      'Client Name': { rule: 'name', value: formData.client_name, required: true },
+      'Contact No.': { rule: 'mobile', value: formData.contact_no },
+    })
+    if (Object.keys(errors).length > 0) {
+      Object.values(errors).forEach(msg => toast.error(msg))
+      return
+    }
+
     setIsSaving(true)
 
     // Ensure numeric values for age and ratings are properly typed

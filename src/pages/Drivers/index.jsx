@@ -5,6 +5,7 @@ import ListPagination from '../../components/ListPagination'
 import ExportModal from '../../components/ExportModal'
 import TableGhostRows from '../../components/TableGhostRows'
 import { useState, useEffect } from 'react'
+import { validateForm } from '../../utils/validation'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
 import { uploadFile, deleteFiles } from '../../services/storage'
@@ -139,6 +140,17 @@ export default function Drivers() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    // Pre-submit validation
+    const errors = validateForm({
+      'Driver Name': { rule: 'name', value: formData.name, required: true },
+      'Contact No.': { rule: 'mobile', value: formData.contact },
+    })
+    if (Object.keys(errors).length > 0) {
+      Object.values(errors).forEach(msg => toast.error(msg))
+      return
+    }
+
     setIsSaving(true)
     try {
       let newPhotoUrls = []
