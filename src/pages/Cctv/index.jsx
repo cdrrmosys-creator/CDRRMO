@@ -591,7 +591,7 @@ export default function Cctv() {
                     <div className="form-group">
                       <label>Date Covered (Start) *</label>
                       <input 
-                        type="date" 
+                        max={new Date().toISOString().split('T')[0]} type="date" 
                         name="date_start" 
                         value={formData.date_start} 
                         onChange={handleInputChange} 
@@ -601,7 +601,7 @@ export default function Cctv() {
                     <div className="form-group">
                       <label>Date Covered (End) *</label>
                       <input 
-                        type="date" 
+                        max={new Date().toISOString().split('T')[0]} type="date" 
                         name="date_end" 
                         value={formData.date_end} 
                         onChange={handleInputChange} 

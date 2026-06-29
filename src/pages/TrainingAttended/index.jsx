@@ -446,11 +446,11 @@ export default function TrainingAttended() {
                   <div className="form-row">
                     <div className="form-group">
                       <label>Date Start *</label>
-                      <input type="date" name="date" value={formData.date} onChange={handleInputChange} required />
+                      <input max={new Date().toISOString().split('T')[0]} type="date" name="date" value={formData.date} onChange={handleInputChange} required />
                     </div>
                     <div className="form-group">
                       <label>Date End (Inclusive)</label>
-                      <input type="date" name="date_end" value={formData.date_end} onChange={handleInputChange} min={formData.date} />
+                      <input max={new Date().toISOString().split('T')[0]} type="date" name="date_end" value={formData.date_end} onChange={handleInputChange} min={formData.date} />
                     </div>
                   </div>
 

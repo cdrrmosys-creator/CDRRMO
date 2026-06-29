@@ -690,7 +690,7 @@ export default function Pruning() {
                     <div className="form-group">
                       <label>Date of Request *</label>
                       <input 
-                        type="date" 
+                        max={new Date().toISOString().split('T')[0]} type="date" 
                         name="date_of_request" 
                         value={formData.date_of_request} 
                         onChange={handleInputChange} 
@@ -700,7 +700,7 @@ export default function Pruning() {
                     <div className="form-group">
                       <label>Operation Date</label>
                       <input 
-                        type="date" 
+                        max={new Date().toISOString().split('T')[0]} type="date" 
                         name="date" 
                         value={formData.date} 
                         onChange={handleInputChange} 

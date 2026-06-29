@@ -1170,11 +1170,11 @@ export default function Employees() {
                     <div className="form-group">
                       <label>Date of Birth <span style={{ color: "#dc2626" }}>*</span></label>
                       <input
-                        type="date"
+                        max={new Date().toISOString().split('T')[0]} type="date"
                         name="dob"
                         value={formData.dob}
                         onChange={handleInputChange}
-                        max={new Date().toISOString().split('T')[0]}
+                       
                         required
                       />
                       {formData.dob && (() => {
@@ -1431,7 +1431,7 @@ export default function Employees() {
                       </div>
                       <div className="form-group">
                         <label>Date of Birth</label>
-                        <input type="date" value={child.dob} onChange={e => markListEntryDirty('children', idx, { dob: e.target.value })} />
+                        <input max={new Date().toISOString().split('T')[0]} type="date" value={child.dob} onChange={e => markListEntryDirty('children', idx, { dob: e.target.value })} />
                       </div>
                       {!isViewing && (
                         <>
@@ -1478,11 +1478,11 @@ export default function Employees() {
                         </div>
                         <div className="form-group">
                           <label>From</label>
-                          <input type="date" value={we.date_from} onChange={e => markListEntryDirty('work_experience', idx, { date_from: e.target.value })} />
+                          <input max={new Date().toISOString().split('T')[0]} type="date" value={we.date_from} onChange={e => markListEntryDirty('work_experience', idx, { date_from: e.target.value })} />
                         </div>
                         <div className="form-group">
                           <label>To</label>
-                          <input type="date" value={we.date_to} onChange={e => markListEntryDirty('work_experience', idx, { date_to: e.target.value })} />
+                          <input max={new Date().toISOString().split('T')[0]} type="date" value={we.date_to} onChange={e => markListEntryDirty('work_experience', idx, { date_to: e.target.value })} />
                         </div>
                         {!isViewing && (
                           <>
@@ -1529,7 +1529,7 @@ export default function Employees() {
                         </div>
                         <div className="form-group" style={{ flex: '1 1 130px' }}>
                           <label>Date of Training</label>
-                          <input type="date" value={tr.date} onChange={e => markListEntryDirty('trainings_attended', idx, { date: e.target.value })} />
+                          <input max={new Date().toISOString().split('T')[0]} type="date" value={tr.date} onChange={e => markListEntryDirty('trainings_attended', idx, { date: e.target.value })} />
                         </div>
                         <div className="form-group" style={{ flex: '1 1 150px' }}>
                           <label>Conducted By</label>

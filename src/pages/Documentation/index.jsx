@@ -690,7 +690,7 @@ export default function Documentation() {
                     <div className="form-group">
                       <label>Date Filed *</label>
                       <input
-                        type="date"
+                        max={new Date().toISOString().split('T')[0]} type="date"
                         name="date_filed"
                         value={formData.date_filed}
                         onChange={handleInputChange}

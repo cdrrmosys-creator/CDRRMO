@@ -1361,3 +1361,20 @@ tbody td {
 .confirm-btn-info:hover {
   background: #1d4ed8;
 }
+
+/* Scrollbar styling for Dark Mode compatibility */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-body);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-dark);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+

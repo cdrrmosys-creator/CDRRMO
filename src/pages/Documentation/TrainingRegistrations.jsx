@@ -378,7 +378,7 @@ export default function TrainingRegistrations() {
               <div className="form-row">
                 <div className="form-group">
                   <label>Birth Date *</label>
-                  <input type="date" name="birth_date" value={formData.birth_date} onChange={handleInputChange} required />
+                  <input max={new Date().toISOString().split('T')[0]} type="date" name="birth_date" value={formData.birth_date} onChange={handleInputChange} required />
                 </div>
                 <div className="form-group">
                   <label>Office / School / Organization / Company</label>

@@ -108,14 +108,14 @@ export default function ModuleToolbar({
       {onDateRangeChange && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <input
-            type="date"
+            max={new Date().toISOString().split('T')[0]} type="date"
             value={dateStart}
             onChange={e => handleDateStartChange(e.target.value)}
             style={{ padding: '7px 8px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: 'var(--text)' }}
           />
           <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>–</span>
           <input
-            type="date"
+            max={new Date().toISOString().split('T')[0]} type="date"
             value={dateEnd}
             onChange={e => handleDateEndChange(e.target.value)}
             style={{ padding: '7px 8px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: 'var(--text)' }}

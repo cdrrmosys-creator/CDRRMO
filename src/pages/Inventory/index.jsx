@@ -657,7 +657,7 @@ const handleOpenAdd = () => {
                     </div>
                     <div className="form-group">
                       <label>Date Acquired *</label>
-                      <input type="date" name="date_acquired" value={formData.date_acquired} onChange={handleInputChange} required style={{ padding: '8px' }} />
+                      <input max={new Date().toISOString().split('T')[0]} type="date" name="date_acquired" value={formData.date_acquired} onChange={handleInputChange} required style={{ padding: '8px' }} />
                     </div>
                   </div>
                   

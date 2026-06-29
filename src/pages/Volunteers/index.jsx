@@ -395,7 +395,7 @@ export default function Volunteers() {
                   <div className="form-row">
                     <div className="form-group">
                       <label>Birthdate</label>
-                      <input type="date" name="birthdate" value={formData.birthdate} onChange={handleInputChange} />
+                      <input max={new Date().toISOString().split('T')[0]} type="date" name="birthdate" value={formData.birthdate} onChange={handleInputChange} />
                     </div>
                     <div className="form-group">
                       <label>Civil Status</label>
@@ -445,7 +445,7 @@ export default function Volunteers() {
                   <div className="form-row">
                     <div className="form-group">
                       <label>Date Registered</label>
-                      <input type="date" name="date" value={formData.date} onChange={handleInputChange} />
+                      <input max={new Date().toISOString().split('T')[0]} type="date" name="date" value={formData.date} onChange={handleInputChange} />
                     </div>
                     <div className="form-group">
                       <label>Status</label>

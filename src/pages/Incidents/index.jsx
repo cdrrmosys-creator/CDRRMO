@@ -623,7 +623,7 @@ export default function Incidents() {
                   <div className="form-row" style={{ gap: '12px' }}>
                     <div className="form-group" style={{ marginBottom: '8px' }}>
                       <label style={{ marginBottom: '4px', fontWeight: '600' }}>Date *</label>
-                      <input type="date" name="date" value={formData.date} onChange={handleInputChange} required style={{ padding: '6px' }} />
+                      <input max={new Date().toISOString().split('T')[0]} type="date" name="date" value={formData.date} onChange={handleInputChange} required style={{ padding: '6px' }} />
                     </div>
                     <div className="form-group">
                     <label style={{ marginBottom: '4px', fontWeight: '600' }}>TIME OF CALL *</label>

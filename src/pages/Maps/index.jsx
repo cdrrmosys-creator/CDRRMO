@@ -415,7 +415,7 @@ const handleOpenAdd = () => {
             <div className="form-group">
               <label>Date Updated</label>
               <input 
-                type="date" 
+                max={new Date().toISOString().split('T')[0]} type="date" 
                 name="date_updated" 
                 value={formData.date_updated} 
                 onChange={handleInputChange} 

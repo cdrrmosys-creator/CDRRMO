@@ -353,7 +353,7 @@ export default function DrrmTraining() {
                 </div>
                 <div className="form-group">
                   <label>Birthdate *</label>
-                  <input type="date" name="birthdate" value={formData.birthdate} onChange={handleInputChange} required />
+                  <input max={new Date().toISOString().split('T')[0]} type="date" name="birthdate" value={formData.birthdate} onChange={handleInputChange} required />
                 </div>
               </div>
 

@@ -373,7 +373,7 @@ export default function Drivers() {
                     </div>
                     <div className="form-group">
                       <label>License Expiry</label>
-                      <input type="date" name="license_expiry" value={formData.license_expiry} onChange={handleInputChange} />
+                      <input max={new Date().toISOString().split('T')[0]} type="date" name="license_expiry" value={formData.license_expiry} onChange={handleInputChange} />
                     </div>
                   </div>
 

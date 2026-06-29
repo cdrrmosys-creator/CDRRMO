@@ -523,7 +523,7 @@ export default function Topbar() {
                             </div>
                             <div className="form-group"><label>Home Address *</label><textarea name="address" value={formData.address || ''} onChange={handleInputChange} rows={2} required /></div>
                             <div className="form-row">
-                              <div className="form-group"><label>Date of Birth *</label><input type="date" name="dob" value={formData.dob || ''} onChange={handleInputChange} required /></div>
+                              <div className="form-group"><label>Date of Birth *</label><input max={new Date().toISOString().split('T')[0]} type="date" name="dob" value={formData.dob || ''} onChange={handleInputChange} required /></div>
                               <div className="form-group"><label>Place of Birth *</label><input type="text" name="pob" value={formData.pob || ''} onChange={handleInputChange} required /></div>
                             </div>
                             <div className="form-row">
@@ -609,7 +609,7 @@ export default function Topbar() {
                             {(formData.children || []).map((child, idx) => (
                               <div key={idx} className="form-row" style={{ alignItems: 'flex-end', marginBottom: '6px' }}>
                                 <div className="form-group"><label>Name</label><input type="text" value={child.name} onChange={e => { const u = [...formData.children]; u[idx] = { ...u[idx], name: e.target.value }; setFormData(p => ({ ...p, children: u })) }} /></div>
-                                <div className="form-group"><label>Date of Birth</label><input type="date" value={child.dob} onChange={e => { const u = [...formData.children]; u[idx] = { ...u[idx], dob: e.target.value }; setFormData(p => ({ ...p, children: u })) }} /></div>
+                                <div className="form-group"><label>Date of Birth</label><input max={new Date().toISOString().split('T')[0]} type="date" value={child.dob} onChange={e => { const u = [...formData.children]; u[idx] = { ...u[idx], dob: e.target.value }; setFormData(p => ({ ...p, children: u })) }} /></div>
                                 {!isViewMode && (
                                   <button type="button" onClick={() => setFormData(p => ({ ...p, children: p.children.filter((_, i) => i !== idx) }))}
                                     style={{ padding: '8px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', flexShrink: 0, marginBottom: '2px' }}>
@@ -638,8 +638,8 @@ export default function Topbar() {
                               <div key={idx} style={{ background: 'var(--bg-app)', borderRadius: '8px', padding: '12px', marginBottom: '10px', border: '1px solid var(--border-light)' }}>
                                 <div className="form-row" style={{ marginBottom: '6px' }}>
                                   <div className="form-group" style={{ flex: 2 }}><label>Job Description</label><input type="text" value={we.job_description} onChange={e => { const u = [...formData.work_experience]; u[idx] = { ...u[idx], job_description: e.target.value }; setFormData(p => ({ ...p, work_experience: u })) }} /></div>
-                                  <div className="form-group"><label>From</label><input type="date" value={we.date_from} onChange={e => { const u = [...formData.work_experience]; u[idx] = { ...u[idx], date_from: e.target.value }; setFormData(p => ({ ...p, work_experience: u })) }} /></div>
-                                  <div className="form-group"><label>To</label><input type="date" value={we.date_to} onChange={e => { const u = [...formData.work_experience]; u[idx] = { ...u[idx], date_to: e.target.value }; setFormData(p => ({ ...p, work_experience: u })) }} /></div>
+                                  <div className="form-group"><label>From</label><input max={new Date().toISOString().split('T')[0]} type="date" value={we.date_from} onChange={e => { const u = [...formData.work_experience]; u[idx] = { ...u[idx], date_from: e.target.value }; setFormData(p => ({ ...p, work_experience: u })) }} /></div>
+                                  <div className="form-group"><label>To</label><input max={new Date().toISOString().split('T')[0]} type="date" value={we.date_to} onChange={e => { const u = [...formData.work_experience]; u[idx] = { ...u[idx], date_to: e.target.value }; setFormData(p => ({ ...p, work_experience: u })) }} /></div>
                                   {!isViewMode && (
                                     <button type="button" onClick={() => setFormData(p => ({ ...p, work_experience: p.work_experience.filter((_, i) => i !== idx) }))}
                                       style={{ padding: '8px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', flexShrink: 0, alignSelf: 'flex-end', marginBottom: '2px' }}>
@@ -669,7 +669,7 @@ export default function Topbar() {
                               <div key={idx} style={{ background: 'var(--bg-app)', borderRadius: '8px', padding: '12px', marginBottom: '10px', border: '1px solid var(--border-light)' }}>
                                 <div className="form-row" style={{ flexWrap: 'wrap', gap: '8px' }}>
                                   <div className="form-group" style={{ flex: '2 1 180px' }}><label>Training / Seminar</label><input type="text" value={tr.seminar} onChange={e => { const u = [...formData.trainings_attended]; u[idx] = { ...u[idx], seminar: e.target.value }; setFormData(p => ({ ...p, trainings_attended: u })) }} /></div>
-                                  <div className="form-group" style={{ flex: '1 1 130px' }}><label>Date of Training</label><input type="date" value={tr.date} onChange={e => { const u = [...formData.trainings_attended]; u[idx] = { ...u[idx], date: e.target.value }; setFormData(p => ({ ...p, trainings_attended: u })) }} /></div>
+                                  <div className="form-group" style={{ flex: '1 1 130px' }}><label>Date of Training</label><input max={new Date().toISOString().split('T')[0]} type="date" value={tr.date} onChange={e => { const u = [...formData.trainings_attended]; u[idx] = { ...u[idx], date: e.target.value }; setFormData(p => ({ ...p, trainings_attended: u })) }} /></div>
                                   <div className="form-group" style={{ flex: '1 1 150px' }}><label>Conducted By</label><input type="text" value={tr.conducted_by} onChange={e => { const u = [...formData.trainings_attended]; u[idx] = { ...u[idx], conducted_by: e.target.value }; setFormData(p => ({ ...p, trainings_attended: u })) }} /></div>
                                   <div className="form-group" style={{ flex: '1 1 150px' }}><label>Training Venue</label><input type="text" value={tr.venue} onChange={e => { const u = [...formData.trainings_attended]; u[idx] = { ...u[idx], venue: e.target.value }; setFormData(p => ({ ...p, trainings_attended: u })) }} /></div>
                                   {!isViewMode && (

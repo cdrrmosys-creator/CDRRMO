@@ -450,7 +450,7 @@ export default function TrainingConducted() {
                     
                     <div className="form-group">
                       <label>Date *</label>
-                      <input type="date" name="date" value={formData.date} onChange={handleInputChange} required />
+                      <input max={new Date().toISOString().split('T')[0]} type="date" name="date" value={formData.date} onChange={handleInputChange} required />
                     </div>
                   </div>
 

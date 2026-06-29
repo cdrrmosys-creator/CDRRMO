@@ -102,7 +102,7 @@ export default function ExportModal({
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>From</label>
               <input
-                type="date"
+                max={new Date().toISOString().split('T')[0]} type="date"
                 value={exportFrom}
                 onChange={e => setExportFrom(e.target.value)}
                 style={{ width: '100%', padding: '9px 10px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-app)', fontSize: '13px', color: 'var(--text)', boxSizing: 'border-box' }}
@@ -111,7 +111,7 @@ export default function ExportModal({
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>To</label>
               <input
-                type="date"
+                max={new Date().toISOString().split('T')[0]} type="date"
                 value={exportTo}
                 min={exportFrom || undefined}
                 onChange={e => setExportTo(e.target.value)}
