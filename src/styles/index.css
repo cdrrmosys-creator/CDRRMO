@@ -25,6 +25,22 @@
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 24px;
+  --topbar-bg: rgba(255, 255, 255, 0.8);
+}
+
+[data-theme="dark"] {
+  --primary-bg: rgba(220, 38, 38, 0.1);
+  --bg-app: #0f172a;
+  --bg-surface: #1e293b;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-light: #334155;
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5);
+  --shadow-float: 0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.5);
+  --topbar-bg: rgba(30, 41, 59, 0.8);
 }
 
 /* Reset */
@@ -538,7 +554,7 @@ body {
 /* Topbar */
 .topbar {
   height: var(--topbar-h);
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--topbar-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   display: flex;

@@ -159,24 +159,26 @@ export default function Sidebar() {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    padding: '8px 14px',
+                    padding: '10px 14px',
                     borderRadius: '8px',
                     color: hasActiveChild ? 'var(--text-main)' : 'var(--text-muted)',
                     cursor: hasActiveChild ? 'default' : 'pointer',
-                    fontWeight: 600,
-                    fontSize: '13px',
+                    fontWeight: 800,
+                    fontSize: '11px',
+                    letterSpacing: '0.5px',
+                    textTransform: 'uppercase',
                     transition: 'all 0.2s',
-                    background: isExpanded ? 'rgba(0,0,0,0.02)' : 'transparent',
+                    background: isExpanded ? 'rgba(220, 38, 38, 0.08)' : 'transparent',
                     marginBottom: isExpanded ? '4px' : '0'
                   }}
-                  onMouseEnter={(e) => { if (!hasActiveChild) e.currentTarget.style.background = 'var(--bg-surface)' }}
-                  onMouseLeave={(e) => { if (!hasActiveChild) e.currentTarget.style.background = isExpanded ? 'rgba(0,0,0,0.02)' : 'transparent' }}
+                  onMouseEnter={(e) => { if (!hasActiveChild) e.currentTarget.style.background = isExpanded ? 'rgba(220, 38, 38, 0.12)' : 'var(--bg-surface)' }}
+                  onMouseLeave={(e) => { if (!hasActiveChild) e.currentTarget.style.background = isExpanded ? 'rgba(220, 38, 38, 0.08)' : 'transparent' }}
                 >
-                  <i className={group.icon} style={{ marginRight: '12px', fontSize: '18px', color: hasActiveChild ? 'var(--primary)' : 'inherit' }}></i>
+                  <i className={group.icon} style={{ marginRight: '12px', fontSize: '16px', color: hasActiveChild ? 'var(--primary)' : 'inherit' }}></i>
                   <span style={{ flex: 1 }}>{group.title}</span>
                   {/* Only show arrow when group is collapsible (no active child) */}
                   {!hasActiveChild && (
-                    <i className={`ri-arrow-${isExpanded ? 'down' : 'right'}-s-line`} style={{ opacity: 0.5 }}></i>
+                    <i className={`ri-arrow-${isExpanded ? 'down' : 'right'}-s-line`} style={{ opacity: 0.7, fontSize: '18px' }}></i>
                   )}
                 </div>
                 

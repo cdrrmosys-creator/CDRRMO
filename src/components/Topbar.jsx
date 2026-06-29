@@ -58,6 +58,21 @@ export default function Topbar() {
   // ── Global search ────────────────────────────────────────────────────
   const [searchTerm, setSearchTerm] = useState('')
   const [results, setResults] = useState([])
+
+  // ── Dark mode state ──────────────────────────────────────────────────
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('theme') === 'dark'
+  })
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.setAttribute('data-theme', 'dark')
+      localStorage.setItem('theme', 'dark')
+    } else {
+      document.documentElement.removeAttribute('data-theme')
+      localStorage.setItem('theme', 'light')
+    }
+  }, [isDarkMode])
   const [isSearching, setIsSearching] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
   const searchRef = useRef(null)
@@ -403,6 +418,20 @@ export default function Topbar() {
             {user?.email || 'User'}
           </div>
         )}
+        <button 
+          type="button" 
+          onClick={() => setIsDarkMode(prev => !prev)}
+          style={{
+            background: 'var(--bg-app)', border: '1px solid var(--border-light)',
+            width: '36px', height: '36px', borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', color: isDarkMode ? '#facc15' : 'var(--text-muted)',
+            marginRight: '8px', transition: 'all 0.2s'
+          }}
+          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          <i className={isDarkMode ? 'ri-moon-fill' : 'ri-sun-line'} style={{ fontSize: '18px' }}></i>
+        </button>
         <button className="btn-logout" onClick={handleLogout}>
           <i className="ri-logout-box-line"></i>
           Logout
