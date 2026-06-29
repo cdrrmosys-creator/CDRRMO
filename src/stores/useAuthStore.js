@@ -5,18 +5,19 @@ import { supabase } from '../services/supabase'
 export const useAuthStore = create((set, get) => ({
   user: null,
   session: null,
-  loading: true,
+  loading: false,
+  initializing: true,   // true only during the first session check
   error: null,
 
   // Initialize auth state
   initialize: async () => {
     try {
-      set({ loading: true })
+      set({ initializing: true })
       const session = await auth.getSession()
       set({ 
         user: session?.user ?? null, 
         session,
-        loading: false 
+        initializing: false 
       })
 
       // Listen for auth changes
@@ -27,7 +28,7 @@ export const useAuthStore = create((set, get) => ({
         })
       })
     } catch (error) {
-      set({ error: error.message, loading: false })
+      set({ error: error.message, initializing: false })
     }
   },
 

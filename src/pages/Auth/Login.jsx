@@ -5,16 +5,26 @@ import { useToast } from '../../components/Toast'
 
 export default function Login() {
   const navigate = useNavigate()
-  const { signIn, loading } = useAuthStore()
+  const { signIn } = useAuthStore()
   const toast = useToast()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [shake, setShake] = useState(false)
+
+  const triggerShake = () => {
+    setShake(true)
+    setTimeout(() => setShake(false), 600)
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (isSubmitting) return
+
     setError('')
+    setIsSubmitting(true)
 
     let email = username.trim()
     // Fallback: If it's not a valid email, append default domain
@@ -25,17 +35,29 @@ export default function Login() {
     try {
       const res = await signIn(email, password)
       if (res && !res.success) {
-        const errorMsg = res.error || 'Invalid credentials. Please try again.'
+        const rawMsg = res.error || 'Invalid credentials. Please try again.'
+        const errorMsg = rawMsg.toLowerCase().includes('invalid login credentials')
+          ? 'Incorrect username or password. Please try again.'
+          : rawMsg
+        setPassword('')
         setError(errorMsg)
+        triggerShake()
         toast.error(errorMsg)
       } else {
         navigate('/')
       }
     } catch (err) {
       console.error('Login error:', err)
-      const errorMsg = err.message || 'Invalid credentials. Please try again.'
+      const rawMsg = err.message || 'Invalid credentials. Please try again.'
+      const errorMsg = rawMsg.toLowerCase().includes('invalid login credentials')
+        ? 'Incorrect username or password. Please try again.'
+        : rawMsg
+      setPassword('')
       setError(errorMsg)
+      triggerShake()
       toast.error(errorMsg)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -103,33 +125,49 @@ export default function Login() {
                 </div>
               </div>
 
-              {error && (
-                <div style={{
-                  padding: '12px',
-                  background: 'rgba(220, 38, 38, 0.15)',
-                  border: '1px solid rgba(220, 38, 38, 0.4)',
-                  borderRadius: '8px',
-                  color: '#fca5a5',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <i className="ri-error-warning-line" style={{ fontSize: '16px', flexShrink: 0 }}></i>
-                  <span>{error}</span>
-                </div>
-              )}
+              <div
+                role="alert"
+                aria-live="assertive"
+                style={{ minHeight: error ? 'auto' : '0' }}
+              >
+                {error && (
+                  <div style={{
+                    padding: '12px',
+                    background: 'rgba(220, 38, 38, 0.15)',
+                    border: '1px solid rgba(220, 38, 38, 0.4)',
+                    borderRadius: '8px',
+                    color: '#fca5a5',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    animation: shake ? 'loginShake 0.5s ease' : 'none'
+                  }}>
+                    <i className="ri-error-warning-line" style={{ fontSize: '16px', flexShrink: 0 }}></i>
+                    <span>{error}</span>
+                  </div>
+                )}
+              </div>
 
 
-              <button type="submit" className="btn-primary" disabled={loading} style={{ width: '100%', display: 'block' }}>
-                {loading ? (
-                  <>
-                    <i className="ri-loader-4-line" style={{ animation: 'spin 1s linear infinite', marginRight: '8px' }}></i>
+              <button type="submit" className="btn-primary" disabled={isSubmitting} style={{ width: '100%', display: 'block' }}>
+                {isSubmitting ? (
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                    <span style={{
+                      width: '18px',
+                      height: '18px',
+                      borderRadius: '50%',
+                      border: '2.5px solid rgba(255,255,255,0.3)',
+                      borderTopColor: '#fff',
+                      display: 'inline-block',
+                      animation: 'loginSpin 0.7s linear infinite',
+                      flexShrink: 0
+                    }} />
                     Verifying...
-                  </>
+                  </span>
                 ) : (
-                  "Sign In"
+                  'Sign In'
                 )}
               </button>
             </form>

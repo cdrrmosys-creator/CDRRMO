@@ -36,13 +36,13 @@ import UserPermissions from './pages/UserPermissions'
 import Layout from './components/Layout'
 
 function App() {
-  const { user, loading, initialize } = useAuthStore()
+  const { user, initializing, initialize } = useAuthStore()
 
   useEffect(() => {
     initialize()
   }, [initialize])
 
-  if (loading) {
+  if (initializing) {
     return (
       <div className="loading-container">
         <i className="ri-loader-4-line loading-spinner"></i>
