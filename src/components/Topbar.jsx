@@ -6,6 +6,7 @@ import { supabase, supabaseAdmin } from '../services/supabase'
 import { uploadFile, deleteFiles } from '../services/storage'
 import { exportEmployeeProfile } from '../utils/exportEmployeeProfile'
 import { useToast } from './Toast'
+import { useConfirm } from './ConfirmDialog'
 import ImageCropper from './ImageCropper'
 
 const PROFILE_TABS = [
@@ -54,6 +55,7 @@ export default function Topbar() {
   const navigate = useNavigate()
   const { signOut, user } = useAuthStore()
   const toast = useToast()
+  const confirm = useConfirm()
 
   // ── Global search ────────────────────────────────────────────────────
   const [searchTerm, setSearchTerm] = useState('')
@@ -135,11 +137,20 @@ export default function Topbar() {
   }
 
   const handleLogout = async () => {
-    try {
-      await signOut()
-      navigate('/login')
-    } catch (error) {
-      console.error('Logout error:', error)
+    const isConfirmed = await confirm('Are you sure you want to sign out?', {
+      title: 'Confirm Logout',
+      confirmText: 'Logout',
+      variant: 'danger',
+      icon: 'ri-logout-box-line'
+    })
+
+    if (isConfirmed) {
+      try {
+        await signOut()
+        navigate('/login')
+      } catch (error) {
+        console.error('Logout error:', error)
+      }
     }
   }
 
