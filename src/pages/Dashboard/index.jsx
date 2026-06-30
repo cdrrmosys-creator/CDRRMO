@@ -227,7 +227,7 @@ export default function Dashboard() {
         supabase.from('volunteers').select('id, status', { count: 'exact' }),
         supabase.from('incidents').select('severity, nature_of_incident, date, time_of_call, place_of_incident, record_id, team').order('date', { ascending: false }),
         supabase.from('drowning_incidents').select('date, location, victim_name'),
-        supabase.from('transport').select('date, patient_name, destination'),
+        supabase.from('transport').select('date_time, patient_name, destination'),
         supabase.from('pruning_trimming').select('date_of_request, location, status'),
         supabase.from('events_assistance').select('date, event_name, location'),
         supabase.from('vouchers').select('date, amount')
@@ -303,7 +303,7 @@ export default function Dashboard() {
 
       // Recent Service Requests Feed
       const reqList = [
-        ...(transD || []).map(r => ({ date: r.date, title: 'Transport: ' + (r.patient_name || 'Patient'), location: r.destination, type: 'Transport', icon: 'ri-taxi-line' })),
+        ...(transD || []).map(r => ({ date: r.date_time, title: 'Transport: ' + (r.patient_name || 'Patient'), location: r.destination, type: 'Transport', icon: 'ri-taxi-line' })),
         ...(pruneD || []).map(r => ({ date: r.date_of_request, title: 'Pruning & Trimming', location: r.location, type: 'Pruning', icon: 'ri-scissors-line' })),
         ...(evtsD || []).map(r => ({ date: r.date, title: 'Event: ' + (r.event_name || 'Event'), location: r.location, type: 'Event', icon: 'ri-calendar-event-line' }))
       ]

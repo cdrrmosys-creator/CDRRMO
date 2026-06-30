@@ -43,7 +43,8 @@ const INITIAL_FORM_STATE = {
   action_given: '',
   others_specify: '',
   description: '',
-  photos: []
+  photos: [],
+  status: 'Scheduled'
 }
 
 // Custom tooltip for chart
@@ -118,7 +119,7 @@ export default function Transport() {
   // Chart states
   const [trendPeriod, setTrendPeriod] = useState('month')
   const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'))
-  const [selectedYear, setSelectedYear] = useState(() => format(new Date(), 'yyyy'))
+  const [selectedYear, setSelectedYear] = useState('2024')
   const [chartData, setChartData] = useState([])
   const [viewMode, setViewMode] = useState('list')
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -297,6 +298,18 @@ export default function Transport() {
     setIsModalOpen(true)
   }
 
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      const { error } = await supabase.from('transport').update({ status: newStatus }).eq('id', id)
+      if (error) throw error
+      setRecords(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r))
+      toast.success('Status updated successfully')
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to update status. Please ensure the SQL migration to add the status column has been run.')
+    }
+  }
+
   const handleOpenEdit = (rec) => {
     setIsEditing(true)
     setIsViewing(false)
@@ -340,6 +353,7 @@ export default function Transport() {
       action_given: rec.action_given || '',
       others_specify: rec.others_specify || '',
       description: rec.description || '',
+      status: rec.status || 'Scheduled',
       photos: rec.photos || []
     })
     setIsModalOpen(true)
@@ -690,15 +704,68 @@ export default function Transport() {
                   <td style={{ fontWeight: '600', color: 'var(--primary)' }}>{record.patient_name || '-'}</td>
                   <td>{record.contact_person || '-'}</td>
                   <td>
-                    {record.is_rescheduled ? (
-                      <span style={{ padding: '4px 8px', borderRadius: '4px', background: '#fef3c7', color: '#92400e', fontSize: '12px', fontWeight: '600' }}>
-                        Rescheduled
-                      </span>
-                    ) : (
-                      <span style={{ padding: '4px 8px', borderRadius: '4px', background: '#d1fae5', color: '#065f46', fontSize: '12px', fontWeight: '600' }}>
-                        Scheduled
-                      </span>
-                    )}
+                    {(() => {
+                      // Fallback computation if record.status is not set in DB yet
+                      const targetDate = record.is_rescheduled && record.reschedule_date ? new Date(record.reschedule_date) : new Date(record.date_time);
+                      const isCompleted = targetDate < new Date();
+                      
+                      let currentStatus = record.status;
+                      if (!currentStatus) {
+                        currentStatus = isCompleted ? 'Completed' : (record.is_rescheduled ? 'Rescheduled' : 'Scheduled');
+                      }
+
+                      const getBgColor = (s) => {
+                        if (s === 'Completed') return '#d1fae5';
+                        if (s === 'Rescheduled') return '#fef3c7';
+                        if (s === 'Cancelled') return '#fee2e2';
+                        if (s === 'In Progress') return '#e0f2fe';
+                        return '#e0e7ff';
+                      }
+                      
+                      const getTextColor = (s) => {
+                        if (s === 'Completed') return '#065f46';
+                        if (s === 'Rescheduled') return '#92400e';
+                        if (s === 'Cancelled') return '#991b1b';
+                        if (s === 'In Progress') return '#0369a1';
+                        return '#3730a3';
+                      }
+
+                      if (canUpdate) {
+                        return (
+                          <select 
+                            value={currentStatus}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleStatusChange(record.id, e.target.value);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ 
+                              padding: '4px 8px', 
+                              borderRadius: '4px', 
+                              background: getBgColor(currentStatus), 
+                              color: getTextColor(currentStatus), 
+                              fontSize: '12px', 
+                              fontWeight: '600',
+                              border: '1px solid transparent',
+                              outline: 'none',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <option value="Scheduled">Scheduled</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Rescheduled">Rescheduled</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </select>
+                        )
+                      }
+                      
+                      return (
+                        <span style={{ padding: '4px 8px', borderRadius: '4px', background: getBgColor(currentStatus), color: getTextColor(currentStatus), fontSize: '12px', fontWeight: '600' }}>
+                          {currentStatus}
+                        </span>
+                      )
+                    })()}
                   </td>
                 </tr>
               ))}

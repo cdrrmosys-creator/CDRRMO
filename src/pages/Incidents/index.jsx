@@ -27,12 +27,37 @@ const formatTime = (t) => {
   const match = str.match(/(\d{1,2}):(\d{2})/)
   if (!match) return str
 
-  const h = parseInt(match[1], 10)
+  let h = parseInt(match[1], 10)
   const m = match[2]
   if (isNaN(h)) return str
+  
+  const isPMStr = /pm/i.test(str)
+  const isAMStr = /am/i.test(str)
+  if (isPMStr && h < 12) h += 12
+  if (isAMStr && h === 12) h = 0
+
   const period = h >= 12 ? 'PM' : 'AM'
   const h12 = h % 12 || 12
   return `${h12}:${m} ${period}`
+}
+
+const toInputTime = (t) => {
+  if (!t) return ''
+  const str = String(t).trim()
+  const match = str.match(/(\d{1,2}):(\d{2})/)
+  if (!match) return str
+  
+  let h = parseInt(match[1], 10)
+  const m = match[2]
+  if (isNaN(h)) return str
+  
+  const isPMStr = /pm/i.test(str)
+  const isAMStr = /am/i.test(str)
+  if (isPMStr && h < 12) h += 12
+  if (isAMStr && h === 12) h = 0
+  
+  const hh = h.toString().padStart(2, '0')
+  return `${hh}:${m}`
 }
 
 const INITIAL_FORM_STATE = {
@@ -227,12 +252,27 @@ export default function Incidents() {
     setPendingPhotos([])
 
     // Handle vehicle value — if it's not one of the known options, put it in vehicle_other
-    const knownVehicles = ['', 'N/A', 'Single Motor', 'Tricycle', 'Kolong kolong', 'Other']
+    const actualKnownVeh = ['', 'N/A', 'Single Motor', 'Tricycle', 'Kolong kolong', 'Other']
+    const knownVehiclesLower = actualKnownVeh.map(v => v.toLowerCase())
     let vehicleVal = inc.vehicle || ''
     let vehicleOtherVal = inc.vehicle_other || ''
-    if (vehicleVal && !knownVehicles.includes(vehicleVal)) {
+    if (vehicleVal && !knownVehiclesLower.includes(vehicleVal.toLowerCase())) {
       vehicleOtherVal = vehicleVal
       vehicleVal = 'Other'
+    } else if (vehicleVal) {
+      vehicleVal = actualKnownVeh.find(v => v.toLowerCase() === vehicleVal.toLowerCase()) || vehicleVal
+    }
+
+    // Handle transfer_to value similarly
+    const actualKnownTransferTo = ['', 'PJG', 'Good Sam', 'Eduardo', 'Nueva Ecija Doctors', 'Infirmary Hospital', 'Other']
+    const knownTransferToLower = actualKnownTransferTo.map(v => v.toLowerCase())
+    let transferToVal = inc.transfer_to || ''
+    let transferToOtherVal = inc.transfer_to_other || ''
+    if (transferToVal && !knownTransferToLower.includes(transferToVal.toLowerCase())) {
+      transferToOtherVal = transferToVal
+      transferToVal = 'Other'
+    } else if (transferToVal) {
+      transferToVal = actualKnownTransferTo.find(v => v.toLowerCase() === transferToVal.toLowerCase()) || transferToVal
     }
 
     setFormData({
@@ -240,6 +280,14 @@ export default function Incidents() {
       ...inc,
       vehicle: vehicleVal,
       vehicle_other: vehicleOtherVal,
+      transfer_to: transferToVal,
+      transfer_to_other: transferToOtherVal,
+      time_of_call: toInputTime(inc.time_of_call),
+      time_of_arrival_at_scene: toInputTime(inc.time_of_arrival_at_scene),
+      time_of_departure_at_scene: toInputTime(inc.time_of_departure_at_scene),
+      time_of_arrival_at_hosp: toInputTime(inc.time_of_arrival_at_hosp),
+      time_of_departure_at_hosp: toInputTime(inc.time_of_departure_at_hosp),
+      back_to_base: toInputTime(inc.back_to_base),
       photos: inc.photos || []
     })
     setIsModalOpen(true)
@@ -503,12 +551,13 @@ export default function Incidents() {
         <div className="data-table">
           <table style={{ tableLayout: 'fixed', width: '100%' }}>
             <colgroup>
-              <col style={{ width: '13%'  }} />{/* Date */}
+              <col style={{ width: '12%'  }} />{/* Date */}
               <col style={{ width: '9%'   }} />{/* Time of Call */}
               <col style={{ width: '8%'   }} />{/* Team */}
-              <col style={{ width: '25%'  }} />{/* Nature */}
-              <col style={{ width: '17%'  }} />{/* Victim */}
-              <col />{/* Place — remaining */}
+              <col style={{ width: '22%'  }} />{/* Nature */}
+              <col style={{ width: '15%'  }} />{/* Victim */}
+              <col style={{ width: '16%'  }} />{/* Place */}
+              <col />{/* Transfer To — remaining */}
             </colgroup>
             <thead>
               <tr>
@@ -518,6 +567,7 @@ export default function Incidents() {
                 <th>Nature of Incident</th>
                 <th>Victim</th>
                 <th>Place of Incident</th>
+                <th>Transfer To</th>
               </tr>
             </thead>
             <tbody>
@@ -550,9 +600,12 @@ export default function Incidents() {
                   <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {incident.place_of_incident || '-'}
                   </td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
+                    {incident.transfer_to === 'Other' ? incident.transfer_to_other : (incident.transfer_to || '-')}
+                  </td>
                 </tr>
               ))}
-              <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={6} />
+              <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={7} />
             </tbody>
           </table>
         </div>
@@ -884,6 +937,7 @@ export default function Incidents() {
                             <option value="Good Sam">Good Samaritan Hospital</option>
                             <option value="Eduardo">Eduardo L. Joson Memorial Hospital</option>
                             <option value="Nueva Ecija Doctors">Nueva Ecija Doctors Hospital</option>
+                            <option value="Infirmary Hospital">Infirmary Hospital</option>
                             <option value="Other">Other</option>
                           </select>
                         </div>
