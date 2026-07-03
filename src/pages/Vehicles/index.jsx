@@ -13,6 +13,7 @@ import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
+import StatusSelect from '../../components/StatusSelect'
 import { uploadFile, deleteFiles } from '../../services/storage'
 import { compressImage } from '../../utils/imageCompression'
 
@@ -301,29 +302,12 @@ const handleOpenAdd = () => {
     }
   }
 
-  const getStatusBadge = (status) => {
-    const colors = {
-      'Available': { bg: '#d1fae5', color: '#065f46' },
-      'In Use': { bg: '#fef3c7', color: '#92400e' },
-      'Maintenance': { bg: '#fee2e2', color: '#991b1b' },
-      'Unavailable': { bg: '#f3f4f6', color: '#374151' }
-    }
-    const style = colors[status] || colors['Available']
-    
-    return (
-      <span style={{
-        display: 'inline-block',
-        padding: '4px 12px',
-        borderRadius: '12px',
-        fontSize: '12px',
-        fontWeight: '700',
-        background: style.bg,
-        color: style.color
-      }}>
-        {status || 'Available'}
-      </span>
-    )
-  }
+  const VEHICLE_STATUS_OPTIONS = [
+    { value: 'Available',   label: 'Available',   icon: 'ri-checkbox-circle-fill', bg: '#d1fae5', color: '#065f46' },
+    { value: 'In Use',      label: 'In Use',      icon: 'ri-car-fill',             bg: '#fef3c7', color: '#92400e' },
+    { value: 'Maintenance', label: 'Maintenance', icon: 'ri-tools-fill',           bg: '#fee2e2', color: '#991b1b' },
+    { value: 'Unavailable', label: 'Unavailable', icon: 'ri-close-circle-fill',    bg: '#f3f4f6', color: '#374151' },
+  ]
 
   if (loading) {
     return (
@@ -444,31 +428,13 @@ const handleOpenAdd = () => {
                   </td>
                   <td>{vehicle.type || '-'}</td>
                   <td>{vehicle.capacity || '-'}</td>
-                  <td onClick={e => isAdmin ? e.stopPropagation() : undefined}>
-                    {isAdmin ? (
-                      <select
-                        value={vehicle.status || 'Available'}
-                        onChange={(e) => handleStatusChange(e, vehicle.id)}
-                        style={{
-                          padding: '4px 8px',
-                          borderRadius: '12px',
-                          fontSize: '12px',
-                          fontWeight: '700',
-                          border: '1px solid var(--border-light)',
-                          background: vehicle.status === 'Available' ? '#d1fae5' : vehicle.status === 'In Use' ? '#fef3c7' : vehicle.status === 'Maintenance' ? '#fee2e2' : '#f3f4f6',
-                          color: vehicle.status === 'Available' ? '#065f46' : vehicle.status === 'In Use' ? '#92400e' : vehicle.status === 'Maintenance' ? '#991b1b' : '#374151',
-                          cursor: 'pointer',
-                          outline: 'none'
-                        }}
-                      >
-                        <option value="Available">Available</option>
-                        <option value="In Use">In Use</option>
-                        <option value="Maintenance">Maintenance</option>
-                        <option value="Unavailable">Unavailable</option>
-                      </select>
-                    ) : (
-                      getStatusBadge(vehicle.status)
-                    )}
+                  <td onClick={e => e.stopPropagation()}>
+                    <StatusSelect
+                      value={vehicle.status || 'Available'}
+                      options={VEHICLE_STATUS_OPTIONS}
+                      onChange={(val) => { handleStatusChange({ target: { value: val } }, vehicle.id) }}
+                      disabled={!isAdmin}
+                    />
                   </td>
                   <td>
                     {vehicle.last_maintenance 

@@ -12,6 +12,7 @@ import ExportModal from '../../components/ExportModal'
 import TableGhostRows from '../../components/TableGhostRows'
 import useListPagination from '../../hooks/useListPagination'
 import ImageCropper from '../../components/ImageCropper'
+import StatusSelect from '../../components/StatusSelect'
 import { uploadFile, deleteFiles } from '../../services/storage'
 import { exportEmployeeProfile } from '../../utils/exportEmployeeProfile'
 import PHAddressSelect from '../../components/PHAddressSelect'
@@ -677,60 +678,21 @@ export default function Employees() {
     }
   }
 
-  const renderDutyStatus = (emp) => {
-    const status = emp.duty_status
-    const colors = {
-      'On Duty': { bg: '#d1fae5', color: '#065f46' },
-      'Off Duty': { bg: '#fee2e2', color: '#991b1b' },
-      'Standby': { bg: '#dbeafe', color: '#1e40af' },
-      'On Leave': { bg: '#fef3c7', color: '#92400e' }
-    }
-    const style = colors[status] || { bg: '#e5e7eb', color: '#374151' }
+  const DUTY_STATUS_OPTIONS = [
+    { value: 'On Duty',  label: 'On Duty',  icon: 'ri-checkbox-circle-fill', bg: '#d1fae5', color: '#065f46' },
+    { value: 'Off Duty', label: 'Off Duty', icon: 'ri-close-circle-fill',    bg: '#fee2e2', color: '#991b1b' },
+    { value: 'Standby',  label: 'Standby',  icon: 'ri-time-fill',             bg: '#dbeafe', color: '#1e40af' },
+    { value: 'On Leave', label: 'On Leave', icon: 'ri-calendar-fill',         bg: '#fef3c7', color: '#92400e' },
+  ]
 
-    if (isAdmin) {
-      return (
-        <select
-          value={status}
-          onChange={(e) => handleStatusChange(emp.id, e.target.value)}
-          style={{
-            padding: '4px 24px 4px 12px',
-            borderRadius: '12px',
-            fontSize: '12px',
-            fontWeight: '700',
-            background: style.bg,
-            color: style.color,
-            border: `1px solid ${style.color}40`,
-            cursor: 'pointer',
-            outline: 'none',
-            appearance: 'none',
-            backgroundImage: `url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23${style.color.replace('#', '')}%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")`,
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'right 8px top 50%',
-            backgroundSize: '8px auto'
-          }}
-        >
-          <option value="On Duty">On Duty</option>
-          <option value="Off Duty">Off Duty</option>
-          <option value="Standby">Standby</option>
-          <option value="On Leave">On Leave</option>
-        </select>
-      )
-    }
-
-    return (
-      <span style={{
-        display: 'inline-block',
-        padding: '4px 12px',
-        borderRadius: '12px',
-        fontSize: '12px',
-        fontWeight: '700',
-        background: style.bg,
-        color: style.color
-      }}>
-        {status}
-      </span>
-    )
-  }
+  const renderDutyStatus = (emp) => (
+    <StatusSelect
+      value={emp.duty_status || 'Off Duty'}
+      options={DUTY_STATUS_OPTIONS}
+      onChange={(val) => handleStatusChange(emp.id, val)}
+      disabled={!isAdmin}
+    />
+  )
 
   if (loading) {
     return (

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { supabase } from '../services/supabase'
+import { supabase, supabaseAdmin } from '../services/supabase'
 
 export default function ForgotPasswordModal({ onClose }) {
   const [email, setEmail] = useState('')
@@ -19,7 +19,23 @@ export default function ForgotPasswordModal({ onClose }) {
         ? email.trim().toLowerCase()
         : `${email.trim().toLowerCase()}@cdrrmo.gov`
 
-      // Check for existing pending request to prevent spam
+      // ── Step 1: Check if the email exists in the system ──────────────────
+      const client = supabaseAdmin || supabase
+      const { data: empMatch, error: empError } = await client
+        .from('employees')
+        .select('id')
+        .eq('email', normalizedEmail)
+        .maybeSingle()
+
+      if (empError) throw empError
+
+      if (!empMatch) {
+        setError('No account found with that email address. Please check and try again.')
+        setSubmitting(false)
+        return
+      }
+
+      // ── Step 2: Check for existing pending request to prevent spam ────────
       const { data: existing, error: checkError } = await supabase
         .from('password_reset_requests')
         .select('id, status')
@@ -35,7 +51,7 @@ export default function ForgotPasswordModal({ onClose }) {
         return
       }
 
-      // Generate a secure random token
+      // ── Step 3: Submit the reset request ─────────────────────────────────
       const securityToken = crypto.randomUUID()
 
       const { error: insertError } = await supabase

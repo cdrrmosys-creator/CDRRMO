@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useIsAdmin } from '../hooks/useIsAdmin'
+import { useAuthStore } from '../stores/useAuthStore'
+import SidebarLogin from './SidebarLogin'
 
 export default function Sidebar() {
   const isAdmin = useIsAdmin()
   const location = useLocation()
+  const { user } = useAuthStore()
 
   const [expandedGroups, setExpandedGroups] = useState({
     'Personnel': false,
@@ -17,6 +20,10 @@ export default function Sidebar() {
     'Records': false,
     'System Logs': false
   })
+
+  if (!user) {
+    return <SidebarLogin />
+  }
 
   const toggleGroup = (groupTitle, hasActiveChild) => {
     // Don't allow collapsing a group that contains the currently active page

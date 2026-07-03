@@ -1,11 +1,11 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { useAuthStore } from './stores/useAuthStore'
 import { ToastProvider } from './components/Toast'
 import { ConfirmProvider } from './components/ConfirmDialog'
 
 // Pages
-import Login from './pages/Auth/Login'
+
 import ChangePassword from './pages/Auth/ChangePassword'
 import Dashboard from './pages/Dashboard'
 import Employees from './pages/Employees'
@@ -37,6 +37,13 @@ import UserPermissions from './pages/UserPermissions'
 import PasswordResetRequests from './pages/PasswordResetRequests'
 import Layout from './components/Layout'
 
+const ProtectedRoutes = () => {
+  const { user } = useAuthStore()
+  if (!user) return <Navigate to="/" replace />
+  if (user?.user_metadata?.needs_password_change) return <Navigate to="/change-password" replace />
+  return <Outlet />
+}
+
 function App() {
   const { user, initializing, initialize } = useAuthStore()
 
@@ -61,54 +68,52 @@ function App() {
       <ConfirmProvider>
         <BrowserRouter>
           <Routes>
-            {/* Public: Login */}
-            <Route path="/login" element={
-              user ? <Navigate to="/" replace /> : <Login />
-            } />
-
             {/* Force password change — accessible when logged in but password not yet changed */}
             <Route path="/change-password" element={
               !user
-                ? <Navigate to="/login" replace />
+                ? <Navigate to="/" replace />
                 : <ChangePassword />
             } />
 
-            {/* Protected routes — blocked if password change is still required */}
+            {/* Main Layout - Public for Dashboard & Kloudtrack */}
             <Route path="/" element={
-              !user
-                ? <Navigate to="/login" replace />
-                : needsPasswordChange
-                  ? <Navigate to="/change-password" replace />
-                  : <Layout />
+              user && needsPasswordChange
+                ? <Navigate to="/change-password" replace />
+                : <Layout />
             }>
+              {/* Public Routes */}
               <Route index element={<Dashboard />} />
-              <Route path="employees" element={<Employees />} />
               <Route path="kloudtrack" element={<Kloudtrack />} />
-              <Route path="incidents" element={<Incidents />} />
-              <Route path="drowning-incidents" element={<DrowningIncidents />} />
-              <Route path="vouchers" element={<Vouchers />} />
-              <Route path="inventory" element={<Inventory />} />
-              <Route path="vehicles" element={<Vehicles />} />
-              <Route path="drivers" element={<Drivers />} />
-              <Route path="transport" element={<Transport />} />
-              <Route path="venues" element={<Venues />} />
-              <Route path="activities" element={<Activities />} />
-              <Route path="events-assistance" element={<EventsAssistance />} />
-              <Route path="training-attended" element={<TrainingAttended />} />
-              <Route path="training-conducted" element={<TrainingConducted />} />
-              <Route path="volunteers" element={<Volunteers />} />
-              <Route path="cdrrmc-reso" element={<CdrrmcReso />} />
-              <Route path="cdrrmc-meeting" element={<CdrrmcMeeting />} />
-              <Route path="maps" element={<Maps />} />
-              <Route path="pruning" element={<Pruning />} />
-              <Route path="history" element={<History />} />
-              <Route path="documentation" element={<Documentation />} />
-              <Route path="cctv" element={<Cctv />} />
-              <Route path="client-satisfaction" element={<ClientSatisfaction />} />
-              <Route path="calendar" element={<CalendarEvents />} />
-              <Route path="audit-trail" element={<AuditTrail />} />
-              <Route path="user-permissions" element={<UserPermissions />} />
-              <Route path="password-reset-requests" element={<PasswordResetRequests />} />
+
+              {/* Protected Routes */}
+              <Route element={<ProtectedRoutes />}>
+                <Route path="employees" element={<Employees />} />
+                <Route path="incidents" element={<Incidents />} />
+                <Route path="drowning-incidents" element={<DrowningIncidents />} />
+                <Route path="vouchers" element={<Vouchers />} />
+                <Route path="inventory" element={<Inventory />} />
+                <Route path="vehicles" element={<Vehicles />} />
+                <Route path="drivers" element={<Drivers />} />
+                <Route path="transport" element={<Transport />} />
+                <Route path="venues" element={<Venues />} />
+                <Route path="activities" element={<Activities />} />
+                <Route path="events-assistance" element={<EventsAssistance />} />
+                <Route path="training-attended" element={<TrainingAttended />} />
+                <Route path="training-conducted" element={<TrainingConducted />} />
+                <Route path="volunteers" element={<Volunteers />} />
+                <Route path="cdrrmc-reso" element={<CdrrmcReso />} />
+                <Route path="cdrrmc-meeting" element={<CdrrmcMeeting />} />
+                <Route path="maps" element={<Maps />} />
+                <Route path="pruning" element={<Pruning />} />
+                <Route path="history" element={<History />} />
+                <Route path="documentation" element={<Documentation />} />
+                <Route path="cctv" element={<Cctv />} />
+                <Route path="client-satisfaction" element={<ClientSatisfaction />} />
+                <Route path="calendar" element={<CalendarEvents />} />
+                <Route path="audit-trail" element={<AuditTrail />} />
+                <Route path="user-permissions" element={<UserPermissions />} />
+                <Route path="password-reset-requests" element={<PasswordResetRequests />} />
+              </Route>
             </Route>
 
             {/* Fallback */}

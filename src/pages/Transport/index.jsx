@@ -13,6 +13,7 @@ import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
+import StatusSelect from '../../components/StatusSelect'
 import CalendarView from '../../components/CalendarView'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
 import { uploadFile, deleteFiles } from '../../services/storage'
@@ -703,67 +704,25 @@ export default function Transport() {
                   <td>{record.destination || '-'}</td>
                   <td style={{ fontWeight: '600', color: 'var(--primary)' }}>{record.patient_name || '-'}</td>
                   <td>{record.contact_person || '-'}</td>
-                  <td>
+                  <td onClick={e => e.stopPropagation()}>
                     {(() => {
-                      // Fallback computation if record.status is not set in DB yet
                       const targetDate = record.is_rescheduled && record.reschedule_date ? new Date(record.reschedule_date) : new Date(record.date_time);
                       const isCompleted = targetDate < new Date();
-                      
-                      let currentStatus = record.status;
-                      if (!currentStatus) {
-                        currentStatus = isCompleted ? 'Completed' : (record.is_rescheduled ? 'Rescheduled' : 'Scheduled');
-                      }
-
-                      const getBgColor = (s) => {
-                        if (s === 'Completed') return '#d1fae5';
-                        if (s === 'Rescheduled') return '#fef3c7';
-                        if (s === 'Cancelled') return '#fee2e2';
-                        if (s === 'In Progress') return '#e0f2fe';
-                        return '#e0e7ff';
-                      }
-                      
-                      const getTextColor = (s) => {
-                        if (s === 'Completed') return '#065f46';
-                        if (s === 'Rescheduled') return '#92400e';
-                        if (s === 'Cancelled') return '#991b1b';
-                        if (s === 'In Progress') return '#0369a1';
-                        return '#3730a3';
-                      }
-
-                      if (canUpdate) {
-                        return (
-                          <select 
-                            value={currentStatus}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              handleStatusChange(record.id, e.target.value);
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            style={{ 
-                              padding: '4px 8px', 
-                              borderRadius: '4px', 
-                              background: getBgColor(currentStatus), 
-                              color: getTextColor(currentStatus), 
-                              fontSize: '12px', 
-                              fontWeight: '600',
-                              border: '1px solid transparent',
-                              outline: 'none',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            <option value="Scheduled">Scheduled</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Completed">Completed</option>
-                            <option value="Rescheduled">Rescheduled</option>
-                            <option value="Cancelled">Cancelled</option>
-                          </select>
-                        )
-                      }
-                      
+                      const currentStatus = record.status || (isCompleted ? 'Completed' : (record.is_rescheduled ? 'Rescheduled' : 'Scheduled'));
+                      const TRANSPORT_STATUS_OPTIONS = [
+                        { value: 'Scheduled',   label: 'Scheduled',   icon: 'ri-calendar-check-fill',  bg: '#e0e7ff', color: '#3730a3' },
+                        { value: 'In Progress', label: 'In Progress', icon: 'ri-loader-4-fill',         bg: '#e0f2fe', color: '#0369a1' },
+                        { value: 'Completed',   label: 'Completed',   icon: 'ri-checkbox-circle-fill',  bg: '#d1fae5', color: '#065f46' },
+                        { value: 'Rescheduled', label: 'Rescheduled', icon: 'ri-calendar-fill',         bg: '#fef3c7', color: '#92400e' },
+                        { value: 'Cancelled',   label: 'Cancelled',   icon: 'ri-close-circle-fill',     bg: '#fee2e2', color: '#991b1b' },
+                      ]
                       return (
-                        <span style={{ padding: '4px 8px', borderRadius: '4px', background: getBgColor(currentStatus), color: getTextColor(currentStatus), fontSize: '12px', fontWeight: '600' }}>
-                          {currentStatus}
-                        </span>
+                        <StatusSelect
+                          value={currentStatus}
+                          options={TRANSPORT_STATUS_OPTIONS}
+                          onChange={(val) => handleStatusChange(record.id, val)}
+                          disabled={!canUpdate}
+                        />
                       )
                     })()}
                   </td>

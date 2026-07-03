@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../../services/supabase'
+import { supabase, supabaseAdmin } from '../../services/supabase'
+import { useAuthStore } from '../../stores/useAuthStore'
 import { format, subMonths, startOfMonth, endOfMonth, subDays, startOfDay, endOfDay, subWeeks, startOfWeek, endOfWeek } from 'date-fns'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -131,6 +132,8 @@ function LegendPills({ items }) {
 // ── MAIN COMPONENT ────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { user } = useAuthStore()
+  const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading]         = useState(true)
   const [counts, setCounts]           = useState({})
   
@@ -213,6 +216,7 @@ export default function Dashboard() {
   const fetchAll = async () => {
     setLoading(true)
     try {
+      const client = supabaseAdmin || supabase
       const [
         { count: empC, data: empD },
         { count: volC },
@@ -223,14 +227,14 @@ export default function Dashboard() {
         { count: evtsC, data: evtsD },
         { count: vouchC, data: vouchD }
       ] = await Promise.all([
-        supabase.from('employees').select('duty_status', { count: 'exact' }),
-        supabase.from('volunteers').select('id, status', { count: 'exact' }),
-        supabase.from('incidents').select('severity, nature_of_incident, date, time_of_call, place_of_incident, record_id, team').order('date', { ascending: false }),
-        supabase.from('drowning_incidents').select('date, location, victim_name'),
-        supabase.from('transport').select('date_time, patient_name, destination'),
-        supabase.from('pruning_trimming').select('date_of_request, location, status'),
-        supabase.from('events_assistance').select('date, event_name, location'),
-        supabase.from('vouchers').select('date, amount')
+        client.from('employees').select('duty_status', { count: 'exact' }),
+        client.from('volunteers').select('id, status', { count: 'exact' }),
+        client.from('incidents').select('severity, nature_of_incident, date, time_of_call, place_of_incident, record_id, team').order('date', { ascending: false }),
+        client.from('drowning_incidents').select('date, location, victim_name'),
+        client.from('transport').select('date_time, patient_name, destination'),
+        client.from('pruning_trimming').select('date_of_request, location, status'),
+        client.from('events_assistance').select('date, event_name, location'),
+        client.from('vouchers').select('date, amount')
       ])
 
       const totalPersonnel = (empC || 0) + (volC || 0)
@@ -336,28 +340,62 @@ export default function Dashboard() {
       `}</style>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="page-header" style={{ marginBottom:'28px' }}>
-        <h2 style={{ display:'flex', alignItems:'center', gap:'10px' }}>
-          <i className="ri-dashboard-3-line" style={{ color:'var(--primary)' }} />
-          Dashboard
-        </h2>
-        <button onClick={fetchAll} style={{
-          display:'flex', alignItems:'center', gap:'6px',
-          padding:'8px 16px', borderRadius:'8px',
-          background:'var(--bg-app)', border:'1px solid var(--border-light)',
-          fontSize:'13px', fontWeight:'700', cursor:'pointer', color:'var(--text-muted)'
-        }}>
-          <i className="ri-refresh-line" /> Refresh
-        </button>
+      <div className="page-header" style={{ marginBottom:'28px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h2 style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom: '16px' }}>
+            <i className="ri-dashboard-3-line" style={{ color:'var(--primary)' }} />
+            System Overview
+          </h2>
+          <div style={{ display: 'flex', gap: '8px', background: 'var(--bg-app)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-light)', width: 'max-content' }}>
+            <button 
+              onClick={() => setActiveTab('overview')}
+              style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeTab === 'overview' ? 'var(--bg-surface)' : 'transparent', color: activeTab === 'overview' ? 'var(--text-main)' : 'var(--text-muted)', fontWeight: '600', cursor: 'pointer', boxShadow: activeTab === 'overview' ? 'var(--shadow-sm)' : 'none', transition: 'all 0.2s' }}
+            >
+              <i className="ri-bar-chart-box-line" style={{ marginRight: '6px' }}></i>
+              Dashboard
+            </button>
+            <button 
+              onClick={() => setActiveTab('kloudtrack')}
+              style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeTab === 'kloudtrack' ? 'var(--bg-surface)' : 'transparent', color: activeTab === 'kloudtrack' ? 'var(--text-main)' : 'var(--text-muted)', fontWeight: '600', cursor: 'pointer', boxShadow: activeTab === 'kloudtrack' ? 'var(--shadow-sm)' : 'none', transition: 'all 0.2s' }}
+            >
+              <i className="ri-cloud-windy-line" style={{ marginRight: '6px' }}></i>
+              KloudTrack
+            </button>
+          </div>
+        </div>
+        {activeTab === 'overview' && (
+          <button onClick={fetchAll} style={{
+            display:'flex', alignItems:'center', gap:'6px',
+            padding:'8px 16px', borderRadius:'8px',
+            background:'var(--bg-app)', border:'1px solid var(--border-light)',
+            fontSize:'13px', fontWeight:'700', cursor:'pointer', color:'var(--text-muted)'
+          }}>
+            <i className="ri-refresh-line" /> Refresh
+          </button>
+        )}
       </div>
+
+      {activeTab === 'kloudtrack' ? (
+        <div style={{ flex: 1, borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-light)', background: 'var(--bg-surface)' }}>
+          <iframe 
+            src="https://kloudtrack-dashboard.vercel.app/" 
+            width="100%" 
+            height="100%" 
+            style={{ border: 'none', display: 'block', minHeight: 'calc(100vh - 140px)' }}
+            title="Kloudtrack Dashboard"
+          />
+        </div>
+      ) : (
+        <>
 
       {/* ── Stat cards ─────────────────────────────────────────────────────── */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(155px,1fr))', gap:'16px', marginBottom:'24px' }}>
         {statCards.map(({ label, value, color, icon, sub, path }) => (
-          <div key={label} className="dash-stat-card" onClick={() => navigate(path)} style={{
+          <div key={label} className={user ? "dash-stat-card" : ""} onClick={() => user && navigate(path)} style={{
             background:'var(--bg-surface)', border:'1px solid var(--border-light)',
             borderRadius:'var(--radius-lg)', padding:'20px', boxShadow:'var(--shadow-sm)',
-            borderTop: `3px solid ${color}`
+            borderTop: `3px solid ${color}`,
+            cursor: user ? 'pointer' : 'default'
           }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
               <div style={{ flex:1, minWidth:0 }}>
@@ -675,6 +713,8 @@ export default function Dashboard() {
         </Card>
 
       </div>
+      </>
+      )}
     </div>
   )
 }

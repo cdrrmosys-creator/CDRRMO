@@ -8,6 +8,7 @@ import { exportEmployeeProfile } from '../utils/exportEmployeeProfile'
 import { useToast } from './Toast'
 import { useConfirm } from './ConfirmDialog'
 import ImageCropper from './ImageCropper'
+import LoginModal from './LoginModal'
 
 const PROFILE_TABS = [
   { id: 'personal',    label: 'Personal Info',   icon: 'ri-user-line' },
@@ -53,6 +54,7 @@ function isTabComplete(tabId, f) {
 
 export default function Topbar() {
   const navigate = useNavigate()
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
   const { signOut, user } = useAuthStore()
   const toast = useToast()
   const confirm = useConfirm()
@@ -147,7 +149,7 @@ export default function Topbar() {
     if (isConfirmed) {
       try {
         await signOut()
-        navigate('/login')
+        navigate('/')
       } catch (error) {
         console.error('Logout error:', error)
       }
@@ -346,6 +348,7 @@ export default function Topbar() {
   return (
     <div className="topbar">
       {/* ── Search ── */}
+      {user ? (
       <div className="topbar-search" ref={searchRef} style={{ position: 'relative' }}>
         <i className="ri-search-line"></i>
         <input
@@ -400,54 +403,111 @@ export default function Topbar() {
           </div>
         )}
       </div>
+      ) : null}
 
       {/* ── Right actions ── */}
       <div className="topbar-actions">
-        {currentEmployee ? (
-          <div onClick={handleProfileClick}
-            style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 12px', borderRadius: '24px', cursor: 'pointer', transition: 'background 0.2s', marginRight: '8px' }}
-            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.05)'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-          >
-            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-app)', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-              {currentEmployee.avatar_url
-                ? <img src={currentEmployee.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : <i className="ri-user-line" style={{ fontSize: '16px', color: 'var(--text-muted)' }}></i>
-              }
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)', lineHeight: '1.2' }}>
-                {currentEmployee.name || currentEmployee.email}
+        {user && currentEmployee ? (() => {
+          // Compute profile completion %
+          const f = currentEmployee
+          const checks = [
+            !!String(f.name ?? '').trim(),
+            !!String(f.contact ?? '').trim(),
+            !!String(f.address ?? '').trim(),
+            !!String(f.dob ?? '').trim(),
+            !!String(f.pob ?? '').trim(),
+            !!String(f.sex ?? '').trim(),
+            !!String(f.civil_status ?? '').trim(),
+            !!String(f.blood_type ?? '').trim(),
+            !!String(f.designation ?? '').trim(),
+            !!String(f.email ?? '').trim(),
+            !!(String(f.emergency_contact_person ?? '').trim() || String(f.emergency_contact_no ?? '').trim()),
+            !!(String(f.father_name ?? '').trim() || String(f.mother_name ?? '').trim()),
+            !!(Array.isArray(f.work_experience) && f.work_experience.length > 0),
+            !!(Array.isArray(f.trainings_attended) && f.trainings_attended.length > 0),
+            !!(String(f.tin ?? '').trim() || String(f.sss ?? '').trim() || String(f.philhealth ?? '').trim()),
+            !!String(f.remarks ?? '').trim(),
+            !!f.avatar_url,
+          ]
+          const pct = Math.round((checks.filter(Boolean).length / checks.length) * 100)
+          const isComplete = pct === 100
+          const ringColor = pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626'
+          const ringBg   = pct >= 80 ? '#dcfce7' : pct >= 50 ? '#fef3c7' : '#fee2e2'
+          const label    = isComplete ? 'Profile Complete ✓' : `${pct}% Complete`
+          // SVG ring: r=10, circumference ≈ 62.8
+          const circ = 62.83
+          const dash = (pct / 100) * circ
+
+          return (
+            <div onClick={handleProfileClick}
+              style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 12px', borderRadius: '24px', cursor: 'pointer', transition: 'background 0.2s', marginRight: '8px' }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.05)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            >
+              {/* Avatar with completion ring */}
+              <div style={{ position: 'relative', width: '38px', height: '38px', flexShrink: 0 }}>
+                <svg width="38" height="38" viewBox="0 0 38 38" style={{ position: 'absolute', top: 0, left: 0, transform: 'rotate(-90deg)' }}>
+                  <circle cx="19" cy="19" r="16" fill="none" stroke={ringBg} strokeWidth="3" />
+                  <circle cx="19" cy="19" r="16" fill="none" stroke={ringColor} strokeWidth="3"
+                    strokeDasharray={`${(pct / 100) * 100.5} 100.5`}
+                    strokeLinecap="round"
+                    style={{ transition: 'stroke-dasharray 0.4s ease' }}
+                  />
+                </svg>
+                <div style={{ position: 'absolute', inset: '4px', borderRadius: '50%', background: 'var(--bg-app)', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                  {currentEmployee.avatar_url
+                    ? <img src={currentEmployee.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <i className="ri-user-line" style={{ fontSize: '14px', color: 'var(--text-muted)' }}></i>
+                  }
+                </div>
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '600', marginTop: '2px' }}>
-                View Profile
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)', lineHeight: '1.2' }}>
+                  {currentEmployee.name || currentEmployee.email}
+                </div>
+                <div style={{ fontSize: '11px', color: ringColor, fontWeight: '600', marginTop: '2px' }}>
+                  {label}
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
+          )
+        })() : user ? (
           <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main)', marginRight: '8px' }}>
             {user?.email || 'User'}
           </div>
+        ) : null}
+        {user ? (
+          <>
+            <button 
+              type="button" 
+              onClick={() => setIsDarkMode(prev => !prev)}
+              style={{
+                background: 'var(--bg-app)', border: '1px solid var(--border-light)',
+                width: '36px', height: '36px', borderRadius: '50%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: isDarkMode ? '#facc15' : 'var(--text-muted)',
+                marginRight: '8px', transition: 'all 0.2s'
+              }}
+              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              <i className={isDarkMode ? 'ri-moon-fill' : 'ri-sun-line'} style={{ fontSize: '18px' }}></i>
+            </button>
+            <button className="btn-logout" onClick={handleLogout}>
+              <i className="ri-logout-box-line"></i>
+              Logout
+            </button>
+          </>
+        ) : (
+          <button className="btn-primary" onClick={() => setIsLoginModalOpen(true)} style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: '600' }}>
+            <i className="ri-login-box-line" style={{ marginRight: '6px' }}></i>
+            Log In
+          </button>
         )}
-        <button 
-          type="button" 
-          onClick={() => setIsDarkMode(prev => !prev)}
-          style={{
-            background: 'var(--bg-app)', border: '1px solid var(--border-light)',
-            width: '36px', height: '36px', borderRadius: '50%',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', color: isDarkMode ? '#facc15' : 'var(--text-muted)',
-            marginRight: '8px', transition: 'all 0.2s'
-          }}
-          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-        >
-          <i className={isDarkMode ? 'ri-moon-fill' : 'ri-sun-line'} style={{ fontSize: '18px' }}></i>
-        </button>
-        <button className="btn-logout" onClick={handleLogout}>
-          <i className="ri-logout-box-line"></i>
-          Logout
-        </button>
       </div>
+
+      {isLoginModalOpen && (
+        <LoginModal onClose={() => setIsLoginModalOpen(false)} />
+      )}
 
       {/* ── Profile Modal (sidebar-step layout) ── */}
       {isProfileModalOpen && createPortal(

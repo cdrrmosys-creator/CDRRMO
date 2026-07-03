@@ -12,6 +12,7 @@ import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
+import StatusSelect from '../../components/StatusSelect'
 
 const INITIAL_FORM_STATE = {
   record_id: '',
@@ -259,29 +260,12 @@ export default function Vouchers() {
     }
   }
 
-  const getStatusBadge = (status) => {
-    const colors = {
-      'Pending': { bg: '#fef3c7', color: '#92400e' },
-      'Approved': { bg: '#d1fae5', color: '#065f46' },
-      'Paid': { bg: '#dbeafe', color: '#1e40af' },
-      'Rejected': { bg: '#fee2e2', color: '#991b1b' }
-    }
-    const style = colors[status] || colors['Pending']
-    
-    return (
-      <span style={{
-        display: 'inline-block',
-        padding: '4px 12px',
-        borderRadius: '12px',
-        fontSize: '12px',
-        fontWeight: '700',
-        background: style.bg,
-        color: style.color
-      }}>
-        {status || 'Pending'}
-      </span>
-    )
-  }
+  const VOUCHER_STATUS_OPTIONS = [
+    { value: 'Pending',  label: 'Pending',  icon: 'ri-time-fill',            bg: '#fef3c7', color: '#92400e' },
+    { value: 'Approved', label: 'Approved', icon: 'ri-checkbox-circle-fill', bg: '#d1fae5', color: '#065f46' },
+    { value: 'Paid',     label: 'Paid',     icon: 'ri-money-dollar-circle-fill', bg: '#dbeafe', color: '#1e40af' },
+    { value: 'Rejected', label: 'Rejected', icon: 'ri-close-circle-fill',    bg: '#fee2e2', color: '#991b1b' },
+  ]
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-PH', {
@@ -445,36 +429,13 @@ export default function Vouchers() {
                   <td style={{ fontFamily: 'monospace', fontWeight: '700', color: '#16a34a' }}>
                     {formatCurrency(voucher.amount)}
                   </td>
-                  <td onClick={(e) => isAdmin ? e.stopPropagation() : undefined}>
-                    {isAdmin ? (
-                      <select 
-                        value={voucher.status || 'Pending'}
-                        onChange={(e) => handleStatusChange(e, voucher.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          padding: '4px 8px',
-                          borderRadius: '8px',
-                          fontSize: '12px',
-                          fontWeight: '700',
-                          border: '1px solid var(--border-light)',
-                          background: voucher.status === 'Approved' ? '#d1fae5' :
-                                      voucher.status === 'Paid' ? '#dbeafe' :
-                                      voucher.status === 'Rejected' ? '#fee2e2' : '#fef3c7',
-                          color: voucher.status === 'Approved' ? '#065f46' :
-                                 voucher.status === 'Paid' ? '#1e40af' :
-                                 voucher.status === 'Rejected' ? '#991b1b' : '#92400e',
-                          cursor: 'pointer',
-                          outline: 'none'
-                        }}
-                      >
-                        <option value="Pending">Pending</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Paid">Paid</option>
-                        <option value="Rejected">Rejected</option>
-                      </select>
-                    ) : (
-                      getStatusBadge(voucher.status)
-                    )}
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <StatusSelect
+                      value={voucher.status || 'Pending'}
+                      options={VOUCHER_STATUS_OPTIONS}
+                      onChange={(val) => handleStatusChange({ stopPropagation: () => {}, target: { value: val } }, voucher.id)}
+                      disabled={!isAdmin}
+                    />
                   </td>
                 </tr>
               ))}
