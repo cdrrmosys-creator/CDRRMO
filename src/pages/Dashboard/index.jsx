@@ -346,22 +346,25 @@ export default function Dashboard() {
             <i className="ri-dashboard-3-line" style={{ color:'var(--primary)' }} />
             System Overview
           </h2>
-          <div style={{ display: 'flex', gap: '8px', background: 'var(--bg-app)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-light)', width: 'max-content' }}>
-            <button 
-              onClick={() => setActiveTab('overview')}
-              style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeTab === 'overview' ? 'var(--bg-surface)' : 'transparent', color: activeTab === 'overview' ? 'var(--text-main)' : 'var(--text-muted)', fontWeight: '600', cursor: 'pointer', boxShadow: activeTab === 'overview' ? 'var(--shadow-sm)' : 'none', transition: 'all 0.2s' }}
-            >
-              <i className="ri-bar-chart-box-line" style={{ marginRight: '6px' }}></i>
-              Dashboard
-            </button>
-            <button 
-              onClick={() => setActiveTab('kloudtrack')}
-              style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeTab === 'kloudtrack' ? 'var(--bg-surface)' : 'transparent', color: activeTab === 'kloudtrack' ? 'var(--text-main)' : 'var(--text-muted)', fontWeight: '600', cursor: 'pointer', boxShadow: activeTab === 'kloudtrack' ? 'var(--shadow-sm)' : 'none', transition: 'all 0.2s' }}
-            >
-              <i className="ri-cloud-windy-line" style={{ marginRight: '6px' }}></i>
-              KloudTrack
-            </button>
-          </div>
+          {/* Only show the tab switch when NOT logged in — logged-in users use the sidebar KloudTrack link */}
+          {!user && (
+            <div style={{ display: 'flex', gap: '8px', background: 'var(--bg-app)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-light)', width: 'max-content' }}>
+              <button 
+                onClick={() => setActiveTab('overview')}
+                style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeTab === 'overview' ? 'var(--bg-surface)' : 'transparent', color: activeTab === 'overview' ? 'var(--text-main)' : 'var(--text-muted)', fontWeight: '600', cursor: 'pointer', boxShadow: activeTab === 'overview' ? 'var(--shadow-sm)' : 'none', transition: 'all 0.2s' }}
+              >
+                <i className="ri-bar-chart-box-line" style={{ marginRight: '6px' }}></i>
+                Dashboard
+              </button>
+              <button 
+                onClick={() => setActiveTab('kloudtrack')}
+                style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeTab === 'kloudtrack' ? 'var(--bg-surface)' : 'transparent', color: activeTab === 'kloudtrack' ? 'var(--text-main)' : 'var(--text-muted)', fontWeight: '600', cursor: 'pointer', boxShadow: activeTab === 'kloudtrack' ? 'var(--shadow-sm)' : 'none', transition: 'all 0.2s' }}
+              >
+                <i className="ri-cloud-windy-line" style={{ marginRight: '6px' }}></i>
+                KloudTrack
+              </button>
+            </div>
+          )}
         </div>
         {activeTab === 'overview' && (
           <button onClick={fetchAll} style={{

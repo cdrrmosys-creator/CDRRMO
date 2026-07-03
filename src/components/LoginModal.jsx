@@ -89,6 +89,7 @@ export default function LoginModal({ onClose }) {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
+                autoFocus
                 autoComplete="username"
                 style={{
                   width: '100%',
