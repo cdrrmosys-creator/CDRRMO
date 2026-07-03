@@ -91,7 +91,7 @@ classDiagram
   }
 
   class vehicles {
-    +UUID id
+    +UUID idc
     +String vehicle_id
     +String plate
     +String model
