@@ -425,9 +425,7 @@ export default function Documentation() {
         paddingBottom: '0'
       }}>
         {[
-          { key: 'archive',       label: 'Documentation Archive', icon: 'ri-folder-line' },
-          { key: 'registrations', label: 'Training Registrations', icon: 'ri-user-add-line' },
-          { key: 'drrm-training', label: 'DRRM Office Training',   icon: 'ri-award-line' }
+          { key: 'archive', label: 'Documentation Archive', icon: 'ri-folder-line' },
         ].map(tab => (
           <button
             key={tab.key}
@@ -454,13 +452,9 @@ export default function Documentation() {
         ))}
       </div>
 
-      {activeTab === 'drrm-training' ? (
-        <DrrmTraining />
-      ) : activeTab === 'registrations' ? (
-        <TrainingRegistrations />
-      ) : (
+      {activeTab === 'archive' && (
       <div>
-      <div className="page-header">
+      <div className="page-header" style={{ marginTop: '8px' }}>
         <h2>
           <i className="ri-folder-line" style={{ marginRight: '12px' }}></i>
           Documentation Archive

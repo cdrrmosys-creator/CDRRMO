@@ -28,6 +28,8 @@ import Maps from './pages/Maps'
 import Pruning from './pages/Pruning'
 import History from './pages/History'
 import Documentation from './pages/Documentation'
+import TrainingRegistrations from './pages/Documentation/TrainingRegistrations'
+import DrrmTraining from './pages/Documentation/DrrmTraining'
 import Cctv from './pages/Cctv'
 import ClientSatisfaction from './pages/ClientSatisfaction'
 import CalendarEvents from './pages/CalendarEvents'
@@ -107,6 +109,8 @@ function App() {
                 <Route path="pruning" element={<Pruning />} />
                 <Route path="history" element={<History />} />
                 <Route path="documentation" element={<Documentation />} />
+                <Route path="training-registrations" element={<TrainingRegistrations />} />
+                <Route path="drrm-office-training" element={<DrrmTraining />} />
                 <Route path="cctv" element={<Cctv />} />
                 <Route path="client-satisfaction" element={<ClientSatisfaction />} />
                 <Route path="calendar" element={<CalendarEvents />} />

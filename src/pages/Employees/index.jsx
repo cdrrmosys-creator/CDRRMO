@@ -751,10 +751,57 @@ export default function Employees() {
         </button>
       </div>
 
+      {/* ── Status summary cards ── */}
+      {employees.length > 0 && (() => {
+        const counts = {
+          total:    employees.length,
+          onDuty:   employees.filter(e => e.duty_status === 'On Duty').length,
+          offDuty:  employees.filter(e => e.duty_status === 'Off Duty').length,
+          standby:  employees.filter(e => e.duty_status === 'Standby').length,
+          onLeave:  employees.filter(e => e.duty_status === 'On Leave').length,
+        }
+        const cards = [
+          { label: 'Total',    count: counts.total,   value: '',         icon: 'ri-team-line',          accent: '#2563eb' },
+          { label: 'On Duty',  count: counts.onDuty,  value: 'On Duty',  icon: 'ri-user-follow-line',   accent: '#16a34a' },
+          { label: 'Off Duty', count: counts.offDuty, value: 'Off Duty', icon: 'ri-user-unfollow-line', accent: '#dc2626' },
+          { label: 'Standby',  count: counts.standby, value: 'Standby',  icon: 'ri-user-line',          accent: '#0891b2' },
+          { label: 'On Leave', count: counts.onLeave, value: 'On Leave', icon: 'ri-user-forbid-line',   accent: '#d97706' },
+        ]
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '20px' }}>
+            {cards.map(c => (
+              <div
+                key={c.label}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  padding: '14px 16px', borderRadius: '12px',
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-light)',
+                  borderTop: `3px solid ${c.accent}`,
+                  boxShadow: 'var(--shadow-sm)',
+                }}
+              >
+                <div style={{
+                  width: '38px', height: '38px', borderRadius: '10px', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: `${c.accent}12`
+                }}>
+                  <i className={c.icon} style={{ fontSize: '18px', color: c.accent }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '22px', fontWeight: '900', lineHeight: 1, color: c.accent }}>{c.count}</div>
+                  <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{c.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
       {employees.length > 0 && (
         <ModuleToolbar
           onSearch={setSearchTerm}
-          onFilterChange={setFilter}
+          onFilterChange={v => { setFilter(v); setCurrentPage(1) }}
           onDateRangeChange={setDateRange}
           pageSize={pageSize}
           onPageSizeChange={handlePageSizeChange}
@@ -763,11 +810,17 @@ export default function Employees() {
           hasActiveFilters={hasActiveFilters}
           filterLabel="All Status"
           filterOptions={[
-            { label: 'On Duty', value: 'On Duty' },
+            { label: 'On Duty',  value: 'On Duty' },
             { label: 'Off Duty', value: 'Off Duty' },
-            { label: 'Standby', value: 'Standby' },
-            { label: 'On Leave', value: 'On Leave' }
+            { label: 'Standby',  value: 'Standby' },
+            { label: 'On Leave', value: 'On Leave' },
           ]}
+          filterColorMap={{
+            'On Duty':  { bg: '#d1fae5', color: '#065f46', icon: 'ri-user-follow-line' },
+            'Off Duty': { bg: '#fee2e2', color: '#991b1b', icon: 'ri-user-unfollow-line' },
+            'Standby':  { bg: '#dbeafe', color: '#1e40af', icon: 'ri-user-line' },
+            'On Leave': { bg: '#fef3c7', color: '#92400e', icon: 'ri-user-forbid-line' },
+          }}
         />
       )}
 

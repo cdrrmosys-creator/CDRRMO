@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import StatusSelect from './StatusSelect'
 
 const inputStyle = {
   padding: '8px 10px 8px 32px',
@@ -24,6 +25,7 @@ export default function ModuleToolbar({
   onFilterChange,
   filterOptions = [],
   filterLabel = 'All Categories',
+  filterColorMap = {},
   onDateRangeChange,
   searchPlaceholder = 'Search records…',
   pageSize = 10,
@@ -87,20 +89,39 @@ export default function ModuleToolbar({
       </div>
 
       {filterOptions.length > 0 && (
-        <select
-          value={filter}
-          onChange={handleFilterChange}
-          style={{
-            ...selectStyle,
-            color: filter ? 'var(--text)' : 'var(--text-muted)',
-            minWidth: '130px',
-          }}
-        >
-          <option value="">{filterLabel}</option>
-          {filterOptions.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
+        Object.keys(filterColorMap).length > 0 ? (
+          // Rich StatusSelect pill dropdown when colorMap provided
+          <StatusSelect
+            value={filter || ''}
+            options={[
+              { value: '', label: filterLabel, icon: 'ri-filter-line', bg: 'var(--bg-app)', color: 'var(--text-muted)' },
+              ...filterOptions.map(opt => ({
+                value: opt.value,
+                label: opt.label,
+                icon: filterColorMap[opt.value]?.icon || 'ri-circle-fill',
+                bg:    filterColorMap[opt.value]?.bg    || '#f3f4f6',
+                color: filterColorMap[opt.value]?.color || '#374151',
+              }))
+            ]}
+            onChange={v => { setFilter(v); onFilterChange?.(v) }}
+          />
+        ) : (
+          // Plain select when no colorMap
+          <select
+            value={filter}
+            onChange={handleFilterChange}
+            style={{
+              ...selectStyle,
+              minWidth: '130px',
+              color: filter ? 'var(--text)' : 'var(--text-muted)',
+            }}
+          >
+            <option value="">{filterLabel}</option>
+            {filterOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        )
       )}
 
       {children}

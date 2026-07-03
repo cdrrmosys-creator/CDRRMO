@@ -111,10 +111,12 @@ export default function Sidebar() {
       title: 'Records',
       icon: 'ri-folder-info-line',
       items: [
-        { label: 'Client Satisfaction', icon: 'ri-emotion-happy-line', path: '/client-satisfaction' },
-        { label: 'History', icon: 'ri-history-line', path: '/history' },
-        { label: 'Documentation', icon: 'ri-folder-line', path: '/documentation' },
-        { label: 'Calendar Events', icon: 'ri-calendar-line', path: '/calendar' },
+        { label: 'Client Satisfaction',     icon: 'ri-emotion-happy-line',  path: '/client-satisfaction' },
+        { label: 'History',                  icon: 'ri-history-line',        path: '/history' },
+        { label: 'Documentation',            icon: 'ri-folder-line',         path: '/documentation' },
+        { label: 'Training Registrations',   icon: 'ri-user-add-line',       path: '/training-registrations' },
+        { label: 'DRRM Office Training',     icon: 'ri-award-line',          path: '/drrm-office-training' },
+        { label: 'Calendar Events',          icon: 'ri-calendar-line',       path: '/calendar' },
       ]
     },
     ...(isAdmin ? [{

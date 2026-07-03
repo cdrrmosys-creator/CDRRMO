@@ -468,6 +468,10 @@ export default function Topbar() {
                 <div style={{ fontSize: '11px', color: ringColor, fontWeight: '600', marginTop: '2px' }}>
                   {label}
                 </div>
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                  <i className="ri-edit-line" style={{ fontSize: '11px' }} />
+                  Edit Profile
+                </div>
               </div>
             </div>
           )
@@ -525,8 +529,83 @@ export default function Topbar() {
             {/* Body */}
             <div className="modal-body" style={{ flex: 1, overflow: 'auto' }}>
               <form onSubmit={e => e.preventDefault()} className="modal-form">
-                <div style={{ display: 'flex', gap: 0, minHeight: '520px' }}>
 
+                {/* ── Profile completion banner ── */}
+                {(() => {
+                  const f = formData
+                  const checks = [
+                    !!String(f.name ?? '').trim(),
+                    !!String(f.contact ?? '').trim(),
+                    !!String(f.address ?? '').trim(),
+                    !!String(f.dob ?? '').trim(),
+                    !!String(f.pob ?? '').trim(),
+                    !!String(f.sex ?? '').trim(),
+                    !!String(f.civil_status ?? '').trim(),
+                    !!String(f.blood_type ?? '').trim(),
+                    !!String(f.designation ?? '').trim(),
+                    !!String(f.email ?? '').trim(),
+                    !!(String(f.emergency_contact_person ?? '').trim() || String(f.emergency_contact_no ?? '').trim()),
+                    !!(String(f.father_name ?? '').trim() || String(f.mother_name ?? '').trim()),
+                    !!(Array.isArray(f.work_experience) && f.work_experience.length > 0),
+                    !!(Array.isArray(f.trainings_attended) && f.trainings_attended.length > 0),
+                    !!(String(f.tin ?? '').trim() || String(f.sss ?? '').trim() || String(f.philhealth ?? '').trim()),
+                    !!String(f.remarks ?? '').trim(),
+                    !!f.avatar_url,
+                  ]
+                  const done = checks.filter(Boolean).length
+                  const pct  = Math.round((done / checks.length) * 100)
+                  if (pct === 100) return null
+
+                  const barColor = pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626'
+                  const bgColor  = pct >= 80 ? '#f0fdf4' : pct >= 50 ? '#fffbeb' : '#fef2f2'
+                  const bdColor  = pct >= 80 ? '#bbf7d0' : pct >= 50 ? '#fde68a' : '#fecaca'
+
+                  return (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: '14px',
+                      padding: '12px 16px', borderRadius: '10px', marginBottom: '16px',
+                      background: bgColor, border: `1px solid ${bdColor}`
+                    }}>
+                      {/* Ring progress */}
+                      <div style={{ position: 'relative', width: '44px', height: '44px', flexShrink: 0 }}>
+                        <svg width="44" height="44" style={{ transform: 'rotate(-90deg)' }}>
+                          <circle cx="22" cy="22" r="17" fill="none" stroke="#e5e7eb" strokeWidth="4" />
+                          <circle cx="22" cy="22" r="17" fill="none" stroke={barColor} strokeWidth="4"
+                            strokeDasharray={`${(pct / 100) * 106.8} 106.8`} strokeLinecap="round" />
+                        </svg>
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '800', color: barColor }}>
+                          {pct}%
+                        </div>
+                      </div>
+
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '700', fontSize: '14px', color: barColor, marginBottom: '2px' }}>
+                          Profile {pct}% complete — {checks.length - done} field{checks.length - done !== 1 ? 's' : ''} missing
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          Complete your profile so your information is accurate for records and reports.
+                        </div>
+                      </div>
+
+                      {!isViewMode && (
+                        <div style={{ fontSize: '12px', color: barColor, fontWeight: '700', whiteSpace: 'nowrap' }}>
+                          Editing now ✏️
+                        </div>
+                      )}
+                      {isViewMode && (
+                        <button
+                          type="button"
+                          onClick={() => setIsViewMode(false)}
+                          style={{ padding: '7px 14px', borderRadius: '8px', border: `1px solid ${barColor}`, background: bgColor, color: barColor, fontSize: '12px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        >
+                          Update Profile
+                        </button>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                <div style={{ display: 'flex', gap: 0, minHeight: '520px' }}>
                   {/* Left sidebar */}
                   <div style={{ width: '185px', flexShrink: 0, borderRight: '1px solid var(--border-light)', paddingTop: '4px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     {PROFILE_TABS.map((t, idx) => {
