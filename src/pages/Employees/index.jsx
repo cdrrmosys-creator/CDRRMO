@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { validateForm } from '../../utils/validation'
 import { supabase, supabaseAdmin } from '../../services/supabase'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -163,6 +164,24 @@ export default function Employees() {
     setFilter('')
     setDateRange({ start: '', end: '' })
     setCurrentPage(1)
+  }
+
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Employees Report',
+      subtitle: `${filteredRecords.length} employees`,
+      columns: [
+        { header: 'ID', key: 'employee_id' },
+        { header: 'Name', key: 'full_name' },
+        { header: 'Designation', key: 'designation' },
+        { header: 'Office', key: 'office' },
+        { header: 'Contact', key: 'contact_no' },
+        { header: 'Email', key: 'email' },
+        { header: 'Role', key: 'role' },
+        { header: 'Status', key: 'status' },
+      ],
+      records: filteredRecords,
+    })
   }
 
   const handleViewDetails = (emp) => {
@@ -806,6 +825,7 @@ export default function Employees() {
           pageSize={pageSize}
           onPageSizeChange={handlePageSizeChange}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
           filterLabel="All Status"

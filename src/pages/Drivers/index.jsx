@@ -4,6 +4,7 @@ import useListPagination from '../../hooks/useListPagination'
 import ListPagination from '../../components/ListPagination'
 import ExportModal from '../../components/ExportModal'
 import TableGhostRows from '../../components/TableGhostRows'
+import StatusSelect from '../../components/StatusSelect'
 import { useState, useEffect } from 'react'
 import { validateForm } from '../../utils/validation'
 import { supabase } from '../../services/supabase'
@@ -11,6 +12,7 @@ import { logAudit } from '../../services/audit'
 import { uploadFile, deleteFiles } from '../../services/storage'
 import { compressImage } from '../../utils/imageCompression'
 import { format, isPast } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -62,6 +64,7 @@ export default function Drivers() {
         val && typeof val === 'string' && val.toLowerCase().includes(lowerSearch)
       )
     }
+    const matchesFilter = !filter || item.status === filter
     let matchesDate = true
     if (dateRange.start && dateRange.end) {
       const dateStr = item.created_at
@@ -73,7 +76,7 @@ export default function Drivers() {
         matchesDate = created >= start && created <= end
       }
     }
-    return matchesSearch && matchesDate
+    return matchesSearch && matchesFilter && matchesDate
   })
 
   const [isExportOpen, setIsExportOpen] = useState(false)
@@ -224,10 +227,36 @@ export default function Drivers() {
     return <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: style.bg, color: style.color }}>{status || 'Available'}</span>
   }
 
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      const { error } = await supabase.from('drivers').update({ status: newStatus }).eq('id', id)
+      if (error) throw error
+      setDrivers(drivers.map(d => d.id === id ? { ...d, status: newStatus } : d))
+    } catch (err) {
+      toast.error('Failed to update status: ' + err.message)
+    }
+  }
+
   const getLicenseStatus = (expiryDate) => {
     if (!expiryDate) return null
     const isExpired = isPast(new Date(expiryDate))
     return <span style={{ fontSize: '11px', fontWeight: '700', color: isExpired ? '#991b1b' : '#065f46' }}>{isExpired ? '⚠️ EXPIRED' : '✓ Valid'}</span>
+  }
+
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Drivers Report',
+      subtitle: `${filteredRecords.length} drivers`,
+      columns: [
+        { header: 'Driver ID', key: 'driver_id' },
+        { header: 'Name', key: 'name' },
+        { header: 'License No.', key: 'license_no' },
+        { header: 'License Expiry', key: 'license_expiry', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+        { header: 'Contact', key: 'contact_no' },
+        { header: 'Status', key: 'status' },
+      ],
+      records: filteredRecords,
+    })
   }
 
   if (loading) return (
@@ -261,6 +290,37 @@ export default function Drivers() {
         </button>
       </div>
 
+      {drivers.length > 0 && (() => {
+        const STATUSES = ['Available', 'On Duty', 'Off Duty', 'Unavailable']
+        const cards = [
+          { label: 'Total',       count: drivers.length,                                      icon: 'ri-steering-2-line',    accent: '#2563eb' },
+          { label: 'Available',   count: drivers.filter(d => d.status === 'Available').length, icon: 'ri-checkbox-circle-line', accent: '#16a34a' },
+          { label: 'On Duty',     count: drivers.filter(d => d.status === 'On Duty').length,   icon: 'ri-run-line',           accent: '#d97706' },
+          { label: 'Off Duty',    count: drivers.filter(d => d.status === 'Off Duty').length,  icon: 'ri-user-line',          accent: '#6b7280' },
+          { label: 'Unavailable', count: drivers.filter(d => d.status === 'Unavailable').length, icon: 'ri-close-circle-line', accent: '#dc2626' },
+        ]
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '20px' }}>
+            {cards.map(c => (
+              <div key={c.label} style={{
+                display: 'flex', alignItems: 'center', gap: '12px',
+                padding: '14px 16px', borderRadius: '12px',
+                background: 'var(--bg-surface)', border: '1px solid var(--border-light)',
+                borderTop: `3px solid ${c.accent}`, boxShadow: 'var(--shadow-sm)',
+              }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${c.accent}12` }}>
+                  <i className={c.icon} style={{ fontSize: '18px', color: c.accent }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '22px', fontWeight: '900', lineHeight: 1, color: c.accent }}>{c.count}</div>
+                  <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{c.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
       {drivers.length > 0 && (
         <ModuleToolbar
           onSearch={(v) => { setSearchTerm(v); setCurrentPage(1) }}
@@ -269,8 +329,22 @@ export default function Drivers() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={() => { setSearchTerm(''); setFilter(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
           hasActiveFilters={Boolean(searchTerm || filter || dateRange.start || dateRange.end)}
+          filterLabel="All Status"
+          filterOptions={[
+            { label: 'Available',   value: 'Available' },
+            { label: 'On Duty',     value: 'On Duty' },
+            { label: 'Off Duty',    value: 'Off Duty' },
+            { label: 'Unavailable', value: 'Unavailable' },
+          ]}
+          filterColorMap={{
+            'Available':   { bg: '#d1fae5', color: '#065f46', icon: 'ri-checkbox-circle-line' },
+            'On Duty':     { bg: '#fef3c7', color: '#92400e', icon: 'ri-run-line' },
+            'Off Duty':    { bg: '#f3f4f6', color: '#374151', icon: 'ri-user-line' },
+            'Unavailable': { bg: '#fee2e2', color: '#991b1b', icon: 'ri-close-circle-line' },
+          }}
         />
       )}
 
@@ -315,7 +389,20 @@ export default function Drivers() {
                     ) : 'Not provided'}
                   </td>
                   <td>{driver.contact || '-'}</td>
-                  <td>{getStatusBadge(driver.status)}</td>
+                  <td onClick={e => (isAdmin || canUpdate) ? e.stopPropagation() : undefined}>
+                    {(isAdmin || canUpdate) ? (
+                      <StatusSelect
+                        value={driver.status || 'Available'}
+                        options={[
+                          { value: 'Available',   label: 'Available',   icon: 'ri-checkbox-circle-fill', bg: '#d1fae5', color: '#065f46' },
+                          { value: 'On Duty',     label: 'On Duty',     icon: 'ri-run-line',             bg: '#fef3c7', color: '#92400e' },
+                          { value: 'Off Duty',    label: 'Off Duty',    icon: 'ri-user-line',            bg: '#f3f4f6', color: '#374151' },
+                          { value: 'Unavailable', label: 'Unavailable', icon: 'ri-close-circle-fill',    bg: '#fee2e2', color: '#991b1b' },
+                        ]}
+                        onChange={v => handleStatusChange(driver.id, v)}
+                      />
+                    ) : getStatusBadge(driver.status)}
+                  </td>
                 </tr>
               ))}
               <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={6} />

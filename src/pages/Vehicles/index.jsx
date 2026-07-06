@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
 import { format } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -70,9 +71,9 @@ export default function Vehicles() {
         val && typeof val === 'string' && val.toLowerCase().includes(lowerSearch)
       )
     }
-    
-    let matchesFilter = true
-    
+
+    const matchesFilter = !filter || item.status === filter
+
     let matchesDate = true
     if (dateRange.start && dateRange.end) {
       const dateStr = item.date_time || item.created_at || item.date || item.start_date || item.date_received || item.date_conducted || item.date_attended
@@ -309,6 +310,23 @@ const handleOpenAdd = () => {
     { value: 'Unavailable', label: 'Unavailable', icon: 'ri-close-circle-fill',    bg: '#f3f4f6', color: '#374151' },
   ]
 
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Vehicles Report',
+      subtitle: `${filteredRecords.length} vehicles`,
+      columns: [
+        { header: 'Vehicle ID', key: 'vehicle_id' },
+        { header: 'Plate Number', key: 'plate' },
+        { header: 'Model', key: 'model' },
+        { header: 'Type', key: 'type' },
+        { header: 'Capacity', key: 'capacity' },
+        { header: 'Status', key: 'status' },
+        { header: 'Last Maintenance', key: 'last_maintenance', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+      ],
+      records: filteredRecords,
+    })
+  }
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -367,6 +385,45 @@ const handleOpenAdd = () => {
       </div>
 
       
+      {vehicles.length > 0 && (() => {
+        const counts = {
+          total:       vehicles.length,
+          available:   vehicles.filter(v => v.status === 'Available').length,
+          inUse:       vehicles.filter(v => v.status === 'In Use').length,
+          maintenance: vehicles.filter(v => v.status === 'Maintenance').length,
+          unavailable: vehicles.filter(v => v.status === 'Unavailable').length,
+        }
+        const cards = [
+          { label: 'Total',       count: counts.total,       value: '',            icon: 'ri-truck-line',         accent: '#2563eb' },
+          { label: 'Available',   count: counts.available,   value: 'Available',   icon: 'ri-checkbox-circle-line', accent: '#16a34a' },
+          { label: 'In Use',      count: counts.inUse,       value: 'In Use',      icon: 'ri-run-line',           accent: '#d97706' },
+          { label: 'Maintenance', count: counts.maintenance, value: 'Maintenance', icon: 'ri-tools-line',         accent: '#dc2626' },
+          { label: 'Unavailable', count: counts.unavailable, value: 'Unavailable', icon: 'ri-close-circle-line',  accent: '#6b7280' },
+        ]
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '20px' }}>
+            {cards.map(c => (
+              <div key={c.label} style={{
+                display: 'flex', alignItems: 'center', gap: '12px',
+                padding: '14px 16px', borderRadius: '12px',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-light)',
+                borderTop: `3px solid ${c.accent}`,
+                boxShadow: 'var(--shadow-sm)',
+              }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${c.accent}12` }}>
+                  <i className={c.icon} style={{ fontSize: '18px', color: c.accent }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '22px', fontWeight: '900', lineHeight: 1, color: c.accent }}>{c.count}</div>
+                  <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{c.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
       {vehicles.length > 0 && (
         <ModuleToolbar
           onSearch={(v) => { setSearchTerm(v); setCurrentPage(1) }}
@@ -375,8 +432,22 @@ const handleOpenAdd = () => {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={() => { setSearchTerm(''); setFilter(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
           hasActiveFilters={Boolean(searchTerm || filter || dateRange.start || dateRange.end)}
+          filterLabel="All Status"
+          filterOptions={[
+            { label: 'Available',   value: 'Available' },
+            { label: 'In Use',      value: 'In Use' },
+            { label: 'Maintenance', value: 'Maintenance' },
+            { label: 'Unavailable', value: 'Unavailable' },
+          ]}
+          filterColorMap={{
+            'Available':   { bg: '#d1fae5', color: '#065f46', icon: 'ri-checkbox-circle-line' },
+            'In Use':      { bg: '#fef3c7', color: '#92400e', icon: 'ri-run-line' },
+            'Maintenance': { bg: '#fee2e2', color: '#991b1b', icon: 'ri-tools-line' },
+            'Unavailable': { bg: '#f3f4f6', color: '#374151', icon: 'ri-close-circle-line' },
+          }}
         />
       )}
 

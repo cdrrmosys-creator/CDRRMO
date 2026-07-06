@@ -7,6 +7,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
 import { format, parseISO } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -93,6 +94,21 @@ export default function EventsAssistance() {
     setFilter('')
     setDateRange({ start: '', end: '' })
     setCurrentPage(1)
+  }
+
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Events Assistance Report',
+      subtitle: `${filteredRecords.length} records`,
+      columns: [
+        { header: 'Date', key: 'date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+        { header: 'Event Name', key: 'event_name' },
+        { header: 'Type of Assistance', key: 'type_of_assistance' },
+        { header: 'Location', key: 'location' },
+        { header: 'Requestor', key: 'requestor' },
+      ],
+      records: filteredRecords,
+    })
   }
 
   // Available years derived from records
@@ -412,6 +428,7 @@ const handleOpenAdd = () => {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
         />

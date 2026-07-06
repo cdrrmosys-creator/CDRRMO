@@ -4,6 +4,7 @@ import { logAudit } from '../../services/audit'
 import { uploadFile, deleteFiles } from '../../services/storage'
 import { compressImage } from '../../utils/imageCompression'
 import { format } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import PhotoUploadPanel from '../../components/PhotoUploadPanel'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
@@ -15,6 +16,7 @@ import ListPagination from '../../components/ListPagination'
 import ExportModal from '../../components/ExportModal'
 import TableGhostRows from '../../components/TableGhostRows'
 import useListPagination from '../../hooks/useListPagination'
+import StatusSelect from '../../components/StatusSelect'
 
 const INITIAL_FORM_STATE = {
   record_id: '',
@@ -149,6 +151,20 @@ const handleOpenAdd = () => {
       ...prev, 
       [name]: type === 'checkbox' ? checked : value 
     }))
+  }
+
+  const handleServiceableChange = async (id, newValue) => {
+    try {
+      const { error } = await supabase
+        .from('inventory')
+        .update({ serviceable: newValue })
+        .eq('id', id)
+      if (error) throw error
+      setItems(items.map(i => i.id === id ? { ...i, serviceable: newValue } : i))
+      toast.success('Status updated')
+    } catch (err) {
+      toast.error('Failed to update status: ' + err.message)
+    }
   }
 
   const handleFileUpload = (e) => {
@@ -342,6 +358,22 @@ const handleOpenAdd = () => {
     setCurrentPage(1)
   }
 
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Inventory Report',
+      subtitle: `${filteredRecords.length} items`,
+      columns: [
+        { header: 'Item Name', key: 'item_name' },
+        { header: 'Category', key: 'category' },
+        { header: 'Quantity', key: 'quantity' },
+        { header: 'Status', key: 'status' },
+        { header: 'End User', key: 'end_user' },
+        { header: 'Date Acquired', key: 'date_acquired', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+      ],
+      records: filteredRecords,
+    })
+  }
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -407,42 +439,44 @@ const handleOpenAdd = () => {
           pageSize={pageSize}
           onPageSizeChange={handlePageSizeChange}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
           filterOptions={categories.map(cat => ({ label: cat, value: cat }))}
         />
       )}
 
-      {/* Summary */}
-      {items.length > 0 && (
-      <div style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-light)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '16px',
-        marginBottom: '24px',
-        boxShadow: 'var(--shadow-sm)',
-        display: 'flex',
-        gap: '32px'
-      }}>
-        <div>
-          <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '4px' }}>
-            Items ({filter})
+      {/* Summary cards */}
+      {items.length > 0 && (() => {
+        const cards = [
+          { label: 'Total Items',    count: filteredItems.length,                                      icon: 'ri-archive-line',       accent: '#2563eb' },
+          { label: 'Total Quantity', count: totalItems,                                                icon: 'ri-stack-line',         accent: '#0891b2' },
+          { label: 'Serviceable',    count: filteredItems.filter(i => i.serviceable !== false).length, icon: 'ri-checkbox-circle-line', accent: '#16a34a' },
+          { label: 'Unserviceable',  count: filteredItems.filter(i => i.serviceable === false).length, icon: 'ri-close-circle-line',  accent: '#dc2626' },
+        ]
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
+            {cards.map(c => (
+              <div key={c.label} style={{
+                display: 'flex', alignItems: 'center', gap: '12px',
+                padding: '14px 16px', borderRadius: '12px',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-light)',
+                borderTop: `3px solid ${c.accent}`,
+                boxShadow: 'var(--shadow-sm)',
+              }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${c.accent}12` }}>
+                  <i className={c.icon} style={{ fontSize: '18px', color: c.accent }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '22px', fontWeight: '900', lineHeight: 1, color: c.accent }}>{c.count}</div>
+                  <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{c.label}</div>
+                </div>
+              </div>
+            ))}
           </div>
-          <div style={{ fontSize: '24px', fontWeight: '800', color: 'var(--primary)' }}>
-            {filteredItems.length}
-          </div>
-        </div>
-        <div>
-          <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '4px' }}>
-            Total Quantity
-          </div>
-          <div style={{ fontSize: '24px', fontWeight: '800', color: '#16a34a' }}>
-            {totalItems}
-          </div>
-        </div>
-      </div>
-      )}
+        )
+      })()}
 
       {items.length === 0 ? (
         <div className="empty-state">
@@ -495,11 +529,24 @@ const handleOpenAdd = () => {
                   <td style={{ fontFamily: 'monospace', fontWeight: '700', fontSize: '16px' }}>
                     {item.quantity || 0}
                   </td>
-                  <td>{item.serviceable !== false ? (
-                    <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: '#d1fae5', color: '#065f46' }}>Serviceable</span>
-                  ) : (
-                    <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: '#fee2e2', color: '#991b1b' }}>Unserviceable</span>
-                  )}</td>
+                  <td onClick={e => (isAdmin || canUpdate) ? e.stopPropagation() : undefined}>
+                    {(isAdmin || canUpdate) ? (
+                      <StatusSelect
+                        value={item.serviceable !== false ? 'serviceable' : 'unserviceable'}
+                        options={[
+                          { value: 'serviceable',   label: 'Serviceable',   icon: 'ri-checkbox-circle-fill', bg: '#d1fae5', color: '#065f46' },
+                          { value: 'unserviceable', label: 'Unserviceable', icon: 'ri-close-circle-fill',    bg: '#fee2e2', color: '#991b1b' },
+                        ]}
+                        onChange={v => handleServiceableChange(item.id, v === 'serviceable')}
+                      />
+                    ) : (
+                      <span style={{ padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '700',
+                        background: item.serviceable !== false ? '#d1fae5' : '#fee2e2',
+                        color: item.serviceable !== false ? '#065f46' : '#991b1b' }}>
+                        {item.serviceable !== false ? 'Serviceable' : 'Unserviceable'}
+                      </span>
+                    )}
+                  </td>
                   <td>{item.end_user || '-'}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
                     {item.date_acquired 

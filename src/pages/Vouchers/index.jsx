@@ -7,12 +7,14 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
 import { format } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
 import StatusSelect from '../../components/StatusSelect'
+import StatusCards from '../../components/StatusCards'
 
 const INITIAL_FORM_STATE = {
   record_id: '',
@@ -68,7 +70,7 @@ export default function Vouchers() {
       )
     }
     
-    let matchesFilter = true
+    const matchesFilter = !filter || item.status === filter
     
     let matchesDate = true
     if (dateRange.start && dateRange.end) {
@@ -93,6 +95,22 @@ export default function Vouchers() {
     setFilter('')
     setDateRange({ start: '', end: '' })
     setCurrentPage(1)
+  }
+
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Vouchers Report',
+      subtitle: `${filteredRecords.length} vouchers`,
+      columns: [
+        { header: 'Date', key: 'date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+        { header: 'Beneficiary/Payee', key: 'beneficiary' },
+        { header: 'Check No.', key: 'check_no' },
+        { header: 'Purpose', key: 'purpose' },
+        { header: 'Amount', key: 'amount', format: v => v ? `₱${parseFloat(v).toFixed(2)}` : '—' },
+        { header: 'Status', key: 'status' },
+      ],
+      records: filteredRecords,
+    })
   }
 
   const loadVouchers = async () => {
@@ -334,36 +352,14 @@ export default function Vouchers() {
       </div>
 
       {/* Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-        <div style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-light)',
-          borderRadius: 'var(--radius-lg)',
-          padding: '16px',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
-          <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '4px' }}>
-            Total Vouchers
-          </div>
-          <div style={{ fontSize: '24px', fontWeight: '800', color: 'var(--primary)' }}>
-            {vouchers.length}
-          </div>
-        </div>
-        <div style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-light)',
-          borderRadius: 'var(--radius-lg)',
-          padding: '16px',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
-          <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '4px' }}>
-            Total Amount
-          </div>
-          <div style={{ fontSize: '24px', fontWeight: '800', color: '#16a34a' }}>
-            {formatCurrency(totalAmount)}
-          </div>
-        </div>
-      </div>
+      <StatusCards cards={[
+        { label: 'Total',    count: vouchers.length,                                      icon: 'ri-file-text-line',       accent: '#2563eb' },
+        { label: 'Pending',  count: vouchers.filter(v=>v.status==='Pending').length,       icon: 'ri-time-line',            accent: '#d97706' },
+        { label: 'Approved', count: vouchers.filter(v=>v.status==='Approved').length,      icon: 'ri-checkbox-circle-line', accent: '#16a34a' },
+        { label: 'Paid',     count: vouchers.filter(v=>v.status==='Paid').length,          icon: 'ri-coin-line',            accent: '#0891b2' },
+        { label: 'Rejected', count: vouchers.filter(v=>v.status==='Rejected').length,      icon: 'ri-close-circle-line',    accent: '#dc2626' },
+        { label: 'Total Amt',count: <span style={{fontSize:'14px'}}>{formatCurrency(totalAmount)}</span>, icon: 'ri-money-dollar-circle-line', accent: '#7c3aed' },
+      ]} />
 
       {vouchers.length > 0 && (
         <ModuleToolbar
@@ -373,7 +369,22 @@ export default function Vouchers() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
+          filterLabel="All Status"
+          filterOptions={[
+            { label: 'Pending', value: 'Pending' },
+            { label: 'Approved', value: 'Approved' },
+            { label: 'Paid', value: 'Paid' },
+            { label: 'Rejected', value: 'Rejected' },
+          ]}
+          filterColorMap={{
+            'Pending': { bg: '#fef3c7', color: '#92400e', icon: 'ri-time-line' },
+            'Approved': { bg: '#d1fae5', color: '#065f46', icon: 'ri-checkbox-circle-line' },
+            'Paid': { bg: '#dbeafe', color: '#1e40af', icon: 'ri-coin-line' },
+            'Rejected': { bg: '#fee2e2', color: '#991b1b', icon: 'ri-close-circle-line' },
+          }}
+
           hasActiveFilters={hasActiveFilters}
         />
       )}

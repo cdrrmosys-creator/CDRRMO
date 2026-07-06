@@ -1,4 +1,5 @@
 import ModuleToolbar from '../../components/ModuleToolbar'
+import StatusSelect from '../../components/StatusSelect'
 import ListPagination from '../../components/ListPagination'
 import ExportModal from '../../components/ExportModal'
 import TableGhostRows from '../../components/TableGhostRows'
@@ -16,6 +17,7 @@ import { useConfirm } from '../../components/ConfirmDialog'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
 import { uploadFile, deleteFiles } from '../../services/storage'
 import { compressImage } from '../../utils/imageCompression'
+import { printPDF } from '../../utils/printPDF'
 
 const PRIMARY = '#16a34a' // Green color for pruning
 
@@ -187,7 +189,7 @@ export default function Pruning() {
       )
     }
     
-    let matchesFilter = true
+    const matchesFilter = !filter || item.status === filter
     
     let matchesDate = true
     if (dateRange.start && dateRange.end) {
@@ -212,6 +214,21 @@ export default function Pruning() {
     setFilter('')
     setDateRange({ start: '', end: '' })
     setCurrentPage(1)
+  }
+
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Pruning & Trimming Report',
+      subtitle: `${filteredRecords.length} records`,
+      columns: [
+        { header: 'Date of Request', key: 'date_of_request', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+        { header: 'Location', key: 'location' },
+        { header: 'Status', key: 'status' },
+        { header: 'Trees Pruned', key: 'trees_pruned', format: v => v || '0' },
+        { header: 'Conducted By', key: 'conducted_by' },
+      ],
+      records: filteredRecords,
+    })
   }
 
   const loadRecords = async () => {
@@ -285,6 +302,18 @@ export default function Pruning() {
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleStatusChange = async (id, newStatus) => {
+    const { error } = await supabase
+      .from('pruning_trimming')
+      .update({ status: newStatus })
+      .eq('id', id)
+    if (!error) {
+      setRecords(records.map(r => r.id === id ? { ...r, status: newStatus } : r))
+    } else {
+      toast.error('Failed to update status: ' + error.message)
+    }
   }
 
   const handleFileUpload = (e) => {
@@ -526,14 +555,28 @@ export default function Pruning() {
         </ResponsiveContainer>
       </Card>
       
+      
+
       {records.length > 0 && (
         <ModuleToolbar
           onSearch={v => { setSearchTerm(v); setCurrentPage(1) }}
           onFilterChange={v => { setFilter(v); setCurrentPage(1) }}
+          filterLabel="All Status"
+          filterOptions={[
+            { label: 'Pending',     value: 'Pending' },
+            { label: 'In Progress', value: 'In Progress' },
+            { label: 'Completed',   value: 'Completed' },
+          ]}
+          filterColorMap={{
+            'Pending':     { bg: '#fef3c7', color: '#92400e', icon: 'ri-time-line' },
+            'In Progress': { bg: '#dbeafe', color: '#1e40af', icon: 'ri-run-line' },
+            'Completed':   { bg: '#d1fae5', color: '#065f46', icon: 'ri-checkbox-circle-line' },
+          }}
           onDateRangeChange={r => { setDateRange(r); setCurrentPage(1) }}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
         />
@@ -579,16 +622,17 @@ export default function Pruning() {
                         : record.date ? format(new Date(record.date), 'MMM dd, yyyy') : '-'}
                     </td>
                     <td style={{ fontWeight: '700' }}>{record.location || '-'}</td>
-                    <td>
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '4px',
-                        padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '700',
-                        background: record.status === 'Completed' ? 'rgba(22,163,74,0.12)' : record.status === 'In Progress' ? 'rgba(234,179,8,0.12)' : 'rgba(220,38,38,0.10)',
-                        color: record.status === 'Completed' ? '#16a34a' : record.status === 'In Progress' ? '#ca8a04' : '#dc2626',
-                        border: `1px solid ${record.status === 'Completed' ? 'rgba(22,163,74,0.3)' : record.status === 'In Progress' ? 'rgba(234,179,8,0.3)' : 'rgba(220,38,38,0.25)'}`,
-                      }}>
-                        {record.status || 'Pending'}
-                      </span>
+                    <td onClick={e => e.stopPropagation()}>
+                      <StatusSelect
+                        value={record.status || 'Pending'}
+                        disabled={!(isAdmin || canUpdate)}
+                        options={[
+                          { value: 'Pending',     label: 'Pending',     icon: 'ri-time-line',            bg: '#fef3c7', color: '#92400e' },
+                          { value: 'In Progress', label: 'In Progress', icon: 'ri-run-line',             bg: '#dbeafe', color: '#1e40af' },
+                          { value: 'Completed',   label: 'Completed',   icon: 'ri-checkbox-circle-line', bg: '#d1fae5', color: '#065f46' },
+                        ]}
+                        onChange={newStatus => handleStatusChange(record.id, newStatus)}
+                      />
                     </td>
                     <td style={{ fontFamily: 'monospace', fontSize: '15px' }}>{record.trees_pruned || 0}</td>
                     <td>{record.conducted_by || '-'}</td>
@@ -700,10 +744,11 @@ export default function Pruning() {
                     <div className="form-group">
                       <label>Operation Date</label>
                       <input 
-                        max={new Date().toISOString().split('T')[0]} type="date" 
+                        type="date" 
                         name="date" 
                         value={formData.date} 
-                        onChange={handleInputChange} 
+                        onChange={handleInputChange}
+                        min={formData.date_of_request || undefined}
                       />
                     </div>
                   </div>

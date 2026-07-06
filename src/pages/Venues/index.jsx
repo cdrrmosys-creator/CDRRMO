@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -206,6 +207,22 @@ export default function Venues() {
     setFilter('')
     setDateRange({ start: '', end: '' })
     setCurrentPage(1)
+  }
+
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Venues Report',
+      subtitle: `${filteredRecords.length} records`,
+      columns: [
+        { header: 'Venue', key: 'venue' },
+        { header: 'Inclusive Date', key: 'inclusive_date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+        { header: "Event's Name", key: 'event_name' },
+        { header: 'Client/Requestor', key: 'client' },
+        { header: 'Conducted By', key: 'conducted_by' },
+        { header: 'Contact No.', key: 'contact_no' },
+      ],
+      records: filteredRecords,
+    })
   }
 
   const loadRecords = async () => {
@@ -494,6 +511,7 @@ export default function Venues() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
         />

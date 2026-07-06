@@ -1,4 +1,5 @@
 import ModuleToolbar from '../../components/ModuleToolbar'
+import StatusSelect from '../../components/StatusSelect'
 import PhotoUploadPanel from '../../components/PhotoUploadPanel'
 import useListPagination from '../../hooks/useListPagination'
 import ListPagination from '../../components/ListPagination'
@@ -11,6 +12,7 @@ import { logAudit } from '../../services/audit'
 import { uploadFile, deleteFiles } from '../../services/storage'
 import { compressImage } from '../../utils/imageCompression'
 import { format } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -71,6 +73,7 @@ export default function Volunteers() {
         val && typeof val === 'string' && val.toLowerCase().includes(lowerSearch)
       )
     }
+    const matchesFilter = !filter || item.status === filter
     let matchesDate = true
     if (dateRange.start && dateRange.end) {
       const dateStr = item.date || item.created_at
@@ -82,7 +85,7 @@ export default function Volunteers() {
         matchesDate = created >= start && created <= end
       }
     }
-    return matchesSearch && matchesDate
+    return matchesSearch && matchesFilter && matchesDate
   })
 
   const [isExportOpen, setIsExportOpen] = useState(false)
@@ -246,6 +249,37 @@ export default function Volunteers() {
     return <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: style.bg, color: style.color }}>{status || 'Active'}</span>
   }
 
+  const VOLUNTEER_STATUS_OPTIONS = [
+    { value: 'Active',   label: 'Active',   icon: 'ri-user-follow-fill', bg: '#d1fae5', color: '#065f46' },
+    { value: 'Inactive', label: 'Inactive', icon: 'ri-user-line',         bg: '#fef3c7', color: '#92400e' },
+    { value: 'Expired',  label: 'Expired',  icon: 'ri-user-unfollow-fill',bg: '#fee2e2', color: '#991b1b' },
+  ]
+
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      const { error } = await supabase.from('volunteers').update({ status: newStatus }).eq('id', id)
+      if (error) throw error
+      setRecords(records.map(r => r.id === id ? { ...r, status: newStatus } : r))
+    } catch (err) {
+      toast.error('Failed to update status: ' + err.message)
+    }
+  }
+
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Volunteers Registry Report',
+      subtitle: `${filteredRecords.length} volunteers`,
+      columns: [
+        { header: 'Name', key: 'volunteer_name' },
+        { header: 'Organization', key: 'organization' },
+        { header: 'Accreditation No.', key: 'accreditation_no' },
+        { header: 'Date Registered', key: 'date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+        { header: 'Status', key: 'status' },
+      ],
+      records: filteredRecords,
+    })
+  }
+
   if (loading) return (
     <div className="loading-container">
       <i className="ri-loader-4-line loading-spinner"></i>
@@ -277,6 +311,8 @@ export default function Volunteers() {
         </button>
       </div>
 
+      
+
       {records.length > 0 && (
         <ModuleToolbar
           onSearch={(v) => { setSearchTerm(v); setCurrentPage(1) }}
@@ -285,7 +321,20 @@ export default function Volunteers() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={() => { setSearchTerm(''); setFilter(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
+                    filterLabel="All Status"
+          filterOptions={[
+            { label: 'Active', value: 'Active' },
+            { label: 'Inactive', value: 'Inactive' },
+            { label: 'Expired', value: 'Expired' },
+          ]}
+          filterColorMap={{
+            'Active': { bg: '#d1fae5', color: '#065f46', icon: 'ri-user-follow-line' },
+            'Inactive': { bg: '#fef3c7', color: '#92400e', icon: 'ri-user-line' },
+            'Expired': { bg: '#fee2e2', color: '#991b1b', icon: 'ri-user-unfollow-line' },
+          }}
+
           hasActiveFilters={Boolean(searchTerm || filter || dateRange.start || dateRange.end)}
         />
       )}
@@ -334,7 +383,16 @@ export default function Volunteers() {
                       </span>
                     )}
                   </td>
-                  <td>{getStatusBadge(record.status)}</td>
+                  <td onClick={e => (isAdmin || canUpdate) ? e.stopPropagation() : undefined}>
+                    {(isAdmin || canUpdate)
+                      ? <StatusSelect
+                          value={record.status || 'Active'}
+                          options={VOLUNTEER_STATUS_OPTIONS}
+                          onChange={v => handleStatusChange(record.id, v)}
+                        />
+                      : getStatusBadge(record.status)
+                    }
+                  </td>
                 </tr>
               ))}
               <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={7} />

@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import PhotoUploadPanel from '../../components/PhotoUploadPanel'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
@@ -209,7 +210,7 @@ export default function Transport() {
       )
     }
     
-    let matchesFilter = true
+    const matchesFilter = !filter || item.status === filter
     
     let matchesDate = true
     if (dateRange.start && dateRange.end) {
@@ -234,6 +235,22 @@ export default function Transport() {
     setFilter('')
     setDateRange({ start: '', end: '' })
     setCurrentPage(1)
+  }
+
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Transport Dispatch Report',
+      subtitle: `${filteredRecords.length} records`,
+      columns: [
+        { header: 'Date & Time', key: 'date_time', format: v => v ? format(new Date(v), 'MMM dd yyyy hh:mm a') : '—' },
+        { header: 'Vehicle', key: 'vehicle' },
+        { header: 'Driver', key: 'driver' },
+        { header: 'Destination', key: 'destination' },
+        { header: 'Patient', key: 'patient_name' },
+        { header: 'Status', key: 'status' },
+      ],
+      records: filteredRecords,
+    })
   }
 
   const loadRecords = async () => {
@@ -563,6 +580,45 @@ export default function Transport() {
         </div>
       </div>
 
+      {records.length > 0 && (() => {
+        const counts = {
+          total:       records.length,
+          scheduled:   records.filter(r => (r.status || 'Scheduled') === 'Scheduled').length,
+          inProgress:  records.filter(r => r.status === 'In Progress').length,
+          completed:   records.filter(r => r.status === 'Completed').length,
+          cancelled:   records.filter(r => r.status === 'Cancelled').length,
+        }
+        const cards = [
+          { label: 'Total',       count: counts.total,      icon: 'ri-taxi-line',              accent: '#2563eb' },
+          { label: 'Scheduled',   count: counts.scheduled,  icon: 'ri-calendar-line',          accent: '#0891b2' },
+          { label: 'In Progress', count: counts.inProgress, icon: 'ri-run-line',               accent: '#d97706' },
+          { label: 'Completed',   count: counts.completed,  icon: 'ri-checkbox-circle-line',   accent: '#16a34a' },
+          { label: 'Cancelled',   count: counts.cancelled,  icon: 'ri-close-circle-line',      accent: '#dc2626' },
+        ]
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '20px' }}>
+            {cards.map(c => (
+              <div key={c.label} style={{
+                display: 'flex', alignItems: 'center', gap: '12px',
+                padding: '14px 16px', borderRadius: '12px',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-light)',
+                borderTop: `3px solid ${c.accent}`,
+                boxShadow: 'var(--shadow-sm)',
+              }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${c.accent}12` }}>
+                  <i className={c.icon} style={{ fontSize: '18px', color: c.accent }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '22px', fontWeight: '900', lineHeight: 1, color: c.accent }}>{c.count}</div>
+                  <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{c.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
       <Card 
         title="Dispatch Trend" 
         icon="ri-line-chart-line" 
@@ -640,8 +696,24 @@ export default function Transport() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
+          filterLabel="All Status"
+          filterOptions={[
+            { label: 'Scheduled',   value: 'Scheduled' },
+            { label: 'In Progress', value: 'In Progress' },
+            { label: 'Completed',   value: 'Completed' },
+            { label: 'Rescheduled', value: 'Rescheduled' },
+            { label: 'Cancelled',   value: 'Cancelled' },
+          ]}
+          filterColorMap={{
+            'Scheduled':   { bg: '#dbeafe', color: '#1e40af', icon: 'ri-calendar-line' },
+            'In Progress': { bg: '#fef3c7', color: '#92400e', icon: 'ri-run-line' },
+            'Completed':   { bg: '#d1fae5', color: '#065f46', icon: 'ri-checkbox-circle-line' },
+            'Rescheduled': { bg: '#ede9fe', color: '#5b21b6', icon: 'ri-refresh-line' },
+            'Cancelled':   { bg: '#fee2e2', color: '#991b1b', icon: 'ri-close-circle-line' },
+          }}
         />
       )}
 

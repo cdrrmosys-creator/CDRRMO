@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
 import { format } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import ModuleToolbar from '../../components/ModuleToolbar'
 import ListPagination from '../../components/ListPagination'
@@ -201,6 +202,23 @@ export default function DrrmTraining() {
     return <span style={{ padding: '3px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: s.bg, color: s.color }}>{g || '-'}</span>
   }
 
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'DRRM Office Training Report',
+      subtitle: `${filteredRecords.length} records`,
+      columns: [
+        { header: 'Timestamp', key: 'timestamp', format: v => v ? format(new Date(v), 'MMM dd, yyyy hh:mm a') : '—' },
+        { header: 'Full Name', key: 'full_name' },
+        { header: 'Gender', key: 'gender' },
+        { header: 'Contact No.', key: 'contact_no' },
+        { header: 'Office', key: 'office' },
+        { header: 'Designation', key: 'designation' },
+        { header: 'Civil Status', key: 'civil_status' },
+      ],
+      records: filteredRecords,
+    })
+  }
+
   if (loading) return <div className="loading-container"><i className="ri-loader-4-line loading-spinner"></i><p>Loading records...</p></div>
   if (error) return (
     <div style={{ padding: '32px', textAlign: 'center' }}>
@@ -228,6 +246,7 @@ export default function DrrmTraining() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={() => { setSearchTerm(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
           hasActiveFilters={Boolean(searchTerm || dateRange.start || dateRange.end)}
         />

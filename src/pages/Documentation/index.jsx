@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
 import { format } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -113,6 +114,21 @@ export default function Documentation() {
     setFilter('')
     setDateRange({ start: '', end: '' })
     setCurrentPage(1)
+  }
+
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Documentation Report',
+      subtitle: `${filteredRecords.length} documents`,
+      columns: [
+        { header: 'Title', key: 'title' },
+        { header: 'Type', key: 'type' },
+        { header: 'Date Filed', key: 'date_filed', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+        { header: 'Filed By', key: 'filed_by' },
+        { header: 'Description', key: 'description' },
+      ],
+      records: filteredRecords,
+    })
   }
 
   const loadRecords = async () => {
@@ -474,6 +490,7 @@ export default function Documentation() {
           pageSize={pageSize}
           onPageSizeChange={handlePageSizeChange}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
         />

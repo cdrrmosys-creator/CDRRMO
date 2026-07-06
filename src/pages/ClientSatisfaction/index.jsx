@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -185,6 +186,20 @@ export default function ClientSatisfaction() {
     setFilter('')
     setDateRange({ start: '', end: '' })
     setCurrentPage(1)
+  }
+
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Client Satisfaction Report',
+      subtitle: `${filteredRecords.length} records`,
+      columns: [
+        { header: 'Client Name', key: 'client_name' },
+        { header: 'Date', key: 'date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+        { header: 'Service Provided', key: 'service_provided' },
+        { header: 'Overall Rating', key: 'overall_rating' },
+      ],
+      records: filteredRecords,
+    })
   }
 
   // Calculate stacked bar chart data based on filtered records
@@ -489,6 +504,7 @@ export default function ClientSatisfaction() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
         />

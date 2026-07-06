@@ -6,6 +6,7 @@ import useListPagination from '../../hooks/useListPagination'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { format } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import { useToast } from '../../components/Toast'
 
 export default function AuditTrail() {
@@ -66,6 +67,21 @@ export default function AuditTrail() {
     setFilter('')
     setDateRange({ start: '', end: '' })
     setCurrentPage(1)
+  }
+
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Audit Trail Report',
+      subtitle: `${filteredRecords.length} entries`,
+      columns: [
+        { header: 'Date & Time', key: 'created_at', format: v => v ? format(new Date(v), 'MMM dd, yyyy hh:mm a') : '—' },
+        { header: 'User', key: 'user_email' },
+        { header: 'Action', key: 'action' },
+        { header: 'Module', key: 'module' },
+        { header: 'Details', key: 'details' },
+      ],
+      records: filteredRecords,
+    })
   }
 
   const loadRecords = async () => {
@@ -180,6 +196,8 @@ export default function AuditTrail() {
         </h2>
       </div>
       
+      
+
       {records.length > 0 && (
         <ModuleToolbar 
           onSearch={setSearchTerm}
@@ -188,7 +206,23 @@ export default function AuditTrail() {
           pageSize={pageSize}
           onPageSizeChange={handlePageSizeChange}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
+          filterLabel="All Actions"
+          filterOptions={[
+            { label: 'Added', value: 'Added' },
+            { label: 'Updated', value: 'Updated' },
+            { label: 'Deleted', value: 'Deleted' },
+            { label: 'Login', value: 'Login' },
+            { label: 'Logout', value: 'Logout' },
+          ]}
+          filterColorMap={{
+            'Added': { bg: '#d1fae5', color: '#065f46', icon: 'ri-add-circle-line' },
+            'Updated': { bg: '#dbeafe', color: '#1e40af', icon: 'ri-edit-line' },
+            'Deleted': { bg: '#fee2e2', color: '#991b1b', icon: 'ri-delete-bin-line' },
+            'Login': { bg: '#fef9c3', color: '#854d0e', icon: 'ri-login-box-line' },
+            'Logout': { bg: '#f3e8ff', color: '#6b21a8', icon: 'ri-logout-box-line' },
+          }}
           hasActiveFilters={hasActiveFilters}
           filterOptions={filterOptions}
         />

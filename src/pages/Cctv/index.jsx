@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
 import { format } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -100,6 +101,19 @@ export default function Cctv() {
     setFilter('')
     setDateRange({ start: '', end: '' })
     setCurrentPage(1)
+  }
+
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'CCTV Records Report',
+      subtitle: `${filteredRecords.length} records`,
+      columns: [
+        { header: 'Report Title', key: 'report_title' },
+        { header: 'Date Covered', key: 'date_start', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+        { header: 'Prepared By', key: 'prepared_by' },
+      ],
+      records: filteredRecords,
+    })
   }
 
   const loadRecords = async () => {
@@ -405,6 +419,7 @@ export default function Cctv() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
         />
@@ -604,6 +619,7 @@ export default function Cctv() {
                         max={new Date().toISOString().split('T')[0]} type="date" 
                         name="date_end" 
                         value={formData.date_end} 
+                        min={formData.date_start || undefined}
                         onChange={handleInputChange} 
                         required 
                       />

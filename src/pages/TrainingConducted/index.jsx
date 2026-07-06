@@ -9,6 +9,7 @@ import { logAudit } from '../../services/audit'
 import { uploadFile, deleteFiles } from '../../services/storage'
 import { compressImage } from '../../utils/imageCompression'
 import { format, parseISO } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import PhotoUploadPanel from '../../components/PhotoUploadPanel'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
@@ -243,6 +244,21 @@ export default function TrainingConducted() {
     }
   }
 
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Training Conducted Report',
+      subtitle: `${filteredRecords.length} trainings`,
+      columns: [
+        { header: 'Training Title', key: 'training_title' },
+        { header: 'Date', key: 'date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+        { header: 'Venue', key: 'venue' },
+        { header: 'Facilitator', key: 'facilitator' },
+        { header: 'Participants', key: 'participants' },
+      ],
+      records: filteredRecords,
+    })
+  }
+
   if (loading) return (
     <div className="loading-container">
       <i className="ri-loader-4-line loading-spinner"></i>
@@ -349,6 +365,7 @@ export default function TrainingConducted() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={() => { setSearchTerm(''); setFilter(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
           hasActiveFilters={Boolean(searchTerm || filter || dateRange.start || dateRange.end)}
         />

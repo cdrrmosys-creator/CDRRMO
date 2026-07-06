@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
 import { format } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -71,8 +72,6 @@ export default function History() {
       )
     }
     
-    let matchesFilter = true
-    
     let matchesDate = true
     if (dateRange.start && dateRange.end) {
       const dateStr = item.date_time || item.created_at || item.date || item.start_date || item.date_received || item.date_conducted || item.date_attended
@@ -85,6 +84,7 @@ export default function History() {
       }
     }
 
+    const matchesFilter = !filter || item.category === filter
     return matchesSearch && matchesFilter && matchesDate
   })
 
@@ -96,6 +96,20 @@ export default function History() {
     setFilter('')
     setDateRange({ start: '', end: '' })
     setCurrentPage(1)
+  }
+
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'History Report',
+      subtitle: `${filteredRecords.length} records`,
+      columns: [
+        { header: 'Event Title', key: 'event_title' },
+        { header: 'Date', key: 'date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+        { header: 'Category', key: 'category' },
+        { header: 'Description', key: 'description' },
+      ],
+      records: filteredRecords,
+    })
   }
 
   const loadRecords = async () => {
@@ -414,6 +428,8 @@ const handleOpenAdd = () => {
         </button>
       </div>
 
+      
+
       {records.length > 0 && (
         <ModuleToolbar
           onSearch={v => { setSearchTerm(v); setCurrentPage(1) }}
@@ -422,7 +438,19 @@ const handleOpenAdd = () => {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
+          filterLabel="All Categories"
+          filterOptions={[
+            { label: 'Incident', value: 'Incident' },
+            { label: 'Event', value: 'Event' },
+            { label: 'Activity', value: 'Activity' },
+          ]}
+          filterColorMap={{
+            'Incident': { bg: '#fee2e2', color: '#991b1b', icon: 'ri-alarm-warning-line' },
+            'Event': { bg: '#dbeafe', color: '#1e40af', icon: 'ri-calendar-event-line' },
+            'Activity': { bg: '#ede9fe', color: '#5b21b6', icon: 'ri-rocket-line' },
+          }}
           hasActiveFilters={hasActiveFilters}
         />
       )}

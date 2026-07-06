@@ -5,6 +5,7 @@ import { uploadFile, deleteFiles } from '../../services/storage'
 import { compressImage } from '../../utils/imageCompression'
 import { logAudit } from '../../services/audit'
 import { format } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import ModuleToolbar from '../../components/ModuleToolbar'
 import ListPagination from '../../components/ListPagination'
@@ -185,7 +186,9 @@ export default function Incidents() {
       }
     }
 
-    return matchesSearch && matchesTeam && matchesDate
+    const matchesSeverity = true  // severity not filtered — use team filter below
+
+    return matchesSearch && matchesTeam && matchesSeverity && matchesDate
   }).sort((a, b) => {
     const da = new Date(a.date || a.created_at || 0)
     const db = new Date(b.date || b.created_at || 0)
@@ -496,6 +499,22 @@ export default function Incidents() {
     )
   }
 
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Incident Reports',
+      subtitle: `${filteredRecords.length} records`,
+      columns: [
+        { header: 'Date', key: 'date', format: v => v ? format(new Date(v), 'MMM dd yyyy') : '—' },
+        { header: 'Nature of Incident', key: 'nature_of_incident' },
+        { header: 'Victim', key: 'name' },
+        { header: 'Team', key: 'team' },
+        { header: 'Location', key: 'place_of_incident' },
+        { header: 'Severity', key: 'severity' },
+      ],
+      records: filteredRecords,
+    })
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -513,11 +532,28 @@ export default function Incidents() {
       {incidents.length > 0 && (
         <ModuleToolbar
           onSearch={(v) => { setSearchTerm(v); setCurrentPage(1) }}
+          onFilterChange={(v) => { setFilterTeam(v); setCurrentPage(1) }}
           onDateRangeChange={(r) => { setDateRange(r); setCurrentPage(1) }}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={() => { setSearchTerm(''); setFilterTeam(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
+          filterLabel="All Teams"
+          filterOptions={[
+            { label: 'Alpha',   value: 'Alpha' },
+            { label: 'Bravo',   value: 'Bravo' },
+            { label: 'Charlie', value: 'Charlie' },
+            { label: 'Delta',   value: 'Delta' },
+            { label: 'Other',   value: 'Other' },
+          ]}
+          filterColorMap={{
+            'Alpha':   { bg: '#dbeafe', color: '#1d4ed8', icon: 'ri-team-line' },
+            'Bravo':   { bg: '#d1fae5', color: '#065f46', icon: 'ri-team-line' },
+            'Charlie': { bg: '#fef3c7', color: '#92400e', icon: 'ri-team-line' },
+            'Delta':   { bg: '#fee2e2', color: '#991b1b', icon: 'ri-team-line' },
+            'Other':   { bg: '#f3f4f6', color: '#374151', icon: 'ri-team-line' },
+          }}
           hasActiveFilters={Boolean(searchTerm || filterTeam || dateRange.start || dateRange.end)}
         >
           <select

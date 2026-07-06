@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
 import { format } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -84,6 +85,20 @@ export default function Maps() {
     setFilter('')
     setDateRange({ start: '', end: '' })
     setCurrentPage(1)
+  }
+
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Maps / CCTV Locations Report',
+      subtitle: `${filteredRecords.length} records`,
+      columns: [
+        { header: 'Map Title', key: 'map_title' },
+        { header: 'Type', key: 'type' },
+        { header: 'Coverage Area', key: 'coverage_area' },
+        { header: 'Last Updated', key: 'last_updated', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+      ],
+      records: filteredRecords,
+    })
   }
 
   const loadRecords = async () => {
@@ -281,6 +296,7 @@ const handleOpenAdd = () => {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
         />

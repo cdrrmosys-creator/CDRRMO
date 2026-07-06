@@ -2,6 +2,7 @@ import { validateForm } from '../../utils/validation'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { format } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
@@ -57,6 +58,7 @@ export default function DrowningIncidents() {
   const [isUploading, setIsUploading] = useState(false)
   const [pendingPhotos, setPendingPhotos] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
+  const [filter, setFilter] = useState('')
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
   const [isExportOpen, setIsExportOpen] = useState(false)
 
@@ -81,7 +83,8 @@ export default function DrowningIncidents() {
         matchesDate = d >= start && d <= end
       }
     }
-    return matchesSearch && matchesDate
+    const matchesFilter = !filter || item.outcome === filter
+    return matchesSearch && matchesFilter && matchesDate
   })
 
   const { currentPage, setCurrentPage, pageSize, setPageSize, totalPages, safePage, pagedRecords } = useListPagination(filteredRecords)
@@ -240,6 +243,21 @@ export default function DrowningIncidents() {
     return <span style={{ padding: '3px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: c.bg, color: c.color }}>{outcome || '-'}</span>
   }
 
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Drowning Incidents Report',
+      subtitle: `${filteredRecords.length} incidents`,
+      columns: [
+        { header: 'Date', key: 'date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+        { header: 'Location', key: 'location' },
+        { header: 'Victim', key: 'victim_name' },
+        { header: 'Water Body', key: 'water_body' },
+        { header: 'Outcome', key: 'outcome' },
+      ],
+      records: filteredRecords,
+    })
+  }
+
   if (loading) return <div className="loading-container"><i className="ri-loader-4-line loading-spinner"></i><p>Loading drowning records...</p></div>
   if (error) return (
     <div style={{ padding: '32px', textAlign: 'center' }}>
@@ -290,12 +308,27 @@ export default function DrowningIncidents() {
       {records.length > 0 && (
         <ModuleToolbar
           onSearch={(v) => { setSearchTerm(v); setCurrentPage(1) }}
+          onFilterChange={(v) => { setFilter(v); setCurrentPage(1) }}
           onDateRangeChange={(r) => { setDateRange(r); setCurrentPage(1) }}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onClearFilters={() => { setSearchTerm(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
-          hasActiveFilters={Boolean(searchTerm || dateRange.start || dateRange.end)}
+          onPrintClick={handlePrintPDF}
+          onClearFilters={() => { setSearchTerm(''); setFilter(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
+          filterLabel="All Outcomes"
+          filterOptions={[
+            { label: 'Rescued',        value: 'Rescued' },
+            { label: 'Hospitalized',   value: 'Hospitalized' },
+            { label: 'Self-recovered', value: 'Self-recovered' },
+            { label: 'Deceased',       value: 'Deceased' },
+          ]}
+          filterColorMap={{
+            'Rescued':        { bg: '#dcfce7', color: '#166534', icon: 'ri-lifebuoy-line' },
+            'Hospitalized':   { bg: '#dbeafe', color: '#1e40af', icon: 'ri-hospital-line' },
+            'Self-recovered': { bg: '#fef9c3', color: '#854d0e', icon: 'ri-walk-line' },
+            'Deceased':       { bg: '#fee2e2', color: '#991b1b', icon: 'ri-heart-pulse-line' },
+          }}
+          hasActiveFilters={Boolean(searchTerm || filter || dateRange.start || dateRange.end)}
         />
       )}
 

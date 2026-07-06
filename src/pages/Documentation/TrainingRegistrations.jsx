@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
 import { format } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -90,6 +91,23 @@ export default function TrainingRegistrations() {
     setFilter('')
     setDateRange({ start: '', end: '' })
     setCurrentPage(1)
+  }
+
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Training Registrations Report',
+      subtitle: `${filteredRecords.length} registrations`,
+      columns: [
+        { header: 'Full Name', key: 'full_name' },
+        { header: 'Gender', key: 'gender' },
+        { header: 'Contact No.', key: 'contact_no' },
+        { header: 'Training/s', key: 'trainings' },
+        { header: 'Organization', key: 'organization' },
+        { header: 'Designation', key: 'designation' },
+        { header: 'Civil Status', key: 'civil_status' },
+      ],
+      records: filteredRecords,
+    })
   }
 
   const loadRecords = async () => {
@@ -242,6 +260,8 @@ export default function TrainingRegistrations() {
         </button>
       </div>
 
+      
+
       {records.length > 0 && (
         <ModuleToolbar
           onSearch={setSearchTerm}
@@ -250,6 +270,7 @@ export default function TrainingRegistrations() {
           pageSize={pageSize}
           onPageSizeChange={handlePageSizeChange}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
         />

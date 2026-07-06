@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
 import { format } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -72,8 +73,6 @@ export default function CalendarEvents() {
       )
     }
     
-    let matchesFilter = true
-    
     let matchesDate = true
     if (dateRange.start && dateRange.end) {
       const dateStr = item.date_time || item.created_at || item.date || item.start_date || item.date_received || item.date_conducted || item.date_attended
@@ -86,6 +85,7 @@ export default function CalendarEvents() {
       }
     }
 
+    const matchesFilter = !filter || item.event_type === filter
     return matchesSearch && matchesFilter && matchesDate
   })
 
@@ -97,6 +97,22 @@ export default function CalendarEvents() {
     setFilter('')
     setDateRange({ start: '', end: '' })
     setCurrentPage(1)
+  }
+
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Calendar Events Report',
+      subtitle: `${filteredRecords.length} events`,
+      columns: [
+        { header: 'Event Title', key: 'event_title' },
+        { header: 'Type', key: 'event_type' },
+        { header: 'Start Date', key: 'start_date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+        { header: 'End Date', key: 'end_date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+        { header: 'Location', key: 'location' },
+        { header: 'Organizer', key: 'organizer' },
+      ],
+      records: filteredRecords,
+    })
   }
 
   const loadRecords = async () => {
@@ -323,6 +339,8 @@ const handleOpenAdd = () => {
         </button>
       </div>
 
+      
+
       {records.length > 0 && (
         <ModuleToolbar
           onSearch={v => { setSearchTerm(v); setCurrentPage(1) }}
@@ -331,7 +349,19 @@ const handleOpenAdd = () => {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
+          filterLabel="All Types"
+          filterOptions={[
+            { label: 'Holiday', value: 'Holiday' },
+            { label: 'Training', value: 'Training' },
+            { label: 'Meeting', value: 'Meeting' },
+          ]}
+          filterColorMap={{
+            'Holiday': { bg: '#fee2e2', color: '#991b1b', icon: 'ri-sun-line' },
+            'Training': { bg: '#d1fae5', color: '#065f46', icon: 'ri-book-open-line' },
+            'Meeting': { bg: '#dbeafe', color: '#1e40af', icon: 'ri-group-line' },
+          }}
           hasActiveFilters={hasActiveFilters}
         />
       )}

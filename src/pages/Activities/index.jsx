@@ -10,6 +10,7 @@ import { logAudit } from '../../services/audit'
 import { uploadFile, deleteFiles } from '../../services/storage'
 import { compressImage } from '../../utils/imageCompression'
 import { format, parseISO } from 'date-fns'
+import { printPDF } from '../../utils/printPDF'
 import Modal from '../../components/Modal'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -263,6 +264,21 @@ const handleOpenAdd = () => {
     }
   }
 
+  const handlePrintPDF = () => {
+    printPDF({
+      title: 'Activities Report',
+      subtitle: `${filteredRecords.length} activities`,
+      columns: [
+        { header: 'Activity Title', key: 'activity_title' },
+        { header: 'Date', key: 'date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+        { header: 'Location', key: 'location' },
+        { header: 'Participants', key: 'participants' },
+        { header: 'Description', key: 'description' },
+      ],
+      records: filteredRecords,
+    })
+  }
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -420,6 +436,7 @@ const handleOpenAdd = () => {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
+          onPrintClick={handlePrintPDF}
           onClearFilters={() => { setSearchTerm(''); setFilter(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
           hasActiveFilters={Boolean(searchTerm || filter || dateRange.start || dateRange.end)}
         />
