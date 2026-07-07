@@ -558,20 +558,7 @@ export default function Incidents() {
             'Other':   { bg: '#f3f4f6', color: '#374151', icon: 'ri-team-line' },
           }}
           hasActiveFilters={Boolean(searchTerm || filterTeam || dateRange.start || dateRange.end)}
-        >
-          <select
-            value={filterTeam}
-            onChange={e => { setFilterTeam(e.target.value); setCurrentPage(1) }}
-            style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: filterTeam ? 'var(--text)' : 'var(--text-muted)', cursor: 'pointer', minWidth: '130px' }}
-          >
-            <option value="">All Teams</option>
-            <option value="Alpha">Alpha</option>
-            <option value="Bravo">Bravo</option>
-            <option value="Charlie">Charlie</option>
-            <option value="Delta">Delta</option>
-            <option value="Other">Other</option>
-          </select>
-        </ModuleToolbar>
+        />
       )}
 
       {incidents.length === 0 ? (
