@@ -957,6 +957,13 @@ export default function Employees() {
         filename="employees_report.xlsx"
         sheetName="Employees"
         dateField="created_at"
+        transformValue={(col, val) => {
+          if (col === 'avatar') {
+            // Avatar is a single URL, not an array
+            return val || ''
+          }
+          return val
+        }}
         onSuccess={(count) => toast.success(`Exported ${count} records.`)}
         onError={(msg) => toast.error(msg)}
       />

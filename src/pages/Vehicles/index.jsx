@@ -536,6 +536,30 @@ const handleOpenAdd = () => {
         filename="vehicles_report.xlsx"
         sheetName="Vehicles"
         dateField="created_at"
+        columns={['vehicle_id', 'plate', 'orcr', 'model', 'manufacturer', 'year', 'type', 'capacity', 'status', 'last_maintenance', 'notes', 'photos']}
+        headers={{
+          vehicle_id: 'Vehicle ID',
+          plate: 'Plate Number',
+          orcr: 'ORCR',
+          model: 'Model',
+          manufacturer: 'Manufacturer',
+          year: 'Year',
+          type: 'Type',
+          capacity: 'Capacity',
+          status: 'Status',
+          last_maintenance: 'Last Maintenance',
+          notes: 'Notes',
+          photos: 'Photo URLs'
+        }}
+        transformValue={(col, val) => {
+          if (col === 'photos') {
+            if (Array.isArray(val) && val.length > 0) {
+              return val.join('\n')
+            }
+            return ''
+          }
+          return val
+        }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
         onError={(msg) => toast.error(msg)}
       />
@@ -644,14 +668,22 @@ const handleOpenAdd = () => {
             </div>
             <div className="form-group">
               <label>Year *</label>
-              <input 
-                type="text" 
+              <select 
                 name="year" 
                 value={formData.year} 
                 onChange={handleInputChange} 
                 required
-                placeholder="e.g. 2023"
-              />
+              >
+                <option value="">-- Select Year --</option>
+                {(() => {
+                  const currentYear = new Date().getFullYear()
+                  const years = []
+                  for (let y = currentYear; y >= currentYear - 50; y--) {
+                    years.push(y)
+                  }
+                  return years.map(y => <option key={y} value={y}>{y}</option>)
+                })()}
+              </select>
             </div>
           </div>
 
@@ -696,7 +728,8 @@ const handleOpenAdd = () => {
                 type="date" 
                 name="last_maintenance" 
                 value={formData.last_maintenance} 
-                onChange={handleInputChange} 
+                onChange={handleInputChange}
+                max={new Date().toISOString().split('T')[0]}
               />
             </div>
           </div>

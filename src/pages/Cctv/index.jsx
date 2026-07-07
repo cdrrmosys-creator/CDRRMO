@@ -503,6 +503,13 @@ export default function Cctv() {
         filename="cctv_reports.xlsx"
         sheetName="CCTV"
         dateField="date_start"
+        transformValue={(col, val) => {
+          if (col === 'file_url') {
+            // File URL is a single URL
+            return val || ''
+          }
+          return val
+        }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
         onError={(msg) => toast.error(msg)}
       />

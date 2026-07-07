@@ -252,7 +252,16 @@ export default function TrainingAttended() {
         { header: 'Date', key: 'date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
         { header: 'Venue', key: 'venue' },
         { header: 'Conducted By', key: 'conducted_by' },
-        { header: 'Attendees', key: 'attendees' },
+        { 
+          header: 'Attendees', 
+          key: 'participants',
+          format: (v, record) => {
+            if (Array.isArray(v) && v.length > 0) {
+              return v.map(p => p.name).filter(Boolean).join(', ')
+            }
+            return record.attendees || '—'
+          }
+        },
       ],
       records: filteredRecords,
     })
@@ -406,7 +415,9 @@ export default function TrainingAttended() {
                   <td>{record.conducted_by || '-'}</td>
                   <td>
                     <div style={{ maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px', color: 'var(--text-muted)' }}>
-                      {record.attendees || '-'}
+                      {Array.isArray(record.participants) && record.participants.length > 0
+                        ? record.participants.map(p => p.name).filter(Boolean).join(', ')
+                        : (record.attendees || '-')}
                     </div>
                   </td>
                 </tr>
@@ -432,6 +443,33 @@ export default function TrainingAttended() {
         filename="trainingattended_report.xlsx"
         sheetName="TrainingAttended"
         dateField="date"
+        columns={['record_id', 'training_title', 'date', 'date_end', 'venue', 'conducted_by', 'participants', 'remarks', 'photos']}
+        headers={{
+          record_id: 'Record ID',
+          training_title: 'Training Title',
+          date: 'Date Start',
+          date_end: 'Date End',
+          venue: 'Venue',
+          conducted_by: 'Conducted By',
+          participants: 'Participants',
+          remarks: 'Remarks',
+          photos: 'Photo URLs'
+        }}
+        transformValue={(col, val, record) => {
+          if (col === 'participants') {
+            if (Array.isArray(val) && val.length > 0) {
+              return val.map(p => p.name).filter(Boolean).join(', ')
+            }
+            return record.attendees || ''
+          }
+          if (col === 'photos') {
+            if (Array.isArray(val) && val.length > 0) {
+              return val.join('\n')
+            }
+            return ''
+          }
+          return val
+        }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
         onError={(msg) => toast.error(msg)}
       />

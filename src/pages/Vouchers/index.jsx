@@ -107,6 +107,7 @@ export default function Vouchers() {
         { header: 'Check No.', key: 'check_number' },
         { header: 'Purpose', key: 'purpose' },
         { header: 'Amount', key: 'amount', format: v => v ? `₱${parseFloat(v).toFixed(2)}` : '—' },
+        { header: 'Insurance', key: 'has_insurance', format: v => v ? 'Insured' : 'None' },
         { header: 'Status', key: 'status' },
       ],
       records: filteredRecords,

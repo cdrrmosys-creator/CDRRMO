@@ -17,6 +17,7 @@ import ExportModal from '../../components/ExportModal'
 import TableGhostRows from '../../components/TableGhostRows'
 import useListPagination from '../../hooks/useListPagination'
 import StatusSelect from '../../components/StatusSelect'
+import ScrollableSelect from '../../components/ScrollableSelect'
 
 const INITIAL_FORM_STATE = {
   record_id: '',
@@ -366,7 +367,8 @@ const handleOpenAdd = () => {
         { header: 'Item Name', key: 'item_name' },
         { header: 'Category', key: 'category' },
         { header: 'Quantity', key: 'quantity' },
-        { header: 'Status', key: 'status' },
+        { header: 'Unit', key: 'unit' },
+        { header: 'Status', key: 'serviceable', format: v => v !== false ? 'Serviceable' : 'Unserviceable' },
         { header: 'End User', key: 'end_user' },
         { header: 'Date Acquired', key: 'date_acquired', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
       ],
@@ -577,7 +579,13 @@ const handleOpenAdd = () => {
         sheetName="Inventory"
         dateField="date_acquired"
         transformValue={(col, val) => {
-          if (col === 'serviceable') return val !== false ? 'Serviceable' : 'Not Serviceable'
+          if (col === 'serviceable') return val !== false ? 'Serviceable' : 'Unserviceable'
+          if (col === 'photos') {
+            if (Array.isArray(val) && val.length > 0) {
+              return val.join('\n')
+            }
+            return ''
+          }
           return val
         }}
         onSuccess={(count) => toast.success(`Exported ${count} records.`)}
@@ -693,14 +701,86 @@ const handleOpenAdd = () => {
                     </div>
                     <div className="form-group">
                       <label>Unit *</label>
-                      <input type="text" name="unit" value={formData.unit} onChange={handleInputChange} placeholder="e.g. pcs, boxes" required style={{ padding: '8px' }} />
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        {/* Show text input for custom unit first */}
+                        {(formData.unit === '__other__' || (formData.unit !== '' && !['pcs','sets','boxes','packs','rolls','pairs','bottles','bags','units','liters','meters','sheets','kits','drums','cans','bundles','sacks','coils','gallons'].includes(formData.unit))) && (
+                          <div style={{ flex: '1' }}>
+                            <input
+                              type="text"
+                              name="unit"
+                              value={formData.unit === '__other__' ? '' : formData.unit}
+                              onChange={handleInputChange}
+                              placeholder="Specify unit..."
+                              required
+                              autoFocus
+                              style={{ padding: '8px', width: '100%' }}
+                            />
+                          </div>
+                        )}
+                        <div style={{ flex: (formData.unit === '__other__' || (formData.unit !== '' && !['pcs','sets','boxes','packs','rolls','pairs','bottles','bags','units','liters','meters','sheets','kits','drums','cans','bundles','sacks','coils','gallons'].includes(formData.unit))) ? '1' : '1' }}>
+                          <ScrollableSelect
+                            value={['pcs','sets','boxes','packs','rolls','pairs','bottles','bags','units','liters','meters','sheets','kits','drums','cans','bundles','sacks','coils','gallons'].includes(formData.unit) ? formData.unit : (formData.unit ? 'other' : '')}
+                            options={[
+                              { value: 'pcs',     label: 'pcs (pieces)' },
+                              { value: 'sets',    label: 'sets' },
+                              { value: 'boxes',   label: 'boxes' },
+                              { value: 'packs',   label: 'packs' },
+                              { value: 'rolls',   label: 'rolls' },
+                              { value: 'pairs',   label: 'pairs' },
+                              { value: 'bottles', label: 'bottles' },
+                              { value: 'bags',    label: 'bags' },
+                              { value: 'units',   label: 'units' },
+                              { value: 'liters',  label: 'liters' },
+                              { value: 'meters',  label: 'meters' },
+                              { value: 'sheets',  label: 'sheets' },
+                              { value: 'kits',    label: 'kits' },
+                              { value: 'drums',   label: 'drums' },
+                              { value: 'cans',    label: 'cans' },
+                              { value: 'bundles', label: 'bundles' },
+                              { value: 'sacks',   label: 'sacks' },
+                              { value: 'coils',   label: 'coils' },
+                              { value: 'gallons', label: 'gallons' },
+                              { value: 'other',   label: 'Other' },
+                            ]}
+                            onChange={v => {
+                              if (v === 'other') {
+                                handleInputChange({ target: { name: 'unit', value: '__other__' } })
+                              } else {
+                                handleInputChange({ target: { name: 'unit', value: v } })
+                              }
+                            }}
+                            placeholder="-- Select Unit --"
+                            required
+                            visibleCount={5}
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
                   <div className="form-row" style={{ gap: '12px' }}>
                     <div className="form-group">
                       <label>Acquisition Cost</label>
-                      <input type="number" step="0.01" name="acquisition_cost" value={formData.acquisition_cost} onChange={handleInputChange} placeholder="0.00" style={{ padding: '8px' }} />
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <input 
+                          type="number" 
+                          step="0.01" 
+                          name="acquisition_cost" 
+                          value={formData.acquisition_cost} 
+                          onChange={handleInputChange} 
+                          placeholder="0.00" 
+                          style={{ padding: '8px 50px 8px 8px', width: '100%' }} 
+                        />
+                        <span style={{
+                          position: 'absolute',
+                          right: '10px',
+                          fontSize: '13px',
+                          fontWeight: '700',
+                          color: 'var(--text-muted)',
+                          pointerEvents: 'none',
+                          userSelect: 'none'
+                        }}>PHP</span>
+                      </div>
                     </div>
                     <div className="form-group">
                       <label>Date Acquired *</label>

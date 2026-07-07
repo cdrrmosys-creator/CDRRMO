@@ -27,6 +27,7 @@ const INITIAL_FORM_STATE = {
   vehicle: '',
   driver: '',
   team: '',
+  team_other: '',
   responder: '',
   destination: '',
   date_time: '',
@@ -246,7 +247,7 @@ export default function Transport() {
         { header: 'Vehicle', key: 'vehicle' },
         { header: 'Driver', key: 'driver' },
         { header: 'Destination', key: 'destination' },
-        { header: 'Patient', key: 'patient_name' },
+        { header: 'Purpose', key: 'purpose' },
         { header: 'Status', key: 'status' },
       ],
       records: filteredRecords,
@@ -348,11 +349,30 @@ export default function Transport() {
       formattedRescheduleDate = (new Date(d - tzOffset)).toISOString().slice(0, 16)
     }
 
+    // Handle team data - normalize case for matching
+    const standardTeams = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Other']
+    let teamValue = rec.team || ''
+    let teamOtherValue = rec.team_other || ''
+    
+    if (teamValue) {
+      // Try to match team case-insensitively
+      const matchedTeam = standardTeams.find(t => t.toLowerCase() === teamValue.toLowerCase())
+      if (matchedTeam) {
+        // Found a match - use the proper case version
+        teamValue = matchedTeam
+      } else {
+        // No match - set to "Other" and put value in team_other
+        teamOtherValue = teamValue
+        teamValue = 'Other'
+      }
+    }
+
     setFormData({
       record_id: rec.record_id || '',
       vehicle: rec.vehicle || '',
       driver: rec.driver || '',
-      team: rec.team || '',
+      team: teamValue,
+      team_other: teamOtherValue,
       responder: rec.responder || '',
       destination: rec.destination || '',
       date_time: formattedDateTime,
@@ -753,7 +773,7 @@ export default function Transport() {
                 <th>Vehicle</th>
                 <th>Driver</th>
                 <th>Destination</th>
-                <th>Patient Name</th>
+                <th>Purpose</th>
                 <th>Contact Person</th>
                 <th>Status</th>
               </tr>
@@ -774,7 +794,7 @@ export default function Transport() {
                   <td style={{ fontWeight: '700' }}>{record.vehicle || '-'}</td>
                   <td>{record.driver || '-'}</td>
                   <td>{record.destination || '-'}</td>
-                  <td style={{ fontWeight: '600', color: 'var(--primary)' }}>{record.patient_name || '-'}</td>
+                  <td>{record.purpose || '-'}</td>
                   <td>{record.contact_person || '-'}</td>
                   <td onClick={e => e.stopPropagation()}>
                     {(() => {
@@ -823,6 +843,35 @@ export default function Transport() {
         filename="transport_report.xlsx"
         sheetName="Transport"
         dateField="date_time"
+        columns={['record_id', 'date_time', 'vehicle', 'driver', 'team', 'team_other', 'responder', 'destination', 'purpose', 'contact_person', 'remarks', 'status', 'photos']}
+        headers={{
+          record_id: 'Record ID',
+          date_time: 'Date & Time',
+          vehicle: 'Vehicle',
+          driver: 'Driver',
+          team: 'Team',
+          team_other: 'Custom Team',
+          responder: 'Responder',
+          destination: 'Destination',
+          purpose: 'Purpose',
+          contact_person: 'Contact Person',
+          remarks: 'Remarks',
+          status: 'Status',
+          photos: 'Photo URLs'
+        }}
+        transformValue={(col, val, record) => {
+          if (col === 'photos') {
+            // Show URLs separated by line breaks so they're clickable in Excel
+            if (Array.isArray(val) && val.length > 0) {
+              return val.join('\n')
+            }
+            return ''
+          }
+          if (col === 'team' && val === 'Other' && record.team_other) return record.team_other
+          if (col === 'team_other') return '' // Don't show team_other separately
+          if (col === 'date_time' && val) return new Date(val).toLocaleString('en-PH')
+          return val
+        }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
         onError={(msg) => toast.error(msg)}
       />
@@ -892,6 +941,10 @@ export default function Transport() {
                             {v.plate} — {v.model}
                           </option>
                         ))}
+                        {/* Show current value if it doesn't match any available vehicle */}
+                        {formData.vehicle && !availableVehicles.some(v => `${v.plate} (${v.model})` === formData.vehicle) && (
+                          <option value={formData.vehicle}>{formData.vehicle}</option>
+                        )}
                         {availableVehicles.length === 0 && <option value="" disabled>No vehicles registered in DB</option>}
                       </select>
                     </div>
@@ -904,6 +957,10 @@ export default function Transport() {
                             {d.name}
                           </option>
                         ))}
+                        {/* Show current value if it doesn't match any available driver */}
+                        {formData.driver && !availableDrivers.some(d => d.name === formData.driver) && (
+                          <option value={formData.driver}>{formData.driver}</option>
+                        )}
                         {availableDrivers.length === 0 && <option value="" disabled>No drivers registered in DB</option>}
                       </select>
                     </div>
@@ -912,11 +969,34 @@ export default function Transport() {
                   <div className="form-row">
                     <div className="form-group">
                       <label>Team Name</label>
-                      <input type="text" name="team" value={formData.team} onChange={handleInputChange} placeholder="e.g. Alpha Team" />
+                      <select name="team" value={formData.team} onChange={handleInputChange} style={{ padding: '8px' }}>
+                        <option value="">Select Team...</option>
+                        <option value="Alpha">Alpha</option>
+                        <option value="Bravo">Bravo</option>
+                        <option value="Charlie">Charlie</option>
+                        <option value="Delta">Delta</option>
+                        <option value="Other">Other</option>
+                      </select>
                     </div>
                     <div className="form-group">
-                      <label>Responder</label>
-                      <input type="text" name="responder" value={formData.responder} onChange={handleInputChange} placeholder="e.g. Juan Dela Cruz" />
+                      {formData.team === 'Other' ? (
+                        <>
+                          <label>Specify Team</label>
+                          <input
+                            type="text"
+                            name="team_other"
+                            value={formData.team_other || ''}
+                            onChange={handleInputChange}
+                            placeholder="e.g. Echo Team"
+                            style={{ padding: '8px' }}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <label>Responder</label>
+                          <input type="text" name="responder" value={formData.responder} onChange={handleInputChange} placeholder="e.g. Juan Dela Cruz" />
+                        </>
+                      )}
                     </div>
                   </div>
 

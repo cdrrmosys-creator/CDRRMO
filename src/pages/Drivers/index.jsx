@@ -252,7 +252,7 @@ export default function Drivers() {
         { header: 'Name', key: 'name' },
         { header: 'License No.', key: 'license_no' },
         { header: 'License Expiry', key: 'license_expiry', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
-        { header: 'Contact', key: 'contact_no' },
+        { header: 'Contact', key: 'contact' },
         { header: 'Status', key: 'status' },
       ],
       records: filteredRecords,
@@ -426,6 +426,26 @@ export default function Drivers() {
         filename="drivers_report.xlsx"
         sheetName="Drivers"
         dateField="created_at"
+        columns={['driver_id', 'name', 'license_no', 'license_expiry', 'contact', 'status', 'notes', 'photos']}
+        headers={{
+          driver_id: 'Driver ID',
+          name: 'Name',
+          license_no: 'License Number',
+          license_expiry: 'License Expiry',
+          contact: 'Contact',
+          status: 'Status',
+          notes: 'Notes',
+          photos: 'Photo URLs'
+        }}
+        transformValue={(col, val) => {
+          if (col === 'photos') {
+            if (Array.isArray(val) && val.length > 0) {
+              return val.join('\n')
+            }
+            return ''
+          }
+          return val
+        }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
         onError={(msg) => toast.error(msg)}
       />
@@ -472,7 +492,7 @@ export default function Drivers() {
                     </div>
                     <div className="form-group">
                       <label>License Expiry</label>
-                      <input max={new Date().toISOString().split('T')[0]} type="date" name="license_expiry" value={formData.license_expiry} onChange={handleInputChange} />
+                      <input type="date" name="license_expiry" value={formData.license_expiry} onChange={handleInputChange} />
                     </div>
                   </div>
 

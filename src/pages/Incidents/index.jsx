@@ -109,7 +109,7 @@ const INCIDENT_EXPORT_COLUMNS = [
   'time_of_arrival_at_hosp', 'time_of_departure_at_hosp', 'back_to_base',
   'action_given', 'refused_transfer',
   'transfer_from', 'transfer_to', 'transfer_to_other', 'ambulance',
-  'remarks',
+  'remarks', 'photos',
 ]
 
 const INCIDENT_EXPORT_HEADERS = {
@@ -124,7 +124,7 @@ const INCIDENT_EXPORT_HEADERS = {
   action_given: 'Action Given', refused_transfer: 'Refused Transfer',
   transfer_from: 'Transfer From', transfer_to: 'Transfer To',
   transfer_to_other: 'Transfer To (Other)', ambulance: 'Ambulance',
-  remarks: 'Remarks',
+  remarks: 'Remarks', photos: 'Photo URLs',
 }
 
 export default function Incidents() {
@@ -1198,7 +1198,16 @@ export default function Incidents() {
         dateField="date"
         columns={INCIDENT_EXPORT_COLUMNS}
         headers={INCIDENT_EXPORT_HEADERS}
-        transformValue={(col, val) => (col === 'refused_transfer' ? (val ? 'Yes' : 'No') : val)}
+        transformValue={(col, val) => {
+          if (col === 'refused_transfer') return val ? 'Yes' : 'No'
+          if (col === 'photos') {
+            if (Array.isArray(val) && val.length > 0) {
+              return val.join('\n')
+            }
+            return ''
+          }
+          return val
+        }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
         onError={(msg) => toast.error(msg)}
       />

@@ -1,3 +1,4 @@
+import { validateForm } from '../../utils/validation'
 import ModuleToolbar from '../../components/ModuleToolbar'
 import ListPagination from '../../components/ListPagination'
 import ExportModal from '../../components/ExportModal'
@@ -214,12 +215,23 @@ export default function Venues() {
       title: 'Venues Report',
       subtitle: `${filteredRecords.length} records`,
       columns: [
-        { header: 'Venue', key: 'venue' },
-        { header: 'Inclusive Date', key: 'inclusive_date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
-        { header: "Event's Name", key: 'event_name' },
-        { header: 'Client/Requestor', key: 'client' },
+        { header: 'Venue', key: 'facility_name' },
+        { 
+          header: 'Inclusive Date', 
+          key: 'date', 
+          format: (v, record) => {
+            if (!v) return '—'
+            const startDate = format(new Date(v), 'MMM dd')
+            if (record.end_date && record.end_date !== v) {
+              return `${startDate} – ${format(new Date(record.end_date), 'MMM dd, yyyy')}`
+            }
+            return `${startDate}, ${format(new Date(v), 'yyyy')}`
+          }
+        },
+        { header: "Event's Name", key: 'purpose' },
+        { header: 'Client/Requestor', key: 'booked_by' },
         { header: 'Conducted By', key: 'conducted_by' },
-        { header: 'Contact No.', key: 'contact_no' },
+        { header: 'Contact No.', key: 'contact_number' },
       ],
       records: filteredRecords,
     })
@@ -300,6 +312,17 @@ export default function Venues() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    // Validate contact number if provided
+    const errors = validateForm({
+      'Contact Number': { rule: 'mobile', value: formData.contact_number, required: false }
+    })
+    
+    if (Object.keys(errors).length > 0) {
+      Object.values(errors).forEach(msg => toast.error(msg))
+      return
+    }
+
     setIsSaving(true)
 
     try {

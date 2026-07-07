@@ -32,6 +32,7 @@ const INITIAL_FORM_STATE = {
   water_body: '',
   cause: '',
   response_time: '',
+  team: '',
   responders: '',
   outcome: '',
   remarks: '',
@@ -43,6 +44,33 @@ const OUTCOME_COLORS = {
   'Deceased': { bg: '#fee2e2', color: '#991b1b' },
   'Hospitalized': { bg: '#dbeafe', color: '#1e40af' },
   'Self-recovered': { bg: '#fef9c3', color: '#854d0e' },
+}
+
+const DROWNING_EXPORT_COLUMNS = [
+  'record_id', 'date', 'time_of_incident', 'location', 'latitude', 'longitude',
+  'victim_name', 'victim_age', 'victim_gender', 'victim_address',
+  'water_body', 'cause', 'response_time', 'team', 'responders', 'outcome', 'remarks', 'photos'
+]
+
+const DROWNING_EXPORT_HEADERS = {
+  record_id: 'Record ID',
+  date: 'Date',
+  time_of_incident: 'Time of Incident',
+  location: 'Location',
+  latitude: 'Latitude',
+  longitude: 'Longitude',
+  victim_name: 'Victim Name',
+  victim_age: 'Age',
+  victim_gender: 'Gender',
+  victim_address: 'Victim Address',
+  water_body: 'Water Body',
+  cause: 'Cause',
+  response_time: 'Response Time',
+  team: 'Team',
+  responders: 'Responders',
+  outcome: 'Outcome',
+  remarks: 'Remarks',
+  photos: 'Photo URLs'
 }
 
 export default function DrowningIncidents() {
@@ -137,6 +165,7 @@ export default function DrowningIncidents() {
       water_body: rec.water_body || '',
       cause: rec.cause || '',
       response_time: rec.response_time || '',
+      team: rec.team || '',
       responders: rec.responders || '',
       outcome: rec.outcome || '',
       remarks: rec.remarks || '',
@@ -252,6 +281,16 @@ export default function DrowningIncidents() {
         { header: 'Location', key: 'location' },
         { header: 'Victim', key: 'victim_name' },
         { header: 'Water Body', key: 'water_body' },
+        { 
+          header: 'Team', 
+          key: 'team', 
+          format: (v, record) => {
+            if (v === 'Other' && record.responders) {
+              return record.responders
+            }
+            return v || '—'
+          }
+        },
         { header: 'Outcome', key: 'outcome' },
       ],
       records: filteredRecords,
@@ -390,6 +429,17 @@ export default function DrowningIncidents() {
         filename="drowning_incidents_report.xlsx"
         sheetName="DrowningIncidents"
         dateField="date"
+        columns={DROWNING_EXPORT_COLUMNS}
+        headers={DROWNING_EXPORT_HEADERS}
+        transformValue={(col, val) => {
+          if (col === 'photos') {
+            if (Array.isArray(val) && val.length > 0) {
+              return val.join('\n')
+            }
+            return ''
+          }
+          return val
+        }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
         onError={(msg) => toast.error(msg)}
       />
@@ -502,9 +552,37 @@ export default function DrowningIncidents() {
                     </div>
                   </div>
 
-                  <div className="form-group">
-                    <label>Responders</label>
-                    <input type="text" name="responders" value={formData.responders} onChange={handleInputChange} placeholder="e.g. Alpha Team — Officer J. Dela Cruz, Officer M. Santos" />
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Team Name</label>
+                      <select name="team" value={formData.team} onChange={handleInputChange}>
+                        <option value="">-- Select Team --</option>
+                        <option value="Alpha">Alpha</option>
+                        <option value="Bravo">Bravo</option>
+                        <option value="Charlie">Charlie</option>
+                        <option value="Delta">Delta</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      {formData.team === 'Other' ? (
+                        <>
+                          <label>Specify Team</label>
+                          <input
+                            type="text"
+                            name="responders"
+                            value={formData.responders || ''}
+                            onChange={handleInputChange}
+                            placeholder="e.g. Echo Team"
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <label>Responder</label>
+                          <input type="text" name="responders" value={formData.responders} onChange={handleInputChange} placeholder="e.g. Juan Dela Cruz" />
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   <div className="form-group">

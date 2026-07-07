@@ -26,13 +26,10 @@ const INITIAL_FORM_STATE = {
   date: '',
   venue: '',
   facilitator: '',
-  participants: '',
-  participants_data: [],
+  participants: [],
   remarks: '',
   photos: []
 }
-
-const EMPTY_PARTICIPANT = { name: '', birthdate: '', gender: '', address: '', civil_status: '', office: '', designation: '', contact_no: '', email: '' }
 
 export default function TrainingConducted() {
   const [records, setRecords] = useState([])
@@ -157,8 +154,7 @@ export default function TrainingConducted() {
       date: rec.date || '',
       venue: rec.venue || '',
       facilitator: rec.facilitator || '',
-      participants: rec.participants || '',
-      participants_data: Array.isArray(rec.participants_data) ? rec.participants_data : [],
+      participants: Array.isArray(rec.participants) ? rec.participants : (Array.isArray(rec.participants_data) ? rec.participants_data : []),
       remarks: rec.remarks || '',
       photos: rec.photos || []
     })
@@ -253,7 +249,16 @@ export default function TrainingConducted() {
         { header: 'Date', key: 'date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
         { header: 'Venue', key: 'venue' },
         { header: 'Facilitator', key: 'facilitator' },
-        { header: 'Participants', key: 'participants' },
+        { 
+          header: 'Participants', 
+          key: 'participants',
+          format: (v) => {
+            if (Array.isArray(v) && v.length > 0) {
+              return v.map(p => p.name).filter(Boolean).join(', ')
+            }
+            return '—'
+          }
+        },
       ],
       records: filteredRecords,
     })
@@ -407,9 +412,11 @@ export default function TrainingConducted() {
                   <td>{record.facilitator || '-'}</td>
                   <td>
                     <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                      {Array.isArray(record.participants_data) && record.participants_data.length > 0
-                        ? `${record.participants_data.length} participant${record.participants_data.length !== 1 ? 's' : ''}`
-                        : record.participants || '-'}
+                      {Array.isArray(record.participants) && record.participants.length > 0
+                        ? record.participants.map(p => p.name).filter(Boolean).join(', ')
+                        : (Array.isArray(record.participants_data) && record.participants_data.length > 0
+                          ? `${record.participants_data.length} participant${record.participants_data.length !== 1 ? 's' : ''}`
+                          : '-')}
                     </span>
                   </td>
                 </tr>
@@ -435,6 +442,32 @@ export default function TrainingConducted() {
         filename="trainingconducted_report.xlsx"
         sheetName="TrainingConducted"
         dateField="date"
+        columns={['record_id', 'training_title', 'date', 'venue', 'facilitator', 'participants', 'remarks', 'photos']}
+        headers={{
+          record_id: 'Record ID',
+          training_title: 'Training Title',
+          date: 'Date',
+          venue: 'Venue',
+          facilitator: 'Facilitator',
+          participants: 'Participants',
+          remarks: 'Remarks',
+          photos: 'Photo URLs'
+        }}
+        transformValue={(col, val) => {
+          if (col === 'participants') {
+            if (Array.isArray(val) && val.length > 0) {
+              return val.map(p => p.name).filter(Boolean).join(', ')
+            }
+            return ''
+          }
+          if (col === 'photos') {
+            if (Array.isArray(val) && val.length > 0) {
+              return val.join('\n')
+            }
+            return ''
+          }
+          return val
+        }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
         onError={(msg) => toast.error(msg)}
       />
@@ -488,68 +521,46 @@ export default function TrainingConducted() {
                   </div>
 
                   <div className="form-group">
-                    <label>Participants Summary (optional)</label>
-                    <textarea name="participants" value={formData.participants} onChange={handleInputChange} rows={2} placeholder="e.g. 50 Barangay Health Workers, Brgy officials..." />
-                  </div>
-
-                  <div className="form-group">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <label style={{ marginBottom: 0 }}>Participant List <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '500' }}>({(formData.participants_data || []).length} entries)</span></label>
+                      <label style={{ marginBottom: 0 }}>Participants</label>
                       {!isViewing && (
                         <button
                           type="button"
-                          onClick={() => setFormData(p => ({ ...p, participants_data: [...(p.participants_data || []), { ...EMPTY_PARTICIPANT }] }))}
+                          onClick={() => setFormData(p => ({ ...p, participants: [...(p.participants || []), { name: '' }] }))}
                           style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--primary)', background: 'transparent', color: 'var(--primary)', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
                         >
-                          <i className="ri-add-line"></i> Add Participant
+                          <i className="ri-add-line"></i> Add
                         </button>
                       )}
                     </div>
-                    {(formData.participants_data || []).length === 0 ? (
+                    {(formData.participants || []).length === 0 ? (
                       <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', background: 'var(--bg-app)', borderRadius: '8px', border: '1px dashed var(--border-light)' }}>No participants added yet.</div>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '320px', overflowY: 'auto' }}>
-                        {(formData.participants_data || []).map((p, idx) => (
-                          <div key={idx} style={{ border: '1px solid var(--border-light)', borderRadius: '8px', padding: '10px 12px', background: 'var(--bg-app)', position: 'relative' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--primary)' }}>#{idx + 1}</span>
-                              {!isViewing && (
-                                <button type="button" onClick={() => setFormData(prev => ({ ...prev, participants_data: prev.participants_data.filter((_, i) => i !== idx) }))}
-                                  style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '6px', padding: '2px 7px', cursor: 'pointer', fontSize: '12px' }}>
-                                  <i className="ri-delete-bin-line"></i>
-                                </button>
-                              )}
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                              {[
-                                { field: 'name', label: 'Full Name', type: 'text' },
-                                { field: 'birthdate', label: 'Birthdate', type: 'date' },
-                                { field: 'gender', label: 'Gender', type: 'select', opts: ['','Male','Female','Prefer not to say'] },
-                                { field: 'civil_status', label: 'Civil Status', type: 'select', opts: ['','Single','Married','Widowed','Separated'] },
-                                { field: 'office', label: 'Office/Organization', type: 'text' },
-                                { field: 'designation', label: 'Designation', type: 'text' },
-                                { field: 'contact_no', label: 'Contact No.', type: 'text' },
-                                { field: 'email', label: 'Email', type: 'email' },
-                                { field: 'address', label: 'Address', type: 'text', full: true },
-                              ].map(({ field, label, type, opts, full }) => (
-                                <div key={field} style={full ? { gridColumn: '1/-1' } : {}}>
-                                  <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600', display: 'block', marginBottom: '3px' }}>{label}</label>
-                                  {type === 'select' ? (
-                                    <select value={p[field] || ''}
-                                      onChange={e => { const u = [...(formData.participants_data||[])]; u[idx] = { ...u[idx], [field]: e.target.value }; setFormData(prev => ({ ...prev, participants_data: u })) }}
-                                      disabled={isViewing}
-                                      style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid var(--border-light)', fontSize: '12px', background: isViewing ? 'var(--bg-app)' : 'var(--bg-surface)', color: 'var(--text-main)' }}>
-                                      {opts.map(o => <option key={o} value={o}>{o || '-- Select --'}</option>)}
-                                    </select>
-                                  ) : (
-                                    <input type={type} value={p[field] || ''}
-                                      onChange={e => { const u = [...(formData.participants_data||[])]; u[idx] = { ...u[idx], [field]: e.target.value }; setFormData(prev => ({ ...prev, participants_data: u })) }}
-                                      disabled={isViewing}
-                                      style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid var(--border-light)', fontSize: '12px', boxSizing: 'border-box' }} />
-                                  )}
-                                </div>
-                              ))}
-                            </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {(formData.participants || []).map((p, idx) => (
+                          <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)', width: '20px', flexShrink: 0 }}>{idx + 1}.</span>
+                            <input
+                              type="text"
+                              value={p.name || ''}
+                              onChange={e => {
+                                const updated = [...(formData.participants || [])]
+                                updated[idx] = { ...updated[idx], name: e.target.value }
+                                setFormData(prev => ({ ...prev, participants: updated }))
+                              }}
+                              placeholder="Full name"
+                              disabled={isViewing}
+                              style={{ flex: 1, padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-light)', fontSize: '13px' }}
+                            />
+                            {!isViewing && (
+                              <button
+                                type="button"
+                                onClick={() => setFormData(p => ({ ...p, participants: p.participants.filter((_, i) => i !== idx) }))}
+                                style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', flexShrink: 0 }}
+                              >
+                                <i className="ri-delete-bin-line"></i>
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>

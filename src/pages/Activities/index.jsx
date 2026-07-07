@@ -536,6 +536,25 @@ const handleOpenAdd = () => {
         filename="activities_report.xlsx"
         sheetName="Activities"
         dateField="date"
+        columns={['record_id', 'activity_title', 'date', 'location', 'participants', 'description', 'photos']}
+        headers={{
+          record_id: 'Record ID',
+          activity_title: 'Activity Title',
+          date: 'Date',
+          location: 'Location',
+          participants: 'Participants',
+          description: 'Description',
+          photos: 'Photo URLs'
+        }}
+        transformValue={(col, val) => {
+          if (col === 'photos') {
+            if (Array.isArray(val) && val.length > 0) {
+              return val.join('\n')
+            }
+            return ''
+          }
+          return val
+        }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
         onError={(msg) => toast.error(msg)}
       />
