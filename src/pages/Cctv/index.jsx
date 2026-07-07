@@ -109,7 +109,11 @@ export default function Cctv() {
       subtitle: `${filteredRecords.length} records`,
       columns: [
         { header: 'Report Title', key: 'report_title' },
-        { header: 'Date Covered', key: 'date_start', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+        { header: 'Date Covered', key: 'date_start', format: (v, rec) => {
+          const start = v ? format(new Date(v), 'MMM dd, yyyy') : '—'
+          const end = rec.date_end ? format(new Date(rec.date_end), 'MMM dd, yyyy') : null
+          return end ? `${start} – ${end}` : start
+        }},
         { header: 'Prepared By', key: 'prepared_by' },
       ],
       records: filteredRecords,

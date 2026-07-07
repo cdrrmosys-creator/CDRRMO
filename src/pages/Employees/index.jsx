@@ -169,18 +169,18 @@ export default function Employees() {
   const handlePrintPDF = () => {
     printPDF({
       title: 'Employees Report',
-      subtitle: `${filteredRecords.length} employees`,
+      subtitle: `${filteredEmployees.length} employees`,
       columns: [
         { header: 'ID', key: 'employee_id' },
-        { header: 'Name', key: 'full_name' },
+        { header: 'Name', key: 'name' },
         { header: 'Designation', key: 'designation' },
         { header: 'Office', key: 'office' },
-        { header: 'Contact', key: 'contact_no' },
+        { header: 'Contact', key: 'contact' },
         { header: 'Email', key: 'email' },
         { header: 'Role', key: 'role' },
-        { header: 'Status', key: 'status' },
+        { header: 'Status', key: 'duty_status' },
       ],
-      records: filteredRecords,
+      records: filteredEmployees,
     })
   }
 

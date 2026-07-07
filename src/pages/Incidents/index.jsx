@@ -64,6 +64,7 @@ const toInputTime = (t) => {
 const INITIAL_FORM_STATE = {
   record_id: '',
   team: '',
+  team_other: '',
   date: '',
   time_of_call: '',
   severity: 'Low',
@@ -323,7 +324,7 @@ export default function Incidents() {
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    if (e && e.preventDefault) e.preventDefault()
 
     // Pre-submit validation
     const errors = validateForm({
@@ -361,7 +362,9 @@ export default function Incidents() {
       const dataToSave = {
         ...formData,
         photos: [...(formData.photos || []), ...newPhotoUrls],
-        age: formData.age === '' ? null : parseInt(formData.age, 10)
+        age:        formData.age        === '' ? null : parseInt(formData.age,        10),
+        casualties: formData.casualties === '' ? null : parseInt(formData.casualties, 10),
+        fatalities: formData.fatalities === '' ? null : parseInt(formData.fatalities, 10),
       }
 
       if (isEditing) {
@@ -509,7 +512,7 @@ export default function Incidents() {
         { header: 'Victim', key: 'name' },
         { header: 'Team', key: 'team' },
         { header: 'Location', key: 'place_of_incident' },
-        { header: 'Severity', key: 'severity' },
+        { header: 'Transfer To', key: 'transfer_to', format: (v, rec) => v === 'Other' ? (rec.transfer_to_other || 'Other') : (v || '—') },
       ],
       records: filteredRecords,
     })
@@ -623,7 +626,7 @@ export default function Incidents() {
                   <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {incident.team ? (
                       <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', background: '#eff6ff', color: '#1d4ed8' }}>
-                        {incident.team}
+                        {incident.team === 'Other' ? (incident.team_other || 'Other') : incident.team}
                       </span>
                     ) : '-'}
                   </td>
@@ -664,15 +667,16 @@ export default function Incidents() {
         title={isViewing ? 'View Details' : (isEditing ? 'Edit Incident Report' : 'New Incident Report')}
         maxWidth="1000px"
       >
-        <form onSubmit={handleSubmit} className="modal-form">
+        <div className="modal-form">
           {/* Tabs Navigation */}
           <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', overflowX: 'auto', paddingBottom: '8px', borderBottom: '2px solid var(--border-light)' }}>
               {[
                 { id: 'general', label: 'General & Location' },
-                { id: 'victim', label: 'Victim & Vehicle' },
-                { id: 'time', label: 'Time Logs' },
-                { id: 'action', label: 'Action' },
-                { id: 'photos', label: 'Photos' }
+                { id: 'victim',  label: 'Victim & Incident' },
+                { id: 'vehicle', label: 'Vehicle' },
+                { id: 'time',    label: 'Time Logs' },
+                { id: 'action',  label: 'Action' },
+                { id: 'photos',  label: 'Photos' }
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -702,32 +706,50 @@ export default function Incidents() {
                 <>
                   <h4 style={{ margin: '0 0 8px 0', color: 'var(--primary)' }}>General Info</h4>
                   <div className="form-row" style={{ gap: '12px' }}>
-                    
                     <div className="form-group">
-                    <label style={{ marginBottom: '4px', fontWeight: '600' }}>TEAM *</label>
-                    {isViewing ? (
-                      <div style={{ padding: '8px 12px', background: '#f3f4f6', borderRadius: '8px', fontWeight: '600', fontSize: '14px', border: '1px solid var(--border-light)', minHeight: '38px', display: 'flex', alignItems: 'center' }}>
-                        {formData.team || <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>—</span>}
-                      </div>
-                    ) : (
-                      <select name="team" value={formData.team} onChange={handleInputChange} style={{ padding: '8px' }} required>
-                        <option value="">Select Team...</option>
-                        <option value="Alpha">Alpha</option>
-                        <option value="Bravo">Bravo</option>
-                        <option value="Charlie">Charlie</option>
-                        <option value="Delta">Delta</option>
-                      </select>
-                    )}
+                      <label style={{ marginBottom: '4px', fontWeight: '600' }}>TEAM *</label>
+                      {isViewing ? (
+                        <div style={{ padding: '8px 12px', background: '#f3f4f6', borderRadius: '8px', fontWeight: '600', fontSize: '14px', border: '1px solid var(--border-light)', minHeight: '38px', display: 'flex', alignItems: 'center' }}>
+                          {formData.team === 'Other'
+                            ? (formData.team_other || 'Other')
+                            : (formData.team || <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>—</span>)}
+                        </div>
+                      ) : (
+                        <select name="team" value={formData.team} onChange={handleInputChange} style={{ padding: '8px', width: '100%' }} required>
+                          <option value="">Select Team...</option>
+                          <option value="Alpha">Alpha</option>
+                          <option value="Bravo">Bravo</option>
+                          <option value="Charlie">Charlie</option>
+                          <option value="Delta">Delta</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      )}
+                    </div>
+                    <div className="form-group">
+                      {!isViewing && formData.team === 'Other' ? (
+                        <>
+                          <label style={{ marginBottom: '4px', fontWeight: '600' }}>Specify Team *</label>
+                          <input
+                            type="text"
+                            name="team_other"
+                            value={formData.team_other}
+                            onChange={handleInputChange}
+                            placeholder="e.g. Echo Team"
+                            style={{ padding: '8px', width: '100%' }}
+                            required
+                          />
+                        </>
+                      ) : null}
                     </div>
                   </div>
                   <div className="form-row" style={{ gap: '12px' }}>
-                    <div className="form-group" style={{ marginBottom: '8px' }}>
+                    <div className="form-group">
                       <label style={{ marginBottom: '4px', fontWeight: '600' }}>Date *</label>
-                      <input max={new Date().toISOString().split('T')[0]} type="date" name="date" value={formData.date} onChange={handleInputChange} required style={{ padding: '6px' }} />
+                      <input max={new Date().toISOString().split('T')[0]} type="date" name="date" value={formData.date} onChange={handleInputChange} required style={{ padding: '8px' }} />
                     </div>
                     <div className="form-group">
-                    <label style={{ marginBottom: '4px', fontWeight: '600' }}>TIME OF CALL *</label>
-                    <input type="time" name="time_of_call" value={formData.time_of_call} onChange={handleInputChange} style={{ padding: '8px' }} required />
+                      <label style={{ marginBottom: '4px', fontWeight: '600' }}>Time of Call *</label>
+                      <input type="time" name="time_of_call" value={formData.time_of_call} onChange={handleInputChange} style={{ padding: '8px' }} required />
                     </div>
                   </div>
 
@@ -784,8 +806,32 @@ export default function Incidents() {
                     <textarea name="injury_illness_complaint" value={formData.injury_illness_complaint} onChange={handleInputChange} rows={3} placeholder="Describe injuries or complaints..." style={{ padding: '6px' }} />
                   </div>
 
-                  <hr style={{ border: 'none', borderTop: '1px solid var(--border-light)', margin: '12px 0' }} />
+                  <div className="form-row" style={{ gap: '12px' }}>
+                    <div className="form-group" style={{ marginBottom: '8px' }}>
+                      <label style={{ marginBottom: '4px', fontWeight: '600' }}>Casualties</label>
+                      <input type="number" name="casualties" value={formData.casualties} onChange={handleInputChange} placeholder="0" min="0" style={{ padding: '6px' }} />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: '8px' }}>
+                      <label style={{ marginBottom: '4px', fontWeight: '600' }}>Fatalities</label>
+                      <input type="number" name="fatalities" value={formData.fatalities} onChange={handleInputChange} placeholder="0" min="0" style={{ padding: '6px' }} />
+                    </div>
+                  </div>
 
+                  <div className="form-row" style={{ gap: '12px' }}>
+                    <div className="form-group" style={{ marginBottom: '8px' }}>
+                      <label style={{ marginBottom: '4px', fontWeight: '600' }}>Caller Name</label>
+                      <input type="text" name="caller_name" value={formData.caller_name} onChange={handleInputChange} placeholder="e.g. Juan Dela Cruz" style={{ padding: '6px' }} />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: '8px' }}>
+                      <label style={{ marginBottom: '4px', fontWeight: '600' }}>Caller Contact</label>
+                      <input type="text" name="caller_contact" value={formData.caller_contact} onChange={handleInputChange} placeholder="e.g. 09123456789" style={{ padding: '6px' }} />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'vehicle' && (
+                <>
                   <h4 style={{ margin: '0 0 8px 0', color: 'var(--primary)' }}>Vehicular Incident (if applicable)</h4>
                   <div className="form-row" style={{ gap: '12px' }}>
                     <div className="form-group" style={{ marginBottom: '8px' }}>
@@ -814,9 +860,8 @@ export default function Incidents() {
                     )}
                   </div>
 
-                  {/* Helmet & Liquor — badge UI */}
+                  {/* Helmet & Liquor */}
                   <div className="form-row" style={{ marginTop: '8px', gap: '16px' }}>
-                    {/* Helmet */}
                     <div className="form-group" style={{ marginBottom: '8px' }}>
                       <label style={{ marginBottom: '6px', fontWeight: '600' }}>Helmet</label>
                       {isViewing ? (
@@ -833,9 +878,7 @@ export default function Incidents() {
                       ) : (
                         <div style={{ display: 'flex', gap: '8px' }}>
                           {['Positive', 'Negative'].map(val => (
-                            <button
-                              key={val}
-                              type="button"
+                            <button key={val} type="button"
                               onClick={() => handleInputChange({ target: { name: 'helmet', value: val } })}
                               style={{
                                 padding: '6px 16px', borderRadius: '20px', fontWeight: '700', fontSize: '13px', cursor: 'pointer',
@@ -843,8 +886,7 @@ export default function Incidents() {
                                 background: formData.helmet === val ? (val === 'Positive' ? '#dcfce7' : '#fee2e2') : '#f9fafb',
                                 color: formData.helmet === val ? (val === 'Positive' ? '#15803d' : '#b91c1c') : '#6b7280',
                                 transition: 'all 0.15s'
-                              }}
-                            >
+                              }}>
                               {val === 'Positive' ? '✓ Positive' : '✗ Negative'}
                             </button>
                           ))}
@@ -852,7 +894,6 @@ export default function Incidents() {
                       )}
                     </div>
 
-                    {/* Liquor */}
                     <div className="form-group" style={{ marginBottom: '8px' }}>
                       <label style={{ marginBottom: '6px', fontWeight: '600' }}>Liquor Involvement</label>
                       {isViewing ? (
@@ -869,9 +910,7 @@ export default function Incidents() {
                       ) : (
                         <div style={{ display: 'flex', gap: '8px' }}>
                           {['Positive', 'Negative'].map(val => (
-                            <button
-                              key={val}
-                              type="button"
+                            <button key={val} type="button"
                               onClick={() => handleInputChange({ target: { name: 'liquor', value: val } })}
                               style={{
                                 padding: '6px 16px', borderRadius: '20px', fontWeight: '700', fontSize: '13px', cursor: 'pointer',
@@ -879,8 +918,7 @@ export default function Incidents() {
                                 background: formData.liquor === val ? (val === 'Positive' ? '#dcfce7' : '#fee2e2') : '#f9fafb',
                                 color: formData.liquor === val ? (val === 'Positive' ? '#15803d' : '#b91c1c') : '#6b7280',
                                 transition: 'all 0.15s'
-                              }}
-                            >
+                              }}>
                               {val === 'Positive' ? '✓ Positive' : '✗ Negative'}
                             </button>
                           ))}
@@ -916,28 +954,43 @@ export default function Incidents() {
                     <>
                       <div className="form-row" style={{ gap: '12px' }}>
                         <div className="form-group">
-                          <label style={{ marginBottom: '4px', fontWeight: '600' }}>ARRIVAL AT SCENE *</label>
-                          <input type="time" name="time_of_arrival_at_scene" value={formData.time_of_arrival_at_scene} onChange={handleInputChange} style={{ padding: '8px' }} required />
+                          <label style={{ marginBottom: '4px', fontWeight: '600' }}>Arrival at Scene</label>
+                          <input type="time" name="time_of_arrival_at_scene"
+                            value={formData.time_of_arrival_at_scene}
+                            min={formData.time_of_call || undefined}
+                            onChange={handleInputChange} style={{ padding: '8px' }} />
                         </div>
                         <div className="form-group">
-                          <label style={{ marginBottom: '4px', fontWeight: '600' }}>DEPARTURE AT SCENE *</label>
-                          <input type="time" name="time_of_departure_at_scene" value={formData.time_of_departure_at_scene} onChange={handleInputChange} style={{ padding: '8px' }} required />
+                          <label style={{ marginBottom: '4px', fontWeight: '600' }}>Departure at Scene</label>
+                          <input type="time" name="time_of_departure_at_scene"
+                            value={formData.time_of_departure_at_scene}
+                            min={formData.time_of_arrival_at_scene || formData.time_of_call || undefined}
+                            onChange={handleInputChange} style={{ padding: '8px' }} />
                         </div>
                       </div>
                       <div className="form-row" style={{ gap: '12px' }}>
                         <div className="form-group" style={{ marginBottom: '8px' }}>
                           <label style={{ marginBottom: '4px', fontWeight: '600' }}>Arrival at Hosp.</label>
-                          <input type="time" name="time_of_arrival_at_hosp" value={formData.time_of_arrival_at_hosp} onChange={handleInputChange} style={{ padding: '6px' }} />
+                          <input type="time" name="time_of_arrival_at_hosp"
+                            value={formData.time_of_arrival_at_hosp}
+                            min={formData.time_of_departure_at_scene || formData.time_of_arrival_at_scene || undefined}
+                            onChange={handleInputChange} style={{ padding: '6px' }} />
                         </div>
                         <div className="form-group" style={{ marginBottom: '8px' }}>
                           <label style={{ marginBottom: '4px', fontWeight: '600' }}>Departure at Hosp.</label>
-                          <input type="time" name="time_of_departure_at_hosp" value={formData.time_of_departure_at_hosp} onChange={handleInputChange} style={{ padding: '6px' }} />
+                          <input type="time" name="time_of_departure_at_hosp"
+                            value={formData.time_of_departure_at_hosp}
+                            min={formData.time_of_arrival_at_hosp || formData.time_of_departure_at_scene || undefined}
+                            onChange={handleInputChange} style={{ padding: '6px' }} />
                         </div>
                       </div>
                       <div className="form-row" style={{ gap: '12px' }}>
                         <div className="form-group" style={{ marginBottom: '8px' }}>
                           <label style={{ marginBottom: '4px', fontWeight: '600' }}>Back to Base</label>
-                          <input type="time" name="back_to_base" value={formData.back_to_base} onChange={handleInputChange} style={{ padding: '6px' }} />
+                          <input type="time" name="back_to_base"
+                            value={formData.back_to_base}
+                            min={formData.time_of_departure_at_hosp || formData.time_of_arrival_at_hosp || undefined}
+                            onChange={handleInputChange} style={{ padding: '6px' }} />
                         </div>
                       </div>
                     </>
@@ -1047,18 +1100,107 @@ export default function Incidents() {
                   </button>
                 )}
               </div>
-            ) : (
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-submit" disabled={isSaving}>
-                  {isSaving ? 'Saving...' : 'Save'}
-                </button>
-              </div>
-            )}
+            ) : (() => {
+              const TAB_ORDER = ['general', 'victim', 'vehicle', 'time', 'action', 'photos']
+              const currentIdx = TAB_ORDER.indexOf(activeTab)
+              const isLast = currentIdx === TAB_ORDER.length - 1
+
+              const validateTab = () => {
+                const errs = []
+                if (activeTab === 'general') {
+                  if (!formData.team)             errs.push('Team is required.')
+                  if (formData.team === 'Other' && !formData.team_other?.trim())
+                                                  errs.push('Please specify the team name.')
+                  if (!formData.date)             errs.push('Date is required.')
+                  if (!formData.time_of_call)     errs.push('Time of Call is required.')
+                  if (!formData.place_of_incident) errs.push('Place of Incident is required.')
+                }
+                if (activeTab === 'victim') {
+                  if (!formData.name?.trim())             errs.push('Victim name is required.')
+                  if (formData.age === '' || formData.age === null || formData.age === undefined)
+                                                          errs.push('Age is required.')
+                  if (!formData.address?.trim())          errs.push('Address is required.')
+                  if (!formData.nature_of_incident?.trim()) errs.push('Nature of Incident is required.')
+                }
+                if (activeTab === 'time') {
+                  // compare HH:MM strings — lexicographic comparison works for time
+                  const t = formData
+                  if (t.time_of_arrival_at_scene && t.time_of_call &&
+                      t.time_of_arrival_at_scene < t.time_of_call)
+                    errs.push('Arrival at Scene cannot be earlier than Time of Call.')
+                  if (t.time_of_departure_at_scene && t.time_of_arrival_at_scene &&
+                      t.time_of_departure_at_scene < t.time_of_arrival_at_scene)
+                    errs.push('Departure at Scene cannot be earlier than Arrival at Scene.')
+                  if (t.time_of_arrival_at_hosp && t.time_of_departure_at_scene &&
+                      t.time_of_arrival_at_hosp < t.time_of_departure_at_scene)
+                    errs.push('Arrival at Hospital cannot be earlier than Departure at Scene.')
+                  if (t.time_of_departure_at_hosp && t.time_of_arrival_at_hosp &&
+                      t.time_of_departure_at_hosp < t.time_of_arrival_at_hosp)
+                    errs.push('Departure at Hospital cannot be earlier than Arrival at Hospital.')
+                  if (t.back_to_base && t.time_of_departure_at_hosp &&
+                      t.back_to_base < t.time_of_departure_at_hosp)
+                    errs.push('Back to Base cannot be earlier than Departure at Hospital.')
+                }
+                if (activeTab === 'action') {
+                  if (!formData.action_given?.trim()) errs.push('Action Given is required.')
+                  if (!formData.refused_transfer) {
+                    if (!formData.transfer_from?.trim()) errs.push('Transfer From is required.')
+                    if (!formData.transfer_to)           errs.push('Transfer To is required.')
+                    if (!formData.ambulance?.trim())     errs.push('Ambulance is required.')
+                  }
+                }
+                return errs
+              }
+
+              const handleNext = () => {
+                const errs = validateTab()
+                if (errs.length > 0) {
+                  errs.forEach(msg => toast.error(msg))
+                  return
+                }
+                setActiveTab(TAB_ORDER[currentIdx + 1])
+              }
+
+              return (
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>
+                    Cancel
+                  </button>
+                  {isLast ? (
+                    <button
+                      type="button"
+                      disabled={isSaving}
+                      onClick={handleSubmit}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        padding: '8px 20px', borderRadius: '8px',
+                        background: isSaving ? '#9ca3af' : 'var(--primary)', color: '#fff',
+                        border: 'none', fontSize: '13px', fontWeight: '700',
+                        cursor: isSaving ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      {isSaving ? 'Saving...' : 'Save'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleNext}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        padding: '8px 20px', borderRadius: '8px',
+                        background: 'var(--primary)', color: '#fff',
+                        border: 'none', fontSize: '13px', fontWeight: '700',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Next <i className="ri-arrow-right-line" />
+                    </button>
+                  )}
+                </div>
+              )
+            })()}
           </div>
-        </form>
+        </div>
       </Modal>
       <ExportModal
         isOpen={isExportOpen}

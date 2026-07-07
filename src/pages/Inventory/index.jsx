@@ -361,7 +361,7 @@ const handleOpenAdd = () => {
   const handlePrintPDF = () => {
     printPDF({
       title: 'Inventory Report',
-      subtitle: `${filteredRecords.length} items`,
+      subtitle: `${filteredItems.length} items`,
       columns: [
         { header: 'Item Name', key: 'item_name' },
         { header: 'Category', key: 'category' },
@@ -370,7 +370,7 @@ const handleOpenAdd = () => {
         { header: 'End User', key: 'end_user' },
         { header: 'Date Acquired', key: 'date_acquired', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
       ],
-      records: filteredRecords,
+      records: filteredItems,
     })
   }
 

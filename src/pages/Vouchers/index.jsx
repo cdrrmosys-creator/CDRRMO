@@ -103,8 +103,8 @@ export default function Vouchers() {
       subtitle: `${filteredRecords.length} vouchers`,
       columns: [
         { header: 'Date', key: 'date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
-        { header: 'Beneficiary/Payee', key: 'beneficiary' },
-        { header: 'Check No.', key: 'check_no' },
+        { header: 'Beneficiary/Payee', key: 'beneficiary_name', format: (v, rec) => v || rec.payee || '—' },
+        { header: 'Check No.', key: 'check_number' },
         { header: 'Purpose', key: 'purpose' },
         { header: 'Amount', key: 'amount', format: v => v ? `₱${parseFloat(v).toFixed(2)}` : '—' },
         { header: 'Status', key: 'status' },
