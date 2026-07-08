@@ -6,6 +6,7 @@ import { compressImage } from '../../utils/imageCompression'
 import { logAudit } from '../../services/audit'
 import { format } from 'date-fns'
 import { printPDF } from '../../utils/printPDF'
+import { printIncidentReport } from '../../utils/printIncidentReport'
 import Modal from '../../components/Modal'
 import ModuleToolbar from '../../components/ModuleToolbar'
 import ListPagination from '../../components/ListPagination'
@@ -224,6 +225,21 @@ export default function Incidents() {
   }
 
   const handleEditFromView = (e) => { e.preventDefault(); e.stopPropagation(); setIsViewing(false) }
+
+  const handlePrintSingleReport = async () => {
+    const incident = incidents.find(inc => inc.id === selectedId)
+    if (!incident) {
+      toast.error('Incident record not found')
+      return
+    }
+    try {
+      await printIncidentReport(incident)
+      toast.success('PDF generated successfully!')
+    } catch (err) {
+      console.error('Error generating PDF:', err)
+      toast.error('Failed to generate PDF: ' + err.message)
+    }
+  }
 
   const handleDeleteFromView = async () => {
     const idToDelete = selectedId
@@ -1062,7 +1078,26 @@ export default function Incidents() {
           <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div></div>
             {isViewing ? (
-              <div style={{ display: 'flex', gap: '12px' }}>{(isAdmin || canDelete) && (
+              <div style={{ display: 'flex', gap: '12px' }}>
+                {/* Print Button - Always visible in view mode */}
+                <button
+                  type="button"
+                  onClick={handlePrintSingleReport}
+                  style={{ 
+                    background: '#dbeafe', 
+                    color: '#1e40af', 
+                    border: '1px solid #93c5fd', 
+                    padding: '8px 16px', 
+                    borderRadius: '8px', 
+                    fontWeight: '600', 
+                    cursor: 'pointer', 
+                    display: 'flex', 
+                    alignItems: 'center' 
+                  }}
+                >
+                  <i className="ri-printer-line" style={{ marginRight: '6px' }}></i> Print Report
+                </button>
+                {(isAdmin || canDelete) && (
                     <button
                       type="button"
                       className="btn-delete"
