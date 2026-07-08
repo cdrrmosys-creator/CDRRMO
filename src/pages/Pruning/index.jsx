@@ -118,6 +118,20 @@ export default function Pruning() {
     loadRecords()
   }, [])
 
+  // Auto-open modal if view parameter is present (from Calendar Events navigation)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const viewId = params.get('view')
+    if (viewId && records.length > 0) {
+      const record = records.find(r => r.id === viewId)
+      if (record) {
+        handleViewDetails(record)
+        // Clear the query parameter
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+    }
+  }, [records])
+
   useEffect(() => {
     if (!records) return;
 
@@ -180,6 +194,26 @@ export default function Pruning() {
     setChartData(data.map(m => ({ label: m.label, 'Trees Pruned': m.count })))
   }, [records, trendPeriod, selectedMonth, selectedYear])
 
+  // Helper function to check if a pruning request is overdue
+  const isRecordOverdue = (record) => {
+    if (!record.date) return false
+    
+    const pruningDate = new Date(record.date)
+    const today = new Date()
+    pruningDate.setHours(0, 0, 0, 0)
+    today.setHours(0, 0, 0, 0)
+    
+    // Check if date has passed
+    const isPastDate = pruningDate < today
+    if (!isPastDate) return false
+    
+    // Get current status (default to "Pending" if not set)
+    const currentStatus = (record.status || 'Pending').toLowerCase()
+    
+    // Check if status is Pending or Scheduled
+    return currentStatus === 'pending' || currentStatus === 'scheduled'
+  }
+
   const filteredRecords = records.filter(item => {
     let matchesSearch = true
     if (searchTerm) {
@@ -204,6 +238,19 @@ export default function Pruning() {
     }
 
     return matchesSearch && matchesFilter && matchesDate
+  }).sort((a, b) => {
+    // Sort overdue items to the top
+    const aOverdue = isRecordOverdue(a)
+    const bOverdue = isRecordOverdue(b)
+    
+    if (aOverdue && !bOverdue) return -1 // a comes first
+    if (!aOverdue && bOverdue) return 1  // b comes first
+    
+    // If both are overdue or both are not, maintain original order (by date descending)
+    if (a.date && b.date) {
+      return new Date(b.date) - new Date(a.date)
+    }
+    return 0
   })
 
   const { currentPage, setCurrentPage, pageSize, setPageSize, totalPages, safePage, pagedRecords } = useListPagination(filteredRecords)
@@ -476,6 +523,15 @@ export default function Pruning() {
   }
 
   return (
+    <>
+      <style>
+        {`
+          @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+          }
+        `}
+      </style>
     <div>
       <div className="page-header">
         <h2>
@@ -610,30 +666,70 @@ export default function Pruning() {
               </tr>
             </thead>
             <tbody>
-              {pagedRecords.map((record) => (
+              {pagedRecords.map((record) => {
+                const overdue = isRecordOverdue(record)
+                
+                // Determine row styling based on overdue status
+                let rowStyle = { cursor: 'pointer', height: '49px' }
+                if (overdue) {
+                  rowStyle = {
+                    ...rowStyle,
+                    background: '#fef2f2',
+                    borderLeft: '4px solid #dc2626'
+                  }
+                }
+                
+                return (
                   <tr 
                     key={record.id}
                     onClick={() => handleViewDetails(record)}
-                    style={{ cursor: 'pointer', height: '49px' }}
+                    style={rowStyle}
                     className="table-row-clickable"
                   >
                     <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
-                      {record.date_of_request 
-                        ? format(new Date(record.date_of_request), 'MMM dd, yyyy')
-                        : record.date ? format(new Date(record.date), 'MMM dd, yyyy') : '-'}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {overdue && (
+                          <i 
+                            className="ri-error-warning-fill"
+                            style={{ 
+                              color: '#dc2626', 
+                              fontSize: '16px',
+                              animation: 'pulse 2s infinite'
+                            }}
+                            title="OVERDUE: This pruning request is past due and still pending!"
+                          ></i>
+                        )}
+                        {record.date_of_request 
+                          ? format(new Date(record.date_of_request), 'MMM dd, yyyy')
+                          : record.date ? format(new Date(record.date), 'MMM dd, yyyy') : '-'}
+                      </div>
                     </td>
                     <td style={{ fontWeight: '700' }}>{record.location || '-'}</td>
                     <td onClick={e => e.stopPropagation()}>
-                      <StatusSelect
-                        value={record.status || 'Pending'}
-                        disabled={!(isAdmin || canUpdate)}
-                        options={[
+                      {(() => {
+                        const currentStatus = record.status || 'Pending'
+                        const statusOptions = [
                           { value: 'Pending',     label: 'Pending',     icon: 'ri-time-line',            bg: '#fef3c7', color: '#92400e' },
                           { value: 'In Progress', label: 'In Progress', icon: 'ri-run-line',             bg: '#dbeafe', color: '#1e40af' },
                           { value: 'Completed',   label: 'Completed',   icon: 'ri-checkbox-circle-line', bg: '#d1fae5', color: '#065f46' },
-                        ]}
-                        onChange={newStatus => handleStatusChange(record.id, newStatus)}
-                      />
+                        ]
+                        
+                        // Add overdue styling to the selected option if overdue
+                        const optionsWithOverdue = overdue ? statusOptions.map(opt => 
+                          opt.value === currentStatus 
+                            ? { ...opt, label: `${opt.label} (OVERDUE)`, bg: '#fef2f2', color: '#dc2626' }
+                            : opt
+                        ) : statusOptions
+                        
+                        return (
+                          <StatusSelect
+                            value={currentStatus}
+                            disabled={!(isAdmin || canUpdate)}
+                            options={optionsWithOverdue}
+                            onChange={newStatus => handleStatusChange(record.id, newStatus)}
+                          />
+                        )
+                      })()}
                     </td>
                     <td style={{ fontFamily: 'monospace', fontSize: '15px' }}>{record.trees_pruned || 0}</td>
                     <td>{record.conducted_by || '-'}</td>
@@ -649,7 +745,7 @@ export default function Pruning() {
                       ) : '-'}
                     </td>
                   </tr>
-              ))}
+              )})}
               <TableGhostRows count={pageSize - pagedRecords.length} colSpan={7} />
             </tbody>
           </table>
@@ -880,5 +976,6 @@ export default function Pruning() {
         </form>
       </Modal>
     </div>
+    </>
   )
 }

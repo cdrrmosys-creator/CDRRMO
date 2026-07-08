@@ -331,7 +331,19 @@ export default function DrowningIncidents() {
             { label: 'Deceased', value: records.filter(r => r.outcome === 'Deceased').length, icon: 'ri-heart-pulse-line', color: '#ef4444' },
             { label: 'Hospitalized', value: records.filter(r => r.outcome === 'Hospitalized').length, icon: 'ri-hospital-line', color: '#6366f1' },
           ].map(({ label, value, icon, color }) => (
-            <div key={label} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-md)', padding: '16px', boxShadow: 'var(--shadow-sm)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div key={label} style={{ 
+              background: 'var(--bg-surface)', 
+              borderLeft: '1px solid var(--border-light)',
+              borderRight: '1px solid var(--border-light)',
+              borderBottom: '1px solid var(--border-light)',
+              borderTop: `4px solid ${color}`,
+              borderRadius: 'var(--radius-md)', 
+              padding: '16px', 
+              boxShadow: 'var(--shadow-sm)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '12px' 
+            }}>
               <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: `${color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <i className={icon} style={{ fontSize: '20px', color }}></i>
               </div>

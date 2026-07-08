@@ -60,6 +60,20 @@ export default function EventsAssistance() {
     loadRecords()
   }, [])
 
+  // Auto-open modal if view parameter is present (from Calendar Events navigation)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const viewId = params.get('view')
+    if (viewId && records.length > 0) {
+      const record = records.find(r => r.id === viewId)
+      if (record) {
+        handleViewDetails(record)
+        // Clear the query parameter
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+    }
+  }, [records])
+
   const filteredRecords = records.filter(item => {
     let matchesSearch = true
     if (searchTerm) {

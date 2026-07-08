@@ -116,6 +116,20 @@ export default function Venues() {
     loadRecords()
   }, [])
 
+  // Auto-open modal if view parameter is present (from Calendar Events navigation)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const viewId = params.get('view')
+    if (viewId && records.length > 0) {
+      const record = records.find(r => r.id === viewId)
+      if (record) {
+        handleViewDetails(record)
+        // Clear the query parameter
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+    }
+  }, [records])
+
   useEffect(() => {
     if (!records) return;
 
@@ -174,6 +188,25 @@ export default function Venues() {
     setChartData(data.map(m => ({ label: m.label, Bookings: m.count })))
   }, [records, trendPeriod, selectedMonth, selectedYear])
 
+  // Helper function to check if a venue booking is overdue
+  const isRecordOverdue = (record) => {
+    if (!record.date) return false
+    
+    const venueDate = new Date(record.date)
+    const today = new Date()
+    venueDate.setHours(0, 0, 0, 0)
+    today.setHours(0, 0, 0, 0)
+    
+    // Check if date has passed
+    const isPastDate = venueDate < today
+    if (!isPastDate) return false
+    
+    // Venues don't have explicit status, but if date is in the past
+    // we consider it overdue if it's not marked as completed somehow
+    // For venues, we'll consider past dates as potentially overdue bookings
+    return true
+  }
+
   const filteredRecords = records.filter(item => {
     let matchesSearch = true
     if (searchTerm) {
@@ -198,6 +231,19 @@ export default function Venues() {
     }
 
     return matchesSearch && matchesFilter && matchesDate
+  }).sort((a, b) => {
+    // Sort overdue items to the top
+    const aOverdue = isRecordOverdue(a)
+    const bOverdue = isRecordOverdue(b)
+    
+    if (aOverdue && !bOverdue) return -1 // a comes first
+    if (!aOverdue && bOverdue) return 1  // b comes first
+    
+    // If both are overdue or both are not, maintain original order (by date descending)
+    if (a.date && b.date) {
+      return new Date(b.date) - new Date(a.date)
+    }
+    return 0
   })
 
   const { currentPage, setCurrentPage, pageSize, setPageSize, totalPages, safePage, pagedRecords } = useListPagination(filteredRecords)
@@ -422,6 +468,15 @@ export default function Venues() {
   }
 
   return (
+    <>
+      <style>
+        {`
+          @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+          }
+        `}
+      </style>
     <div>
       <div className="page-header">
         <h2>
@@ -581,14 +636,42 @@ export default function Venues() {
                 </tr>
               </thead>
               <tbody>
-                {pagedRecords.map((record) => (
+                {pagedRecords.map((record) => {
+                  const overdue = isRecordOverdue(record)
+                  
+                  // Determine row styling based on overdue status
+                  let rowStyle = { cursor: 'pointer', height: '49px' }
+                  if (overdue) {
+                    rowStyle = {
+                      ...rowStyle,
+                      background: '#fef2f2',
+                      borderLeft: '4px solid #dc2626'
+                    }
+                  }
+                  
+                  return (
                   <tr 
                     key={record.id}
                     onClick={() => handleViewDetails(record)}
-                    style={{ cursor: 'pointer', height: '49px' }}
+                    style={rowStyle}
                     className="table-row-clickable"
                   >
-                    <td style={{ fontWeight: '700' }}>{record.facility_name || '-'}</td>
+                    <td style={{ fontWeight: '700' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {overdue && (
+                          <i 
+                            className="ri-error-warning-fill"
+                            style={{ 
+                              color: '#dc2626', 
+                              fontSize: '16px',
+                              animation: 'pulse 2s infinite'
+                            }}
+                            title="OVERDUE: This booking date has passed!"
+                          ></i>
+                        )}
+                        {record.facility_name || '-'}
+                      </div>
+                    </td>
                     <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
                       {record.date ? format(new Date(record.date), 'MMM dd') : '-'}
                       {record.end_date && record.end_date !== record.date ? ` – ${format(new Date(record.end_date), 'MMM dd, yyyy')}` : record.date ? `, ${format(new Date(record.date), 'yyyy')}` : ''}
@@ -602,7 +685,7 @@ export default function Venues() {
                     <td>{record.conducted_by || '-'}</td>
                     <td>{record.contact_number || '-'}</td>
                   </tr>
-                ))}
+                )})}
                 <TableGhostRows count={pageSize - pagedRecords.length} colSpan={7} />
               </tbody>
             </table>
@@ -760,5 +843,6 @@ export default function Venues() {
         </form>
       </Modal>
     </div>
+    </>
   )
 }

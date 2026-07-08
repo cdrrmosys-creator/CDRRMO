@@ -143,6 +143,20 @@ export default function Transport() {
     loadLookups()
   }, [])
 
+  // Auto-open modal if view parameter is present (from Calendar Events navigation)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const viewId = params.get('view')
+    if (viewId && records.length > 0) {
+      const record = records.find(r => r.id === viewId)
+      if (record) {
+        handleViewDetails(record)
+        // Clear the query parameter
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+    }
+  }, [records])
+
   useEffect(() => {
     if (!records) return;
 
@@ -201,6 +215,25 @@ export default function Transport() {
     setChartData(data.map(m => ({ label: m.label, Dispatches: m.count })))
   }, [records, trendPeriod, selectedMonth, selectedYear])
 
+  // Helper function to check if a transport dispatch is overdue
+  const isRecordOverdue = (record) => {
+    if (!record.date_time) return false
+    
+    const dispatchDate = new Date(record.date_time)
+    const today = new Date()
+    dispatchDate.setHours(0, 0, 0, 0)
+    today.setHours(0, 0, 0, 0)
+    
+    // Check if date has passed
+    const isPastDate = dispatchDate < today
+    if (!isPastDate) return false
+    
+    // Get current status (default to "Scheduled" if not set)
+    const currentStatus = (record.status || 'Scheduled').toLowerCase()
+    
+    // Check if status is Pending or Scheduled
+    return currentStatus === 'pending' || currentStatus === 'scheduled'
+  }
 
   const filteredRecords = records.filter(item => {
     let matchesSearch = true
@@ -226,6 +259,19 @@ export default function Transport() {
     }
 
     return matchesSearch && matchesFilter && matchesDate
+  }).sort((a, b) => {
+    // Sort overdue items to the top
+    const aOverdue = isRecordOverdue(a)
+    const bOverdue = isRecordOverdue(b)
+    
+    if (aOverdue && !bOverdue) return -1 // a comes first
+    if (!aOverdue && bOverdue) return 1  // b comes first
+    
+    // If both are overdue or both are not, maintain original order (by date descending)
+    if (a.date_time && b.date_time) {
+      return new Date(b.date_time) - new Date(a.date_time)
+    }
+    return 0
   })
 
   const { currentPage, setCurrentPage, pageSize, setPageSize, totalPages, safePage, pagedRecords } = useListPagination(filteredRecords)
@@ -564,6 +610,15 @@ export default function Transport() {
   }
 
   return (
+    <>
+      <style>
+        {`
+          @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+          }
+        `}
+      </style>
     <div>
       <div className="page-header">
         <h2>
@@ -779,17 +834,43 @@ export default function Transport() {
               </tr>
             </thead>
             <tbody>
-              {pagedRecords.map((record) => (
+              {pagedRecords.map((record) => {
+                const overdue = isRecordOverdue(record)
+                
+                // Determine row styling based on overdue status
+                let rowStyle = { cursor: 'pointer', height: '49px' }
+                if (overdue) {
+                  rowStyle = {
+                    ...rowStyle,
+                    background: '#fef2f2',
+                    borderLeft: '4px solid #dc2626'
+                  }
+                }
+                
+                return (
                 <tr 
                   key={record.id}
                   onClick={() => handleViewDetails(record)}
-                  style={{ cursor: 'pointer', height: '49px' }}
+                  style={rowStyle}
                   className="table-row-clickable"
                 >
                   <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
-                    {record.date_time 
-                      ? format(new Date(record.date_time), 'MMM dd, yyyy hh:mm a')
-                      : '-'}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {overdue && (
+                        <i 
+                          className="ri-error-warning-fill"
+                          style={{ 
+                            color: '#dc2626', 
+                            fontSize: '16px',
+                            animation: 'pulse 2s infinite'
+                          }}
+                          title="OVERDUE: This dispatch is past due and still pending/scheduled!"
+                        ></i>
+                      )}
+                      {record.date_time 
+                        ? format(new Date(record.date_time), 'MMM dd, yyyy hh:mm a')
+                        : '-'}
+                    </div>
                   </td>
                   <td style={{ fontWeight: '700' }}>{record.vehicle || '-'}</td>
                   <td>{record.driver || '-'}</td>
@@ -801,6 +882,7 @@ export default function Transport() {
                       const targetDate = record.is_rescheduled && record.reschedule_date ? new Date(record.reschedule_date) : new Date(record.date_time);
                       const isCompleted = targetDate < new Date();
                       const currentStatus = record.status || (isCompleted ? 'Completed' : (record.is_rescheduled ? 'Rescheduled' : 'Scheduled'));
+                      
                       const TRANSPORT_STATUS_OPTIONS = [
                         { value: 'Scheduled',   label: 'Scheduled',   icon: 'ri-calendar-check-fill',  bg: '#e0e7ff', color: '#3730a3' },
                         { value: 'In Progress', label: 'In Progress', icon: 'ri-loader-4-fill',         bg: '#e0f2fe', color: '#0369a1' },
@@ -808,10 +890,18 @@ export default function Transport() {
                         { value: 'Rescheduled', label: 'Rescheduled', icon: 'ri-calendar-fill',         bg: '#fef3c7', color: '#92400e' },
                         { value: 'Cancelled',   label: 'Cancelled',   icon: 'ri-close-circle-fill',     bg: '#fee2e2', color: '#991b1b' },
                       ]
+                      
+                      // Add overdue styling to the selected option if overdue
+                      const optionsWithOverdue = overdue ? TRANSPORT_STATUS_OPTIONS.map(opt => 
+                        opt.value === currentStatus 
+                          ? { ...opt, label: `${opt.label} (OVERDUE)`, bg: '#fef2f2', color: '#dc2626' }
+                          : opt
+                      ) : TRANSPORT_STATUS_OPTIONS
+                      
                       return (
                         <StatusSelect
                           value={currentStatus}
-                          options={TRANSPORT_STATUS_OPTIONS}
+                          options={optionsWithOverdue}
                           onChange={(val) => handleStatusChange(record.id, val)}
                           disabled={!canUpdate}
                         />
@@ -819,7 +909,7 @@ export default function Transport() {
                     })()}
                   </td>
                 </tr>
-              ))}
+              )})}
               <TableGhostRows count={pageSize - pagedRecords.length} colSpan={7} />
             </tbody>
           </table>
@@ -1146,5 +1236,6 @@ export default function Transport() {
         </form>
       </Modal>
     </div>
+    </>
   )
 }
