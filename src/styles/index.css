@@ -724,6 +724,47 @@ tbody td {
   color: var(--text-main);
 }
 
+/* Responsive table adjustments */
+@media (max-width: 1400px) {
+  .data-table {
+    overflow-x: auto;
+  }
+  
+  thead th,
+  tbody td {
+    padding: 12px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 1024px) {
+  thead th,
+  tbody td {
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+  
+  tbody tr {
+    height: auto !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .data-table {
+    border-radius: var(--radius-md);
+  }
+  
+  thead th {
+    font-size: 10px;
+    padding: 8px 6px;
+  }
+  
+  tbody td {
+    font-size: 11px;
+    padding: 8px 6px;
+  }
+}
+
 .table-actions {
   display: flex;
   gap: 8px;

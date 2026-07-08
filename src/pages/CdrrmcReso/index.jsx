@@ -496,6 +496,24 @@ const handleOpenAdd = () => {
         filename="cdrrmcreso_report.xlsx"
         sheetName="Resolutions"
         dateField="date_passed"
+        columns={['record_id', 'resolution_no', 'title', 'date_passed', 'description', 'files']}
+        headers={{
+          record_id: 'Record ID',
+          resolution_no: 'Resolution No.',
+          title: 'Title',
+          date_passed: 'Date Passed',
+          description: 'Description',
+          files: 'File URLs'
+        }}
+        transformValue={(col, val) => {
+          if (col === 'files') {
+            if (Array.isArray(val) && val.length > 0) {
+              return val.join('\n')
+            }
+            return ''
+          }
+          return val
+        }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
         onError={(msg) => toast.error(msg)}
       />

@@ -21,6 +21,7 @@ const INITIAL_FORM_STATE = {
   record_id: '',
   title: '',
   document_type: '',
+  document_type_other: '',
   date_filed: '',
   filed_by: '',
   description: '',
@@ -41,8 +42,21 @@ const DOC_TYPES = [
   'Other'
 ]
 
+const DOC_EXPORT_COLUMNS = [
+  'record_id', 'title', 'document_type', 'date_filed', 'filed_by', 'description', 'files'
+]
+
+const DOC_EXPORT_HEADERS = {
+  record_id: 'Record ID',
+  title: 'Title',
+  document_type: 'Document Type',
+  date_filed: 'Date Filed',
+  filed_by: 'Filed By',
+  description: 'Description',
+  files: 'Files'
+}
+
 export default function Documentation() {
-  const [activeTab, setActiveTab] = useState('archive')
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -84,6 +98,9 @@ export default function Documentation() {
     }
     
     let matchesFilter = true
+    if (filter) {
+      matchesFilter = item.document_type === filter
+    }
     
     let matchesDate = true
     if (dateRange.start && dateRange.end) {
@@ -122,7 +139,16 @@ export default function Documentation() {
       subtitle: `${filteredRecords.length} documents`,
       columns: [
         { header: 'Title', key: 'title' },
-        { header: 'Type', key: 'type' },
+        { 
+          header: 'Type', 
+          key: 'document_type',
+          format: (val, record) => {
+            if (record.document_type === 'Other' && record.document_type_other) {
+              return record.document_type_other
+            }
+            return val || '—'
+          }
+        },
         { header: 'Date Filed', key: 'date_filed', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
         { header: 'Filed By', key: 'filed_by' },
         { header: 'Description', key: 'description' },
@@ -189,6 +215,7 @@ export default function Documentation() {
       record_id: rec.record_id || '',
       title: rec.title || '',
       document_type: rec.document_type || '',
+      document_type_other: rec.document_type_other || '',
       date_filed: rec.date_filed || '',
       filed_by: rec.filed_by || '',
       description: rec.description || '',
@@ -432,45 +459,7 @@ export default function Documentation() {
 
   return (
     <div>
-      {/* Tab Bar */}
-      <div style={{
-        display: 'flex',
-        gap: '4px',
-        borderBottom: '2px solid var(--border-light)',
-        marginBottom: '24px',
-        paddingBottom: '0'
-      }}>
-        {[
-          { key: 'archive', label: 'Documentation Archive', icon: 'ri-folder-line' },
-        ].map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            style={{
-              padding: '10px 20px',
-              border: 'none',
-              borderBottom: activeTab === tab.key ? '3px solid var(--primary)' : '3px solid transparent',
-              background: 'none',
-              cursor: 'pointer',
-              fontWeight: activeTab === tab.key ? '700' : '500',
-              color: activeTab === tab.key ? 'var(--primary)' : 'var(--text-muted)',
-              fontSize: '14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.15s',
-              marginBottom: '-2px'
-            }}
-          >
-            <i className={tab.icon}></i>
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === 'archive' && (
-      <div>
-      <div className="page-header" style={{ marginTop: '8px' }}>
+      <div className="page-header">
         <h2>
           <i className="ri-folder-line" style={{ marginRight: '12px' }}></i>
           Documentation Archive
@@ -484,14 +473,41 @@ export default function Documentation() {
       
       {records.length > 0 && (
         <ModuleToolbar
-          onSearch={setSearchTerm}
-          onFilterChange={setFilter}
-          onDateRangeChange={setDateRange}
+          onSearch={v => { setSearchTerm(v); setCurrentPage(1) }}
+          onFilterChange={v => { setFilter(v); setCurrentPage(1) }}
+          onDateRangeChange={r => { setDateRange(r); setCurrentPage(1) }}
           pageSize={pageSize}
           onPageSizeChange={handlePageSizeChange}
           onExportClick={() => setIsExportOpen(true)}
           onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
+          filterLabel="All Types"
+          filterOptions={[
+            { label: 'Memorandum', value: 'Memorandum' },
+            { label: 'Circular', value: 'Circular' },
+            { label: 'Letter', value: 'Letter' },
+            { label: 'Report', value: 'Report' },
+            { label: 'Plan', value: 'Plan' },
+            { label: 'Manual', value: 'Manual' },
+            { label: 'Protocol', value: 'Protocol' },
+            { label: 'Resolution', value: 'Resolution' },
+            { label: 'Order', value: 'Order' },
+            { label: 'Event Photos / Involvements', value: 'Event Photos / Involvements' },
+            { label: 'Other', value: 'Other' },
+          ]}
+          filterColorMap={{
+            'Memorandum': { bg: '#dbeafe', color: '#1e40af', icon: 'ri-file-text-line' },
+            'Circular': { bg: '#d1fae5', color: '#065f46', icon: 'ri-file-list-line' },
+            'Letter': { bg: '#e0f2fe', color: '#0c4a6e', icon: 'ri-mail-line' },
+            'Report': { bg: '#fef3c7', color: '#92400e', icon: 'ri-file-chart-line' },
+            'Plan': { bg: '#fee2e2', color: '#991b1b', icon: 'ri-file-edit-line' },
+            'Manual': { bg: '#e0e7ff', color: '#3730a3', icon: 'ri-book-line' },
+            'Protocol': { bg: '#fce7f3', color: '#9f1239', icon: 'ri-shield-check-line' },
+            'Resolution': { bg: '#ede9fe', color: '#5b21b6', icon: 'ri-article-line' },
+            'Order': { bg: '#fef3c7', color: '#92400e', icon: 'ri-file-list-2-line' },
+            'Event Photos / Involvements': { bg: '#dbeafe', color: '#1e40af', icon: 'ri-image-line' },
+            'Other': { bg: '#e5e7eb', color: '#374151', icon: 'ri-file-line' },
+          }}
           hasActiveFilters={hasActiveFilters}
         />
       )}
@@ -530,7 +546,23 @@ export default function Documentation() {
                   className="table-row-clickable"
                 >
                   <td style={{ fontWeight: '700' }}>{record.title || '-'}</td>
-                  <td>{getTypeBadge(record.document_type)}</td>
+                  <td>
+                    {record.document_type === 'Other' && record.document_type_other ? (
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '4px 12px',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        background: '#e5e7eb',
+                        color: '#374151'
+                      }}>
+                        {record.document_type_other}
+                      </span>
+                    ) : (
+                      getTypeBadge(record.document_type)
+                    )}
+                  </td>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
                     {record.date_filed
                       ? format(new Date(record.date_filed), 'MMM dd, yyyy')
@@ -584,6 +616,19 @@ export default function Documentation() {
         filename="documentation_report.xlsx"
         sheetName="Documentation"
         dateField="date_filed"
+        columns={DOC_EXPORT_COLUMNS}
+        headers={DOC_EXPORT_HEADERS}
+        transformValue={(col, val, record) => {
+          if (col === 'document_type') {
+            return record.document_type === 'Other' && record.document_type_other
+              ? record.document_type_other
+              : val
+          }
+          if (col === 'files') {
+            return Array.isArray(val) && val.length > 0 ? val.join('\n') : ''
+          }
+          return val
+        }}
         onSuccess={(count) => toast.success(`Exported ${count} records.`)}
         onError={(msg) => toast.error(msg)}
       />
@@ -673,7 +718,6 @@ export default function Documentation() {
               <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div className="form-row">
-                    
                     <div className="form-group">
                       <label>Document Type *</label>
                       <select name="document_type" value={formData.document_type} onChange={handleInputChange} required>
@@ -683,6 +727,19 @@ export default function Documentation() {
                         ))}
                       </select>
                     </div>
+                    {formData.document_type === 'Other' && (
+                      <div className="form-group">
+                        <label>Specify Type *</label>
+                        <input
+                          type="text"
+                          name="document_type_other"
+                          value={formData.document_type_other}
+                          onChange={handleInputChange}
+                          required={formData.document_type === 'Other'}
+                          placeholder="e.g. Certificate, Permit, Notice"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="form-group">
@@ -892,8 +949,6 @@ export default function Documentation() {
           </div>
         </form>
       </Modal>
-    </div>
-    )}
     </div>
   )
 }

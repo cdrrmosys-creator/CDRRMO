@@ -397,11 +397,11 @@ export default function TrainingAttended() {
           <table>
             <thead>
               <tr>
-                <th>Training Title</th>
-                <th>Date</th>
-                <th>Venue</th>
-                <th>Conducted By</th>
-                <th>Attendees</th>
+                <th style={{ width: '25%' }}>Training Title</th>
+                <th style={{ width: '12%' }}>Date</th>
+                <th style={{ width: '18%' }}>Venue</th>
+                <th style={{ width: '15%' }}>Conducted By</th>
+                <th style={{ width: '30%' }}>Attendees</th>
               </tr>
             </thead>
             <tbody>
@@ -414,10 +414,37 @@ export default function TrainingAttended() {
                   <td>{record.venue || '-'}</td>
                   <td>{record.conducted_by || '-'}</td>
                   <td>
-                    <div style={{ maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px', color: 'var(--text-muted)' }}>
-                      {Array.isArray(record.participants) && record.participants.length > 0
-                        ? record.participants.map(p => p.name).filter(Boolean).join(', ')
-                        : (record.attendees || '-')}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--text-muted)' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '0 1 auto', minWidth: 0 }}>
+                        {(() => {
+                          let participants = []
+                          if (Array.isArray(record.participants) && record.participants.length > 0) {
+                            participants = record.participants.map(p => p.name).filter(Boolean)
+                          }
+                          
+                          if (participants.length === 0) return record.attendees || '-'
+                          
+                          const displayLimit = 3
+                          if (participants.length <= displayLimit) {
+                            return participants.join(', ')
+                          }
+                          
+                          return participants.slice(0, displayLimit).join(', ')
+                        })()}
+                      </span>
+                      {(() => {
+                        let participants = []
+                        if (Array.isArray(record.participants) && record.participants.length > 0) {
+                          participants = record.participants.map(p => p.name).filter(Boolean)
+                        }
+                        
+                        const displayLimit = 3
+                        if (participants.length > displayLimit) {
+                          const remaining = participants.length - displayLimit
+                          return <span style={{ flexShrink: 0, fontWeight: '600', color: 'var(--primary)' }}>(+{remaining})</span>
+                        }
+                        return null
+                      })()}
                     </div>
                   </td>
                 </tr>

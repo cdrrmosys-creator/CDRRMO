@@ -196,7 +196,14 @@ export default function ClientSatisfaction() {
         { header: 'Client Name', key: 'client_name' },
         { header: 'Date', key: 'date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
         { header: 'Service Provided', key: 'service_provided' },
-        { header: 'Overall Rating', key: 'overall_rating' },
+        { 
+          header: 'Overall Rating', 
+          key: 'q7_overall',
+          format: (v, record) => {
+            const avg = getAverageScore(record)
+            return avg === '-' ? '—' : `${avg} ⭐`
+          }
+        },
       ],
       records: filteredRecords,
     })

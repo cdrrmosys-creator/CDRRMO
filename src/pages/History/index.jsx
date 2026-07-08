@@ -21,12 +21,32 @@ const INITIAL_FORM_STATE = {
   date: '',
   description: '',
   disaster_type: '',
-  category: '',
+  disaster_type_other: '',
   casualties: '',
   evacuees: '',
   affected_families: '',
   damage_cost: '',
   files: []
+}
+
+const HISTORY_EXPORT_COLUMNS = [
+  'record_id', 'event_title', 'date', 'disaster_type',
+  'description', 'casualties', 'evacuees', 'affected_families', 'damage_cost',
+  'files', 'saved_at'
+]
+
+const HISTORY_EXPORT_HEADERS = {
+  record_id: 'Record ID',
+  event_title: 'Event Title',
+  date: 'Date',
+  disaster_type: 'Disaster/Hazard Type',
+  description: 'Description',
+  casualties: 'Casualties',
+  evacuees: 'Evacuees',
+  affected_families: 'Affected Families',
+  damage_cost: 'Damage Cost (₱)',
+  files: 'Files',
+  saved_at: 'Saved At'
 }
 
 export default function History() {
@@ -84,7 +104,7 @@ export default function History() {
       }
     }
 
-    const matchesFilter = !filter || item.category === filter
+    const matchesFilter = !filter || item.disaster_type === filter
     return matchesSearch && matchesFilter && matchesDate
   })
 
@@ -105,7 +125,16 @@ export default function History() {
       columns: [
         { header: 'Event Title', key: 'event_title' },
         { header: 'Date', key: 'date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
-        { header: 'Category', key: 'category' },
+        { 
+          header: 'Disaster/Hazard Type', 
+          key: 'disaster_type',
+          format: (val, record) => {
+            if (record.disaster_type === 'Others' && record.disaster_type_other) {
+              return record.disaster_type_other
+            }
+            return val || '—'
+          }
+        },
         { header: 'Description', key: 'description' },
       ],
       records: filteredRecords,
@@ -172,8 +201,8 @@ const handleOpenAdd = () => {
       event_title: rec.event_title || '',
       date: rec.date || '',
       description: rec.description || '',
-      disaster_type: rec.disaster_type || rec.category || '',
-      category: rec.category || '',
+      disaster_type: rec.disaster_type || '',
+      disaster_type_other: rec.disaster_type_other || '',
       casualties: rec.casualties ?? '',
       evacuees: rec.evacuees ?? '',
       affected_families: rec.affected_families ?? '',
@@ -440,16 +469,28 @@ const handleOpenAdd = () => {
           onExportClick={() => setIsExportOpen(true)}
           onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
-          filterLabel="All Categories"
+          filterLabel="All Types"
           filterOptions={[
-            { label: 'Incident', value: 'Incident' },
-            { label: 'Event', value: 'Event' },
-            { label: 'Activity', value: 'Activity' },
+            { label: 'Typhoon', value: 'Typhoon' },
+            { label: 'Flooding', value: 'Flooding' },
+            { label: 'Landslide (Rain-induced)', value: 'Landslide (Rain-induced)' },
+            { label: 'Landslide (EQ-induced)', value: 'Landslide (EQ-induced)' },
+            { label: 'Earthquake', value: 'Earthquake' },
+            { label: 'Fire', value: 'Fire' },
+            { label: 'Drought', value: 'Drought' },
+            { label: 'Armed Conflict', value: 'Armed Conflict' },
+            { label: 'Others', value: 'Others' },
           ]}
           filterColorMap={{
-            'Incident': { bg: '#fee2e2', color: '#991b1b', icon: 'ri-alarm-warning-line' },
-            'Event': { bg: '#dbeafe', color: '#1e40af', icon: 'ri-calendar-event-line' },
-            'Activity': { bg: '#ede9fe', color: '#5b21b6', icon: 'ri-rocket-line' },
+            'Typhoon': { bg: '#fee2e2', color: '#991b1b', icon: 'ri-typhoon-line' },
+            'Flooding': { bg: '#dbeafe', color: '#1e40af', icon: 'ri-water-flash-line' },
+            'Landslide (Rain-induced)': { bg: '#fef3c7', color: '#92400e', icon: 'ri-landscape-line' },
+            'Landslide (EQ-induced)': { bg: '#fef3c7', color: '#92400e', icon: 'ri-landscape-line' },
+            'Earthquake': { bg: '#ede9fe', color: '#5b21b6', icon: 'ri-earthquake-line' },
+            'Fire': { bg: '#fee2e2', color: '#991b1b', icon: 'ri-fire-line' },
+            'Drought': { bg: '#fef3c7', color: '#92400e', icon: 'ri-sun-line' },
+            'Armed Conflict': { bg: '#e5e7eb', color: '#374151', icon: 'ri-shield-cross-line' },
+            'Others': { bg: '#e5e7eb', color: '#374151', icon: 'ri-more-line' },
           }}
           hasActiveFilters={hasActiveFilters}
         />
@@ -475,7 +516,7 @@ const handleOpenAdd = () => {
               <tr>
                 <th>Event Title</th>
                 <th>Date</th>
-                <th>Category</th>
+                <th>Disaster/Hazard Type</th>
                 <th>Description</th>
                 <th>Attachments</th>
               </tr>
@@ -494,7 +535,21 @@ const handleOpenAdd = () => {
                       ? format(new Date(record.date), 'MMM dd, yyyy')
                       : '-'}
                   </td>
-                  <td>{getCategoryBadge(record.category)}</td>
+                  <td>
+                    <span style={{
+                      display: 'inline-block',
+                      padding: '4px 12px',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      background: '#dbeafe',
+                      color: '#1e40af'
+                    }}>
+                      {record.disaster_type === 'Others' && record.disaster_type_other 
+                        ? `Others: ${record.disaster_type_other}` 
+                        : (record.disaster_type || '-')}
+                    </span>
+                  </td>
                   <td>
                     <div style={{
                       maxWidth: '200px',
@@ -542,6 +597,19 @@ const handleOpenAdd = () => {
         filename="history_report.xlsx"
         sheetName="History"
         dateField="date"
+        columns={HISTORY_EXPORT_COLUMNS}
+        headers={HISTORY_EXPORT_HEADERS}
+        transformValue={(col, val, record) => {
+          if (col === 'disaster_type') {
+            return record.disaster_type === 'Others' && record.disaster_type_other 
+              ? record.disaster_type_other 
+              : val
+          }
+          if (col === 'files') {
+            return Array.isArray(val) && val.length > 0 ? val.join('\n') : ''
+          }
+          return val
+        }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
         onError={(msg) => toast.error(msg)}
       />
@@ -631,25 +699,6 @@ const handleOpenAdd = () => {
               <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div className="form-row">
-                    
-                    <div className="form-group">
-                      <label>Event Title *</label>
-                      <input 
-                        type="text" 
-                        name="event_title" 
-                        value={formData.event_title} 
-                        onChange={handleInputChange} 
-                        required 
-                        placeholder="e.g. Typhoon Karding Response"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>Date *</label>
-                      <input max={new Date().toISOString().split('T')[0]} type="date" name="date" value={formData.date} onChange={handleInputChange} required />
-                    </div>
                     <div className="form-group">
                       <label>Disaster / Hazard Type *</label>
                       <select name="disaster_type" value={formData.disaster_type} onChange={handleInputChange} required>
@@ -664,6 +713,37 @@ const handleOpenAdd = () => {
                         <option value="Armed Conflict">Armed Conflict</option>
                         <option value="Others">Others</option>
                       </select>
+                    </div>
+                    {formData.disaster_type === 'Others' && (
+                      <div className="form-group">
+                        <label>Specify Type *</label>
+                        <input 
+                          type="text" 
+                          name="disaster_type_other" 
+                          value={formData.disaster_type_other} 
+                          onChange={handleInputChange} 
+                          required={formData.disaster_type === 'Others'}
+                          placeholder="e.g. Volcanic Eruption, Tsunami"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Event Title *</label>
+                      <input 
+                        type="text" 
+                        name="event_title" 
+                        value={formData.event_title} 
+                        onChange={handleInputChange} 
+                        required 
+                        placeholder="e.g. Typhoon Karding Response"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Date *</label>
+                      <input max={new Date().toISOString().split('T')[0]} type="date" name="date" value={formData.date} onChange={handleInputChange} required />
                     </div>
                   </div>
 

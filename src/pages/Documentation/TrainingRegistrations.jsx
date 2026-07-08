@@ -19,6 +19,25 @@ const TRAINING_OPTIONS = ['Basic Life Support – CPR', 'Standard First Aid']
 const GENDER_OPTIONS = ['Male', 'Female', 'LGBTQ+', 'Preferred Not to Say']
 const CIVIL_STATUS_OPTIONS = ['Single', 'Married', 'Separated', 'Widowed', "It's Complicated"]
 
+const REGISTRATION_EXPORT_COLUMNS = [
+  'record_id', 'full_name', 'gender', 'contact_number', 'email_address', 
+  'trainings', 'organization', 'designation', 'civil_status', 'birth_date', 'address'
+]
+
+const REGISTRATION_EXPORT_HEADERS = {
+  record_id: 'Record ID',
+  full_name: 'Full Name',
+  gender: 'Gender',
+  contact_number: 'Contact Number',
+  email_address: 'Email Address',
+  trainings: 'Training/s',
+  organization: 'Organization',
+  designation: 'Designation',
+  civil_status: 'Civil Status',
+  birth_date: 'Birth Date',
+  address: 'Address'
+}
+
 const INITIAL_FORM_STATE = {
   record_id: '',
   full_name: '',
@@ -100,8 +119,12 @@ export default function TrainingRegistrations() {
       columns: [
         { header: 'Full Name', key: 'full_name' },
         { header: 'Gender', key: 'gender' },
-        { header: 'Contact No.', key: 'contact_no' },
-        { header: 'Training/s', key: 'trainings' },
+        { header: 'Contact No.', key: 'contact_number' },
+        { 
+          header: 'Training/s', 
+          key: 'trainings',
+          format: (val) => Array.isArray(val) ? val.join(', ') : (val || '—')
+        },
         { header: 'Organization', key: 'organization' },
         { header: 'Designation', key: 'designation' },
         { header: 'Civil Status', key: 'civil_status' },
@@ -341,6 +364,14 @@ export default function TrainingRegistrations() {
         filename="training_registrations_report.xlsx"
         sheetName="Training Registrations"
         dateField="birth_date"
+        columns={REGISTRATION_EXPORT_COLUMNS}
+        headers={REGISTRATION_EXPORT_HEADERS}
+        transformValue={(col, val) => {
+          if (col === 'trainings') {
+            return Array.isArray(val) ? val.join(', ') : ''
+          }
+          return val
+        }}
         onSuccess={(count) => toast.success(`Exported ${count} records.`)}
         onError={(msg) => toast.error(msg)}
       />

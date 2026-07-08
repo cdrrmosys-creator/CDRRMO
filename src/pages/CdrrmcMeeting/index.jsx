@@ -477,6 +477,25 @@ const handleOpenAdd = () => {
         filename="cdrrmcmeeting_report.xlsx"
         sheetName="Meetings"
         dateField="date"
+        columns={['record_id', 'meeting_no', 'date', 'agenda', 'attendees', 'minutes_summary', 'photos']}
+        headers={{
+          record_id: 'Record ID',
+          meeting_no: 'Meeting No.',
+          date: 'Date',
+          agenda: 'Agenda',
+          attendees: 'Attendees',
+          minutes_summary: 'Minutes Summary',
+          photos: 'Photo URLs'
+        }}
+        transformValue={(col, val) => {
+          if (col === 'photos') {
+            if (Array.isArray(val) && val.length > 0) {
+              return val.join('\n')
+            }
+            return ''
+          }
+          return val
+        }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
         onError={(msg) => toast.error(msg)}
       />

@@ -18,6 +18,7 @@ const INITIAL_FORM_STATE = {
   record_id: '',
   event_title: '',
   event_type: '',
+  event_type_other: '',
   start_date: '',
   end_date: '',
   location: '',
@@ -105,7 +106,16 @@ export default function CalendarEvents() {
       subtitle: `${filteredRecords.length} events`,
       columns: [
         { header: 'Event Title', key: 'event_title' },
-        { header: 'Type', key: 'event_type' },
+        { 
+          header: 'Type', 
+          key: 'event_type',
+          format: (val, record) => {
+            if (record.event_type === 'Other' && record.event_type_other) {
+              return record.event_type_other
+            }
+            return val || '—'
+          }
+        },
         { header: 'Start Date', key: 'start_date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
         { header: 'End Date', key: 'end_date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
         { header: 'Location', key: 'location' },
@@ -173,6 +183,7 @@ const handleOpenAdd = () => {
       record_id: rec.record_id || '',
       event_title: rec.event_title || '',
       event_type: rec.event_type || '',
+      event_type_other: rec.event_type_other || '',
       start_date: rec.start_date || '',
       end_date: rec.end_date || '',
       location: rec.location || '',
@@ -353,14 +364,24 @@ const handleOpenAdd = () => {
           onClearFilters={handleClearFilters}
           filterLabel="All Types"
           filterOptions={[
-            { label: 'Holiday', value: 'Holiday' },
+            { label: 'Drill / Exercise', value: 'Drill / Exercise' },
             { label: 'Training', value: 'Training' },
             { label: 'Meeting', value: 'Meeting' },
+            { label: 'Community Outreach', value: 'Community Outreach' },
+            { label: 'Disaster Response', value: 'Disaster Response' },
+            { label: 'Holiday', value: 'Holiday' },
+            { label: 'Maintenance', value: 'Maintenance' },
+            { label: 'Other', value: 'Other' },
           ]}
           filterColorMap={{
-            'Holiday': { bg: '#fee2e2', color: '#991b1b', icon: 'ri-sun-line' },
+            'Drill / Exercise': { bg: '#fef3c7', color: '#92400e', icon: 'ri-shield-check-line' },
             'Training': { bg: '#d1fae5', color: '#065f46', icon: 'ri-book-open-line' },
             'Meeting': { bg: '#dbeafe', color: '#1e40af', icon: 'ri-group-line' },
+            'Community Outreach': { bg: '#ede9fe', color: '#5b21b6', icon: 'ri-community-line' },
+            'Disaster Response': { bg: '#fee2e2', color: '#991b1b', icon: 'ri-alarm-warning-line' },
+            'Holiday': { bg: '#fce7f3', color: '#9d174d', icon: 'ri-sun-line' },
+            'Maintenance': { bg: '#e0e7ff', color: '#3730a3', icon: 'ri-tools-line' },
+            'Other': { bg: '#e5e7eb', color: '#374151', icon: 'ri-more-line' },
           }}
           hasActiveFilters={hasActiveFilters}
         />
@@ -401,7 +422,23 @@ const handleOpenAdd = () => {
                   className="table-row-clickable"
                 >
                   <td style={{ fontWeight: '700' }}>{record.event_title || '-'}</td>
-                  <td>{getEventTypeBadge(record.event_type)}</td>
+                  <td>
+                    {record.event_type === 'Other' && record.event_type_other ? (
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '4px 12px',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        background: '#e5e7eb',
+                        color: '#374151'
+                      }}>
+                        {record.event_type_other}
+                      </span>
+                    ) : (
+                      getEventTypeBadge(record.event_type)
+                    )}
+                  </td>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600', whiteSpace: 'nowrap' }}>
                     {getDateRangeDisplay(record.start_date, record.end_date)}
                   </td>
@@ -444,7 +481,6 @@ const handleOpenAdd = () => {
         <form onSubmit={handleSubmit} className="modal-form">
           <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
           <div className="form-row">
-            
             <div className="form-group">
               <label>Event Type *</label>
               <select name="event_type" value={formData.event_type} onChange={handleInputChange} required>
@@ -454,6 +490,19 @@ const handleOpenAdd = () => {
                 ))}
               </select>
             </div>
+            {formData.event_type === 'Other' && (
+              <div className="form-group">
+                <label>Specify Type *</label>
+                <input
+                  type="text"
+                  name="event_type_other"
+                  value={formData.event_type_other}
+                  onChange={handleInputChange}
+                  required={formData.event_type === 'Other'}
+                  placeholder="e.g. Workshop, Seminar, Ceremony"
+                />
+              </div>
+            )}
           </div>
 
           <div className="form-group">

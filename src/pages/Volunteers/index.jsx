@@ -416,6 +416,38 @@ export default function Volunteers() {
         filename="volunteers_report.xlsx"
         sheetName="Volunteers"
         dateField="date"
+        columns={['record_id', 'volunteer_name', 'organization', 'accreditation_no', 'birthdate', 'address', 'contact_no', 'civil_status', 'blood_type', 'emergency_contact_person', 'emergency_contact_no', 'date', 'status', 'with_insurance', 'insurance_number', 'insurance_id', 'photos']}
+        headers={{
+          record_id: 'Record ID',
+          volunteer_name: 'Volunteer Name',
+          organization: 'Organization',
+          accreditation_no: 'Accreditation No.',
+          birthdate: 'Birthdate',
+          address: 'Address',
+          contact_no: 'Contact No.',
+          civil_status: 'Civil Status',
+          blood_type: 'Blood Type',
+          emergency_contact_person: 'Emergency Contact Person',
+          emergency_contact_no: 'Emergency Contact No.',
+          date: 'Date Registered',
+          status: 'Status',
+          with_insurance: 'Has Insurance',
+          insurance_number: 'Insurance Number',
+          insurance_id: 'Insurance ID',
+          photos: 'Photo URLs'
+        }}
+        transformValue={(col, val) => {
+          if (col === 'photos') {
+            if (Array.isArray(val) && val.length > 0) {
+              return val.join('\n')
+            }
+            return ''
+          }
+          if (col === 'with_insurance') {
+            return val ? 'Yes' : 'No'
+          }
+          return val
+        }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
         onError={(msg) => toast.error(msg)}
       />

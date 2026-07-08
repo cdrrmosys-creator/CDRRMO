@@ -226,6 +226,7 @@ export default function Pruning() {
         { header: 'Status', key: 'status' },
         { header: 'Trees Pruned', key: 'trees_pruned', format: v => v || '0' },
         { header: 'Conducted By', key: 'conducted_by' },
+        { header: 'Remarks', key: 'remarks' },
       ],
       records: filteredRecords,
     })
@@ -670,6 +671,27 @@ export default function Pruning() {
         filename="pruning_report.xlsx"
         sheetName="Pruning"
         dateField="date"
+        columns={['record_id', 'location', 'date_of_request', 'date', 'status', 'trees_pruned', 'conducted_by', 'remarks', 'photos']}
+        headers={{
+          record_id: 'Record ID',
+          location: 'Location',
+          date_of_request: 'Date of Request',
+          date: 'Operation Date',
+          status: 'Status',
+          trees_pruned: 'Trees Pruned',
+          conducted_by: 'Conducted By',
+          remarks: 'Remarks',
+          photos: 'Photo URLs'
+        }}
+        transformValue={(col, val) => {
+          if (col === 'photos') {
+            if (Array.isArray(val) && val.length > 0) {
+              return val.join('\n')
+            }
+            return ''
+          }
+          return val
+        }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
         onError={(msg) => toast.error(msg)}
       />

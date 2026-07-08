@@ -208,9 +208,17 @@ export default function DrrmTraining() {
       subtitle: `${filteredRecords.length} records`,
       columns: [
         { header: 'Timestamp', key: 'timestamp', format: v => v ? format(new Date(v), 'MMM dd, yyyy hh:mm a') : '—' },
-        { header: 'Full Name', key: 'full_name' },
+        { 
+          header: 'Full Name', 
+          key: 'first_name',
+          format: (val, record) => {
+            const suffix = record.suffix && record.suffix.toUpperCase() !== 'N/A' ? record.suffix : null
+            const parts = [record.first_name, record.middle_name, record.last_name, suffix].filter(Boolean)
+            return parts.length > 0 ? parts.join(' ') : '—'
+          }
+        },
         { header: 'Gender', key: 'gender' },
-        { header: 'Contact No.', key: 'contact_no' },
+        { header: 'Contact No.', key: 'contact_number' },
         { header: 'Office', key: 'office' },
         { header: 'Designation', key: 'designation' },
         { header: 'Civil Status', key: 'civil_status' },
