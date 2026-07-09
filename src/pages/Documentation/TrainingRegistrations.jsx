@@ -3,6 +3,7 @@ import ListPagination from '../../components/ListPagination'
 import ExportModal from '../../components/ExportModal'
 import TableGhostRows from '../../components/TableGhostRows'
 import useListPagination from '../../hooks/useListPagination'
+import StatusSelect from '../../components/StatusSelect'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
@@ -21,7 +22,7 @@ const CIVIL_STATUS_OPTIONS = ['Single', 'Married', 'Separated', 'Widowed', "It's
 
 const REGISTRATION_EXPORT_COLUMNS = [
   'record_id', 'full_name', 'gender', 'contact_number', 'email_address', 
-  'trainings', 'organization', 'designation', 'civil_status', 'birth_date', 'address'
+  'trainings', 'organization', 'designation', 'civil_status', 'birth_date', 'address', 'status'
 ]
 
 const REGISTRATION_EXPORT_HEADERS = {
@@ -35,7 +36,8 @@ const REGISTRATION_EXPORT_HEADERS = {
   designation: 'Designation',
   civil_status: 'Civil Status',
   birth_date: 'Birth Date',
-  address: 'Address'
+  address: 'Address',
+  status: 'Status'
 }
 
 const INITIAL_FORM_STATE = {
@@ -49,7 +51,8 @@ const INITIAL_FORM_STATE = {
   designation: '',
   civil_status: '',
   birth_date: '',
-  address: ''
+  address: '',
+  status: 'Pending'
 }
 
 export default function TrainingRegistrations() {
@@ -82,6 +85,9 @@ export default function TrainingRegistrations() {
         val && typeof val === 'string' && val.toLowerCase().includes(lower)
       )
     }
+
+    const matchesFilter = !filter || item.status === filter
+
     let matchesDate = true
     if (dateRange.start && dateRange.end) {
       const dateStr = item.birth_date || item.created_at
@@ -93,7 +99,7 @@ export default function TrainingRegistrations() {
         matchesDate = d >= start && d <= end
       }
     }
-    return matchesSearch && matchesDate
+    return matchesSearch && matchesFilter && matchesDate
   })
 
   const [isExportOpen, setIsExportOpen] = useState(false)
@@ -140,6 +146,7 @@ export default function TrainingRegistrations() {
       const { data, error } = await supabase
         .from('training_registrations')
         .select('*')
+        .order('status', { ascending: true }) // Pending before Completed
         .order('created_at', { ascending: false })
       if (error) throw error
       setRecords(data || [])
@@ -175,7 +182,8 @@ export default function TrainingRegistrations() {
       designation: rec.designation || '',
       civil_status: rec.civil_status || '',
       birth_date: rec.birth_date || '',
-      address: rec.address || ''
+      address: rec.address || '',
+      status: rec.status || 'Pending'
     })
     setIsModalOpen(true)
   }
@@ -241,6 +249,26 @@ export default function TrainingRegistrations() {
     }
   }
 
+  const handleStatusChange = async (id, newStatus) => {
+    if (!isAdmin && !canUpdate) {
+      toast.error('You do not have permission to update status.')
+      return
+    }
+    try {
+      const { data, error } = await supabase
+        .from('training_registrations')
+        .update({ status: newStatus })
+        .eq('id', id)
+        .select()
+      if (error) throw error
+      setRecords(records.map(r => r.id === id ? data[0] : r))
+      await logAudit('Updated', 'TrainingRegistrations', id, `Changed status to ${newStatus}`)
+      toast.success(`Status updated to ${newStatus}`)
+    } catch (err) {
+      toast.error('Failed to update status: ' + err.message)
+    }
+  }
+
   const getGenderBadge = (gender) => {
     const map = {
       'Male': { bg: '#dbeafe', color: '#1e40af' },
@@ -283,6 +311,44 @@ export default function TrainingRegistrations() {
         </button>
       </div>
 
+      {/* Status Cards */}
+      {records.length > 0 && (() => {
+        const counts = {
+          total: records.length,
+          pending: records.filter(r => (r.status || 'Pending') === 'Pending').length,
+          completed: records.filter(r => r.status === 'Completed').length,
+          cancelled: records.filter(r => r.status === 'Cancelled').length,
+        }
+        const cards = [
+          { label: 'Total', count: counts.total, icon: 'ri-group-line', accent: '#2563eb' },
+          { label: 'Pending', count: counts.pending, icon: 'ri-time-line', accent: '#d97706' },
+          { label: 'Completed', count: counts.completed, icon: 'ri-checkbox-circle-line', accent: '#16a34a' },
+          { label: 'Cancelled', count: counts.cancelled, icon: 'ri-close-circle-line', accent: '#dc2626' },
+        ]
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
+            {cards.map(c => (
+              <div key={c.label} style={{
+                display: 'flex', alignItems: 'center', gap: '12px',
+                padding: '14px 16px', borderRadius: '12px',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-light)',
+                borderTop: `3px solid ${c.accent}`,
+                boxShadow: 'var(--shadow-sm)',
+              }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${c.accent}12` }}>
+                  <i className={c.icon} style={{ fontSize: '18px', color: c.accent }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '22px', fontWeight: '900', lineHeight: 1, color: c.accent }}>{c.count}</div>
+                  <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{c.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
       
 
       {records.length > 0 && (
@@ -296,6 +362,16 @@ export default function TrainingRegistrations() {
           onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
+          filterOptions={[
+            { label: 'Pending', value: 'Pending' },
+            { label: 'Completed', value: 'Completed' },
+            { label: 'Cancelled', value: 'Cancelled' },
+          ]}
+          filterColorMap={{
+            'Pending': { bg: '#fef3c7', color: '#92400e', icon: 'ri-time-line' },
+            'Completed': { bg: '#d1fae5', color: '#065f46', icon: 'ri-checkbox-circle-line' },
+            'Cancelled': { bg: '#fee2e2', color: '#991b1b', icon: 'ri-close-circle-line' },
+          }}
         />
       )}
 
@@ -312,7 +388,20 @@ export default function TrainingRegistrations() {
           <p>Try adjusting your search or filters.</p>
         </div>
       ) : (
-        <div className="data-table">
+        <>
+        <style>{`
+          .training-registrations-table {
+            overflow: visible !important;
+          }
+          .training-registrations-table table {
+            position: relative;
+            z-index: 1;
+          }
+          .training-registrations-table tbody tr {
+            position: relative;
+          }
+        `}</style>
+        <div className="data-table training-registrations-table">
           <table>
             <thead>
               <tr>
@@ -323,6 +412,7 @@ export default function TrainingRegistrations() {
                 <th>Organization</th>
                 <th>Designation</th>
                 <th>Civil Status</th>
+                <th style={{ textAlign: 'center' }}>Status</th>
               </tr>
             </thead>
             <tbody>
@@ -341,12 +431,25 @@ export default function TrainingRegistrations() {
                   <td style={{ fontSize: '13px' }}>{record.organization || '-'}</td>
                   <td style={{ fontSize: '13px' }}>{record.designation || '-'}</td>
                   <td style={{ fontSize: '13px' }}>{record.civil_status || '-'}</td>
+                  <td onClick={(e) => e.stopPropagation()} style={{ position: 'relative', overflow: 'visible' }}>
+                    <StatusSelect
+                      value={record.status || 'Pending'}
+                      options={[
+                        { value: 'Pending', label: 'Pending', icon: 'ri-time-line', bg: '#fef3c7', color: '#92400e' },
+                        { value: 'Completed', label: 'Completed', icon: 'ri-checkbox-circle-fill', bg: '#d1fae5', color: '#065f46' },
+                        { value: 'Cancelled', label: 'Cancelled', icon: 'ri-close-circle-fill', bg: '#fee2e2', color: '#991b1b' },
+                      ]}
+                      onChange={(val) => handleStatusChange(record.id, val)}
+                      disabled={!isAdmin && !canUpdate}
+                    />
+                  </td>
                 </tr>
               ))}
               <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={8} />
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       <ListPagination
@@ -387,12 +490,19 @@ export default function TrainingRegistrations() {
           <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
-              {/* Row 1: Record ID + Full Name */}
+              {/* Row 1: Full Name + Status */}
               <div className="form-row">
-                
                 <div className="form-group">
                   <label>Full Name *</label>
                   <input type="text" name="full_name" value={formData.full_name} onChange={handleInputChange} required placeholder="e.g. Juan dela Cruz" />
+                </div>
+                <div className="form-group">
+                  <label>Status *</label>
+                  <select name="status" value={formData.status} onChange={handleInputChange} required disabled={isViewing}>
+                    <option value="Pending">Pending</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
                 </div>
               </div>
 
@@ -400,10 +510,24 @@ export default function TrainingRegistrations() {
               <div className="form-row">
                 <div className="form-group">
                   <label>Gender *</label>
-                  <select name="gender" value={formData.gender} onChange={handleInputChange} required>
-                    <option value="">-- Select Gender --</option>
-                    {GENDER_OPTIONS.map(g => <option key={g} value={g}>{g}</option>)}
-                  </select>
+                  {isViewing ? (
+                    <div style={{ 
+                      padding: '10px 12px', 
+                      border: '1px solid var(--border-light)', 
+                      borderRadius: '8px',
+                      background: 'var(--bg-app)',
+                      minHeight: '42px',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}>
+                      {formData.gender || '-'}
+                    </div>
+                  ) : (
+                    <select name="gender" value={formData.gender} onChange={handleInputChange} required>
+                      <option value="">-- Select Gender --</option>
+                      {GENDER_OPTIONS.map(g => <option key={g} value={g}>{g}</option>)}
+                    </select>
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Civil Status *</label>

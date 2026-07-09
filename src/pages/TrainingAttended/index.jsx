@@ -449,7 +449,7 @@ export default function TrainingAttended() {
                   </td>
                 </tr>
               ))}
-              <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={6} />
+              <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={5} />
             </tbody>
           </table>
         </div>

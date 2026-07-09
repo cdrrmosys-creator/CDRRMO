@@ -468,16 +468,16 @@ const handleOpenAdd = () => {
       ) : (
         <>
         <div className="data-table">
-          <table>
+          <table style={{ width: '100%' }}>
             <thead>
               <tr>
-                <th>Vehicle ID</th>
-                <th>Plate Number</th>
-                <th>Model</th>
-                <th>Type</th>
-                <th>Capacity</th>
-                <th>Status</th>
-                <th>Last Maintenance</th>
+                <th style={{ width: '12%' }}>Vehicle ID</th>
+                <th style={{ width: '14%' }}>Plate Number</th>
+                <th style={{ width: '18%' }}>Model</th>
+                <th style={{ width: '14%' }}>Type</th>
+                <th style={{ width: '12%' }}>Capacity</th>
+                <th style={{ width: '14%' }}>Status</th>
+                <th style={{ width: '16%' }}>Last Maintenance</th>
                 
               </tr>
             </thead>

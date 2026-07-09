@@ -534,15 +534,15 @@ const handleOpenAdd = () => {
         </div>
       ) : (
         <div className="data-table">
-          <table>
+          <table style={{ width: '100%' }}>
             <thead>
               <tr>
-                <th>Item Name</th>
-                <th>Category</th>
-                <th>Quantity</th>
-                <th>Status</th>
-                <th>End User</th>
-                <th>Date Acquired</th>
+                <th style={{ width: '25%' }}>Item Name</th>
+                <th style={{ width: '18%' }}>Category</th>
+                <th style={{ width: '12%' }}>Quantity</th>
+                <th style={{ width: '14%' }}>Status</th>
+                <th style={{ width: '18%' }}>End User</th>
+                <th style={{ width: '13%' }}>Date Acquired</th>
                 
               </tr>
             </thead>

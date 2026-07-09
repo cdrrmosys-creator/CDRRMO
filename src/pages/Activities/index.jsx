@@ -485,14 +485,14 @@ const handleOpenAdd = () => {
         ) : (
           <>
           <div className="data-table">
-            <table>
+            <table style={{ width: '100%' }}>
               <thead>
               <tr>
-                <th>Activity Title</th>
-                <th>Date</th>
-                <th>Location</th>
-                <th>Participants</th>
-                <th>Description</th>
+                <th style={{ width: '25%' }}>Activity Title</th>
+                <th style={{ width: '12%' }}>Date</th>
+                <th style={{ width: '20%' }}>Location</th>
+                <th style={{ width: '15%' }}>Participants</th>
+                <th style={{ width: '28%' }}>Description</th>
                 
               </tr>
             </thead>
@@ -527,7 +527,7 @@ const handleOpenAdd = () => {
                   
                 </tr>
               ))}
-              <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={6} />
+              <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={5} />
             </tbody>
           </table>
         </div>

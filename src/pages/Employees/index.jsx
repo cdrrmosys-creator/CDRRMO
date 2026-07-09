@@ -857,7 +857,20 @@ export default function Employees() {
           <p>Try adjusting your search or filters.</p>
         </div>
       ) : (
-        <div className="data-table">
+        <>
+        <style>{`
+          .employees-table {
+            overflow: visible !important;
+          }
+          .employees-table table {
+            position: relative;
+            z-index: 1;
+          }
+          .employees-table tbody tr {
+            position: relative;
+          }
+        `}</style>
+        <div className="data-table employees-table">
           <table style={{ tableLayout: 'fixed', width: '100%' }}>
             <colgroup>
               <col style={{ width: '110px' }} />{/* ID */}
@@ -940,6 +953,7 @@ export default function Employees() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       <ListPagination

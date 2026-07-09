@@ -363,15 +363,15 @@ export default function Drivers() {
       ) : (
         <>
         <div className="data-table">
-          <table>
+          <table style={{ width: '100%' }}>
             <thead>
               <tr>
-                <th>Driver ID</th>
-                <th>Name</th>
-                <th>License No.</th>
-                <th>License Expiry</th>
-                <th>Contact</th>
-                <th>Status</th>
+                <th style={{ width: '12%' }}>Driver ID</th>
+                <th style={{ width: '22%' }}>Name</th>
+                <th style={{ width: '18%' }}>License No.</th>
+                <th style={{ width: '16%' }}>License Expiry</th>
+                <th style={{ width: '18%' }}>Contact</th>
+                <th style={{ width: '14%' }}>Status</th>
               </tr>
             </thead>
             <tbody>
