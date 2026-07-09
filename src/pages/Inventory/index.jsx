@@ -26,6 +26,7 @@ const INITIAL_FORM_STATE = {
   serial_no: '',
   item_name: '',
   category: '',
+  category_other: '',
   quantity: '',
   unit: '',
   condition: 'Good',
@@ -130,6 +131,7 @@ const handleOpenAdd = () => {
       serial_no: rec.serial_no || '',
       item_name: rec.item_name || '',
       category: rec.category || '',
+      category_other: rec.category_other || '',
       quantity: rec.quantity || '',
       unit: rec.unit || '',
       condition: rec.condition || 'Good',
@@ -310,7 +312,25 @@ const handleOpenAdd = () => {
     )
   }
 
-  const categories = [...new Set(items.map(item => item.category).filter(Boolean))]
+  // Predefined category list for filter dropdown
+  const categories = [
+    'ICT AND AUDIO VISUAL EQUIPMENT',
+    'OFFICE SUPPLIES',
+    'JANITORIAL SUPPLIES',
+    'MEDICAL SUPPLIES',
+    'OXYGEN',
+    'PPE (WASAR, CSSR, EXTRICATION, HIGH ANGLE)',
+    'RESCUE TOOLS (WASAR, CSSR, EXTRICATION, HIGH ANGLE)',
+    'VEHICLES',
+    'GENERATOR SET',
+    'AIRCONDITIONING',
+    'UMBRELLA',
+    'AM/FM RADIO',
+    'Early warning device/system',
+    'Two way radio',
+    'Command Center',
+    'Other'
+  ]
   
   const filteredItems = items.filter(item => {
     let matchesSearch = true
@@ -444,7 +464,27 @@ const handleOpenAdd = () => {
           onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
+          filterLabel="All Categories"
+          filterMinWidth="320px"
           filterOptions={categories.map(cat => ({ label: cat, value: cat }))}
+          filterColorMap={{
+            'ICT AND AUDIO VISUAL EQUIPMENT': { bg: '#dbeafe', color: '#1e40af', icon: 'ri-computer-line' },
+            'OFFICE SUPPLIES': { bg: '#e0e7ff', color: '#4338ca', icon: 'ri-file-paper-line' },
+            'JANITORIAL SUPPLIES': { bg: '#fce7f3', color: '#9f1239', icon: 'ri-brush-line' },
+            'MEDICAL SUPPLIES': { bg: '#dcfce7', color: '#166534', icon: 'ri-first-aid-kit-line' },
+            'OXYGEN': { bg: '#ccfbf1', color: '#115e59', icon: 'ri-heart-pulse-line' },
+            'PPE (WASAR, CSSR, EXTRICATION, HIGH ANGLE)': { bg: '#fef3c7', color: '#92400e', icon: 'ri-shield-line' },
+            'RESCUE TOOLS (WASAR, CSSR, EXTRICATION, HIGH ANGLE)': { bg: '#fecaca', color: '#991b1b', icon: 'ri-tools-line' },
+            'VEHICLES': { bg: '#ddd6fe', color: '#5b21b6', icon: 'ri-car-line' },
+            'GENERATOR SET': { bg: '#fed7aa', color: '#9a3412', icon: 'ri-flashlight-line' },
+            'AIRCONDITIONING': { bg: '#bfdbfe', color: '#1e3a8a', icon: 'ri-temp-cold-line' },
+            'UMBRELLA': { bg: '#e9d5ff', color: '#6b21a8', icon: 'ri-umbrella-line' },
+            'AM/FM RADIO': { bg: '#fecdd3', color: '#881337', icon: 'ri-radio-line' },
+            'Early warning device/system': { bg: '#fed7aa', color: '#7c2d12', icon: 'ri-alarm-warning-line' },
+            'Two way radio': { bg: '#d1fae5', color: '#065f46', icon: 'ri-wireless-charging-line' },
+            'Command Center': { bg: '#f3e8ff', color: '#6b21a8', icon: 'ri-home-office-line' },
+            'Other': { bg: '#f3f4f6', color: '#374151', icon: 'ri-more-line' },
+          }}
         />
       )}
 
@@ -525,7 +565,9 @@ const handleOpenAdd = () => {
                       background: '#dbeafe',
                       color: '#1e40af'
                     }}>
-                      {item.category || 'Uncategorized'}
+                      {item.category === 'Other' && item.category_other 
+                        ? item.category_other 
+                        : item.category || 'Uncategorized'}
                     </span>
                   </td>
                   <td style={{ fontFamily: 'monospace', fontWeight: '700', fontSize: '16px' }}>
@@ -578,7 +620,10 @@ const handleOpenAdd = () => {
         filename="inventory_report.xlsx"
         sheetName="Inventory"
         dateField="date_acquired"
-        transformValue={(col, val) => {
+        transformValue={(col, val, record) => {
+          if (col === 'category' && val === 'Other' && record.category_other) {
+            return record.category_other
+          }
           if (col === 'serviceable') return val !== false ? 'Serviceable' : 'Unserviceable'
           if (col === 'photos') {
             if (Array.isArray(val) && val.length > 0) {
@@ -637,17 +682,40 @@ const handleOpenAdd = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
                   <div className="form-row" style={{ gap: '12px' }}>
-                    
-                    <div className="form-group" style={{ flex: 2 }}>
-                      <label>Item Name *</label>
-                      <input type="text" name="item_name" value={formData.item_name} onChange={handleInputChange} required placeholder="e.g. VHF Handheld Radio, Rescue Rope" style={{ padding: '8px' }} />
+                    <div className="form-group">
+                      <label>Category *</label>
+                      <select name="category" value={formData.category} onChange={handleInputChange} required style={{ padding: '8px' }}>
+                        <option value="">-- Select Category --</option>
+                        <option value="ICT AND AUDIO VISUAL EQUIPMENT">ICT AND AUDIO VISUAL EQUIPMENT</option>
+                        <option value="OFFICE SUPPLIES">OFFICE SUPPLIES</option>
+                        <option value="JANITORIAL SUPPLIES">JANITORIAL SUPPLIES</option>
+                        <option value="MEDICAL SUPPLIES">MEDICAL SUPPLIES</option>
+                        <option value="OXYGEN">OXYGEN</option>
+                        <option value="PPE (WASAR, CSSR, EXTRICATION, HIGH ANGLE)">PPE (WASAR, CSSR, EXTRICATION, HIGH ANGLE)</option>
+                        <option value="RESCUE TOOLS (WASAR, CSSR, EXTRICATION, HIGH ANGLE)">RESCUE TOOLS (WASAR, CSSR, EXTRICATION, HIGH ANGLE)</option>
+                        <option value="VEHICLES">VEHICLES</option>
+                        <option value="GENERATOR SET">GENERATOR SET</option>
+                        <option value="AIRCONDITIONING">AIRCONDITIONING</option>
+                        <option value="UMBRELLA">UMBRELLA</option>
+                        <option value="AM/FM RADIO">AM/FM RADIO</option>
+                        <option value="Early warning device/system">Early warning device/system</option>
+                        <option value="Two way radio">Two way radio</option>
+                        <option value="Command Center">Command Center</option>
+                        <option value="Other">Other</option>
+                      </select>
                     </div>
+                    {formData.category === 'Other' && (
+                      <div className="form-group">
+                        <label>Specify Category *</label>
+                        <input type="text" name="category_other" value={formData.category_other} onChange={handleInputChange} required placeholder="Specify category" style={{ padding: '8px' }} />
+                      </div>
+                    )}
                   </div>
 
                   <div className="form-row" style={{ gap: '12px' }}>
-                    <div className="form-group">
-                      <label>Category *</label>
-                      <input type="text" name="category" value={formData.category} onChange={handleInputChange} required placeholder="e.g. Communications, Rescue Gear" style={{ padding: '8px' }} />
+                    <div className="form-group" style={{ flex: 2 }}>
+                      <label>Item Name *</label>
+                      <input type="text" name="item_name" value={formData.item_name} onChange={handleInputChange} required placeholder="e.g. VHF Handheld Radio, Rescue Rope" style={{ padding: '8px' }} />
                     </div>
                     <div className="form-group">
                       <label>Condition *</label>

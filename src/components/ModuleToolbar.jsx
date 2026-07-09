@@ -26,6 +26,7 @@ export default function ModuleToolbar({
   filterOptions = [],
   filterLabel = 'All Categories',
   filterColorMap = {},
+  filterMinWidth,
   onDateRangeChange,
   searchPlaceholder = 'Search records…',
   pageSize = 10,
@@ -105,6 +106,7 @@ export default function ModuleToolbar({
               }))
             ]}
             onChange={v => { setFilter(v); onFilterChange?.(v) }}
+            minWidth={filterMinWidth}
           />
         ) : (
           // Plain select when no colorMap

@@ -90,6 +90,7 @@ const INITIAL_FORM_STATE = {
   transfer_to: '',
   transfer_to_other: '',
   ambulance: '',
+  ambulance_other: '',
   refused_transfer: false,
   exact_place: '',
   specific_location: '',
@@ -132,6 +133,7 @@ export default function Incidents() {
   const [incidents, setIncidents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [vehicles, setVehicles] = useState([])
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -158,7 +160,28 @@ export default function Incidents() {
 
   useEffect(() => {
     loadIncidents()
+    loadVehicles()
   }, [])
+
+  const loadVehicles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('item_name, category')
+        .eq('category', 'VEHICLES')
+        .order('item_name')
+      
+      if (error) {
+        console.error('Error loading vehicles:', error)
+        throw error
+      }
+      console.log('Loaded vehicles:', data)
+      setVehicles(data || [])
+    } catch (err) {
+      console.error('Error loading vehicles:', err)
+      toast.error('Failed to load vehicles from inventory')
+    }
+  }
 
   const filteredRecords = incidents.filter(item => {
     let matchesSearch = true
@@ -295,6 +318,15 @@ export default function Incidents() {
       transferToVal = actualKnownTransferTo.find(v => v.toLowerCase() === transferToVal.toLowerCase()) || transferToVal
     }
 
+    // Handle ambulance value - check if it's in vehicles list or set to "Other"
+    const vehicleNames = vehicles.map(v => v.item_name)
+    let ambulanceVal = inc.ambulance || ''
+    let ambulanceOtherVal = inc.ambulance_other || ''
+    if (ambulanceVal && !vehicleNames.includes(ambulanceVal) && ambulanceVal !== 'Other') {
+      ambulanceOtherVal = ambulanceVal
+      ambulanceVal = 'Other'
+    }
+
     setFormData({
       ...INITIAL_FORM_STATE,
       ...inc,
@@ -302,6 +334,8 @@ export default function Incidents() {
       vehicle_other: vehicleOtherVal,
       transfer_to: transferToVal,
       transfer_to_other: transferToOtherVal,
+      ambulance: ambulanceVal,
+      ambulance_other: ambulanceOtherVal,
       time_of_call: toInputTime(inc.time_of_call),
       time_of_arrival_at_scene: toInputTime(inc.time_of_arrival_at_scene),
       time_of_departure_at_scene: toInputTime(inc.time_of_departure_at_scene),
@@ -1040,11 +1074,23 @@ export default function Incidents() {
                           <input type="text" name="transfer_to_other" value={formData.transfer_to_other} onChange={handleInputChange} placeholder="Specify other destination" style={{ padding: '6px' }} />
                         </div>
                       )}
-                      <div className="form-row" style={{ alignItems: 'center', gap: '12px' }}>
+                      <div className="form-row" style={{ alignItems: 'flex-start', gap: '12px' }}>
                         <div className="form-group" style={{ flex: 1, marginBottom: '8px' }}>
                           <label style={{ marginBottom: '4px', fontWeight: '600' }}>Ambulance (Plate No. / Designation) *</label>
-                          <input type="text" name="ambulance" value={formData.ambulance} onChange={handleInputChange} placeholder="Ambulance assigned" style={{ padding: '6px' }} required />
+                          <select name="ambulance" value={formData.ambulance} onChange={handleInputChange} style={{ padding: '6px' }} required>
+                            <option value="">Select Ambulance...</option>
+                            {vehicles.map((v, idx) => (
+                              <option key={idx} value={v.item_name}>{v.item_name}</option>
+                            ))}
+                            <option value="Other">Other</option>
+                          </select>
                         </div>
+                        {formData.ambulance === 'Other' && (
+                          <div className="form-group" style={{ flex: 1, marginBottom: '8px' }}>
+                            <label style={{ marginBottom: '4px', fontWeight: '600' }}>Specify Ambulance</label>
+                            <input type="text" name="ambulance_other" value={formData.ambulance_other} onChange={handleInputChange} placeholder="Specify ambulance details" style={{ padding: '6px' }} />
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

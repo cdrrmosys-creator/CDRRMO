@@ -206,12 +206,12 @@ export async function printIncidentReport(incident) {
   doc.setFontSize(8.5)
   doc.setTextColor(...BLACK)
   doc.text('Republic of the Philippines', ML + W / 2, textY, { align: 'center' })
-  textY += 10  // Increased spacing
+  textY += 12  // More spacing to prevent overlap
   
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(10.5)
   doc.text('PALAYAN CITY', ML + W / 2, textY, { align: 'center' })
-  textY += 9 // Increased spacing
+  textY += 10  // More spacing
   
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7.5)

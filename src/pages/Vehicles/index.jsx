@@ -25,6 +25,7 @@ const INITIAL_FORM_STATE = {
   manufacturer: '',
   year: '',
   type: '',
+  type_other: '',
   capacity: '',
   status: 'Available',
   last_maintenance: '',
@@ -153,6 +154,7 @@ const handleOpenAdd = () => {
       manufacturer: v.manufacturer || '',
       year: v.year || '',
       type: v.type || '',
+      type_other: v.type_other || '',
       capacity: v.capacity || '',
       status: v.status || 'Available',
       last_maintenance: v.last_maintenance || '',
@@ -690,15 +692,34 @@ const handleOpenAdd = () => {
           <div className="form-row">
             <div className="form-group">
               <label>Type / Classification *</label>
-              <input 
-                type="text" 
+              <select 
                 name="type" 
                 value={formData.type} 
                 onChange={handleInputChange} 
                 required
-                placeholder="e.g. Ambulance, Rescue Truck"
-              />
+              >
+                <option value="">-- Select Type --</option>
+                <option value="Ambulance">Ambulance</option>
+                <option value="Rescue Vehicle">Rescue Vehicle</option>
+                <option value="Fire Truck">Fire Truck</option>
+                <option value="Emergency Response Vehicle">Emergency Response Vehicle</option>
+                <option value="Support Vehicle">Support Vehicle</option>
+                <option value="Other">Other</option>
+              </select>
             </div>
+            {formData.type === 'Other' && (
+              <div className="form-group">
+                <label>Specify Type *</label>
+                <input 
+                  type="text" 
+                  name="type_other" 
+                  value={formData.type_other} 
+                  onChange={handleInputChange} 
+                  required
+                  placeholder="Specify vehicle type"
+                />
+              </div>
+            )}
             <div className="form-group">
               <label>Capacity *</label>
               <input 

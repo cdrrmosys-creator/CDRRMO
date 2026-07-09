@@ -8,8 +8,9 @@ import { useState, useEffect, useRef } from 'react'
  *   options    – array of { value, label, icon, bg, color }
  *   onChange   – called with new value string
  *   disabled   – optional, renders as a static badge
+ *   minWidth   – optional, minimum width for dropdown (default: '180px')
  */
-export default function StatusSelect({ value, options, onChange, disabled = false }) {
+export default function StatusSelect({ value, options, onChange, disabled = false, minWidth = '180px' }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -72,7 +73,7 @@ export default function StatusSelect({ value, options, onChange, disabled = fals
           borderRadius: '12px',
           boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
           padding: '6px',
-          minWidth: '180px',
+          minWidth: minWidth,
         }}>
           {options.map(opt => {
             const isActive = opt.value === value
