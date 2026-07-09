@@ -166,10 +166,9 @@ export default function Incidents() {
   const loadVehicles = async () => {
     try {
       const { data, error } = await supabase
-        .from('inventory')
-        .select('item_name, category')
-        .eq('category', 'VEHICLES')
-        .order('item_name')
+        .from('vehicles')
+        .select('plate, model, type')
+        .order('plate')
       
       if (error) {
         console.error('Error loading vehicles:', error)
@@ -179,7 +178,7 @@ export default function Incidents() {
       setVehicles(data || [])
     } catch (err) {
       console.error('Error loading vehicles:', err)
-      toast.error('Failed to load vehicles from inventory')
+      toast.error('Failed to load vehicles from fleet')
     }
   }
 
@@ -319,7 +318,7 @@ export default function Incidents() {
     }
 
     // Handle ambulance value - check if it's in vehicles list or set to "Other"
-    const vehicleNames = vehicles.map(v => v.item_name)
+    const vehicleNames = vehicles.map(v => `${v.plate} (${v.model})`)
     let ambulanceVal = inc.ambulance || ''
     let ambulanceOtherVal = inc.ambulance_other || ''
     if (ambulanceVal && !vehicleNames.includes(ambulanceVal) && ambulanceVal !== 'Other') {
@@ -1080,7 +1079,9 @@ export default function Incidents() {
                           <select name="ambulance" value={formData.ambulance} onChange={handleInputChange} style={{ padding: '6px' }} required>
                             <option value="">Select Ambulance...</option>
                             {vehicles.map((v, idx) => (
-                              <option key={idx} value={v.item_name}>{v.item_name}</option>
+                              <option key={idx} value={`${v.plate} (${v.model})`}>
+                                {v.plate} — {v.model}
+                              </option>
                             ))}
                             <option value="Other">Other</option>
                           </select>
