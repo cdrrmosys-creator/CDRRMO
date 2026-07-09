@@ -398,14 +398,14 @@ export default function DrowningIncidents() {
       ) : (
         <>
           <div className="data-table">
-            <table>
+            <table style={{ width: '100%' }}>
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Location</th>
-                  <th>Victim Name</th>
-                  <th>Water Body</th>
-                  <th>Outcome</th>
+                  <th style={{ width: '15%' }}>Date</th>
+                  <th style={{ width: '25%' }}>Location</th>
+                  <th style={{ width: '25%' }}>Victim Name</th>
+                  <th style={{ width: '20%' }}>Water Body</th>
+                  <th style={{ width: '15%' }}>Outcome</th>
                 </tr>
               </thead>
               <tbody>

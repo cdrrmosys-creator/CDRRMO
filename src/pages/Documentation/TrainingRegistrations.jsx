@@ -52,7 +52,9 @@ const INITIAL_FORM_STATE = {
   civil_status: '',
   birth_date: '',
   address: '',
-  status: 'Pending'
+  status: 'Pending',
+  created_by: '',
+  updated_by: ''
 }
 
 export default function TrainingRegistrations() {
@@ -146,10 +148,24 @@ export default function TrainingRegistrations() {
       const { data, error } = await supabase
         .from('training_registrations')
         .select('*')
-        .order('status', { ascending: true }) // Pending before Completed
         .order('created_at', { ascending: false })
       if (error) throw error
-      setRecords(data || [])
+      
+      // Custom sort: Pending → Completed → Cancelled, then by date within each status
+      const statusOrder = { 'Pending': 1, 'Completed': 2, 'Cancelled': 3 }
+      const sorted = (data || []).sort((a, b) => {
+        const statusA = statusOrder[a.status] || 999
+        const statusB = statusOrder[b.status] || 999
+        
+        if (statusA !== statusB) {
+          return statusA - statusB
+        }
+        
+        // Within same status, sort by created_at descending (newest first)
+        return new Date(b.created_at) - new Date(a.created_at)
+      })
+      
+      setRecords(sorted)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -171,10 +187,21 @@ export default function TrainingRegistrations() {
 
   const handleOpenEdit = (rec) => {
     setIsEditing(true); setIsViewing(false); setSelectedId(rec.id)
+    
+    // Normalize gender to proper case
+    let normalizedGender = rec.gender || ''
+    if (normalizedGender) {
+      const lower = normalizedGender.toLowerCase()
+      if (lower === 'male') normalizedGender = 'Male'
+      else if (lower === 'female') normalizedGender = 'Female'
+      else if (lower === 'lgbtq+') normalizedGender = 'LGBTQ+'
+      else if (lower === 'preferred not to say') normalizedGender = 'Preferred Not to Say'
+    }
+    
     setFormData({
       record_id: rec.record_id || '',
       full_name: rec.full_name || '',
-      gender: rec.gender || '',
+      gender: normalizedGender,
       contact_number: rec.contact_number || '',
       email_address: rec.email_address || '',
       trainings: rec.trainings || [],
@@ -183,7 +210,9 @@ export default function TrainingRegistrations() {
       civil_status: rec.civil_status || '',
       birth_date: rec.birth_date || '',
       address: rec.address || '',
-      status: rec.status || 'Pending'
+      status: rec.status || 'Pending',
+      created_by: rec.created_by || '',
+      updated_by: rec.updated_by || ''
     })
     setIsModalOpen(true)
   }
@@ -261,7 +290,25 @@ export default function TrainingRegistrations() {
         .eq('id', id)
         .select()
       if (error) throw error
-      setRecords(records.map(r => r.id === id ? data[0] : r))
+      
+      // Update and re-sort records
+      const updatedRecords = records.map(r => r.id === id ? data[0] : r)
+      
+      // Custom sort: Pending → Completed → Cancelled, then by date within each status
+      const statusOrder = { 'Pending': 1, 'Completed': 2, 'Cancelled': 3 }
+      const sorted = updatedRecords.sort((a, b) => {
+        const statusA = statusOrder[a.status] || 999
+        const statusB = statusOrder[b.status] || 999
+        
+        if (statusA !== statusB) {
+          return statusA - statusB
+        }
+        
+        // Within same status, sort by created_at descending (newest first)
+        return new Date(b.created_at) - new Date(a.created_at)
+      })
+      
+      setRecords(sorted)
       await logAudit('Updated', 'TrainingRegistrations', id, `Changed status to ${newStatus}`)
       toast.success(`Status updated to ${newStatus}`)
     } catch (err) {
@@ -270,14 +317,28 @@ export default function TrainingRegistrations() {
   }
 
   const getGenderBadge = (gender) => {
-    const map = {
-      'Male': { bg: '#dbeafe', color: '#1e40af' },
-      'Female': { bg: '#fce7f3', color: '#9d174d' },
-      'LGBTQ+': { bg: '#ede9fe', color: '#5b21b6' },
-      'Preferred Not to Say': { bg: '#f3f4f6', color: '#374151' }
+    if (!gender) return <span style={{ padding: '3px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: '#f3f4f6', color: '#374151' }}>-</span>
+    
+    // Normalize gender to proper case for display
+    const normalized = gender.toLowerCase()
+    let displayValue = gender
+    let colorScheme = { bg: '#f3f4f6', color: '#374151' }
+    
+    if (normalized === 'male') {
+      displayValue = 'Male'
+      colorScheme = { bg: '#dbeafe', color: '#1e40af' }
+    } else if (normalized === 'female') {
+      displayValue = 'Female'
+      colorScheme = { bg: '#fce7f3', color: '#9d174d' }
+    } else if (normalized === 'lgbtq+') {
+      displayValue = 'LGBTQ+'
+      colorScheme = { bg: '#ede9fe', color: '#5b21b6' }
+    } else if (normalized === 'preferred not to say') {
+      displayValue = 'Preferred Not to Say'
+      colorScheme = { bg: '#f3f4f6', color: '#374151' }
     }
-    const s = map[gender] || { bg: '#f3f4f6', color: '#374151' }
-    return <span style={{ padding: '3px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: s.bg, color: s.color }}>{gender || '-'}</span>
+    
+    return <span style={{ padding: '3px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: colorScheme.bg, color: colorScheme.color }}>{displayValue}</span>
   }
 
   if (loading) return (
@@ -623,6 +684,42 @@ export default function TrainingRegistrations() {
 
             </div>
           </fieldset>
+
+          {/* Creator & Editor Info */}
+          {isViewing && (formData.created_by || formData.updated_by) && (
+            <div style={{
+              marginTop: '24px',
+              paddingTop: '16px',
+              borderTop: '2px solid var(--border-light)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              fontSize: '12px',
+              color: 'var(--text-muted)',
+              background: 'var(--bg-app)',
+              padding: '12px 16px',
+              borderRadius: '8px'
+            }}>
+              {formData.created_by && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="ri-user-add-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                  <span>Published by:</span>
+                  <strong style={{ color: 'var(--text)' }}>
+                    {formData.created_by.split('@')[0]}
+                  </strong>
+                </div>
+              )}
+              {formData.updated_by && formData.updated_by !== formData.created_by && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="ri-edit-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                  <span>Last edited by:</span>
+                  <strong style={{ color: 'var(--text)' }}>
+                    {formData.updated_by.split('@')[0]}
+                  </strong>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
             <div></div>

@@ -17,6 +17,7 @@ import StatusSelect from '../../components/StatusSelect'
 import { uploadFile, deleteFiles } from '../../services/storage'
 import { exportEmployeeProfile } from '../../utils/exportEmployeeProfile'
 import PHAddressSelect from '../../components/PHAddressSelect'
+import { format } from 'date-fns'
 
 const INITIAL_FORM_STATE = {
   employee_id: '',
@@ -700,8 +701,6 @@ export default function Employees() {
   const DUTY_STATUS_OPTIONS = [
     { value: 'On Duty',  label: 'On Duty',  icon: 'ri-checkbox-circle-fill', bg: '#d1fae5', color: '#065f46' },
     { value: 'Off Duty', label: 'Off Duty', icon: 'ri-close-circle-fill',    bg: '#fee2e2', color: '#991b1b' },
-    { value: 'Standby',  label: 'Standby',  icon: 'ri-time-fill',             bg: '#dbeafe', color: '#1e40af' },
-    { value: 'On Leave', label: 'On Leave', icon: 'ri-calendar-fill',         bg: '#fef3c7', color: '#92400e' },
   ]
 
   const renderDutyStatus = (emp) => (
@@ -776,18 +775,14 @@ export default function Employees() {
           total:    employees.length,
           onDuty:   employees.filter(e => e.duty_status === 'On Duty').length,
           offDuty:  employees.filter(e => e.duty_status === 'Off Duty').length,
-          standby:  employees.filter(e => e.duty_status === 'Standby').length,
-          onLeave:  employees.filter(e => e.duty_status === 'On Leave').length,
         }
         const cards = [
           { label: 'Total',    count: counts.total,   value: '',         icon: 'ri-team-line',          accent: '#2563eb' },
           { label: 'On Duty',  count: counts.onDuty,  value: 'On Duty',  icon: 'ri-user-follow-line',   accent: '#16a34a' },
           { label: 'Off Duty', count: counts.offDuty, value: 'Off Duty', icon: 'ri-user-unfollow-line', accent: '#dc2626' },
-          { label: 'Standby',  count: counts.standby, value: 'Standby',  icon: 'ri-user-line',          accent: '#0891b2' },
-          { label: 'On Leave', count: counts.onLeave, value: 'On Leave', icon: 'ri-user-forbid-line',   accent: '#d97706' },
         ]
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
             {cards.map(c => (
               <div
                 key={c.label}
@@ -832,14 +827,10 @@ export default function Employees() {
           filterOptions={[
             { label: 'On Duty',  value: 'On Duty' },
             { label: 'Off Duty', value: 'Off Duty' },
-            { label: 'Standby',  value: 'Standby' },
-            { label: 'On Leave', value: 'On Leave' },
           ]}
           filterColorMap={{
             'On Duty':  { bg: '#d1fae5', color: '#065f46', icon: 'ri-user-follow-line' },
             'Off Duty': { bg: '#fee2e2', color: '#991b1b', icon: 'ri-user-unfollow-line' },
-            'Standby':  { bg: '#dbeafe', color: '#1e40af', icon: 'ri-user-line' },
-            'On Leave': { bg: '#fef3c7', color: '#92400e', icon: 'ri-user-forbid-line' },
           }}
         />
       )}
@@ -1275,26 +1266,54 @@ export default function Employees() {
                   <div className="form-row" style={{ marginTop: '4px' }}>
                     <div className="form-group">
                       <label>Date of Birth <span style={{ color: "#dc2626" }}>*</span></label>
-                      <input
-                        max={new Date().toISOString().split('T')[0]} type="date"
-                        name="dob"
-                        value={formData.dob}
-                        onChange={handleInputChange}
-                       
-                        required
-                      />
-                      {formData.dob && (() => {
-                        const today = new Date()
-                        const birth = new Date(formData.dob)
-                        let age = today.getFullYear() - birth.getFullYear()
-                        const m = today.getMonth() - birth.getMonth()
-                        if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
-                        return age >= 0 ? (
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                            Age: <strong style={{ color: 'var(--primary)' }}>{age} years old</strong>
-                          </span>
-                        ) : null
-                      })()}
+                      {isViewing ? (
+                        <div style={{ 
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '10px 12px',
+                          border: '1px solid var(--border-light)',
+                          borderRadius: '8px',
+                          background: 'var(--bg-app)',
+                          minHeight: '42px'
+                        }}>
+                          <span>{formData.dob ? format(new Date(formData.dob), 'MMM dd, yyyy') : '-'}</span>
+                          {formData.dob && (() => {
+                            const today = new Date()
+                            const birth = new Date(formData.dob)
+                            let age = today.getFullYear() - birth.getFullYear()
+                            const m = today.getMonth() - birth.getMonth()
+                            if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
+                            return age >= 0 ? (
+                              <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                                Age: <strong style={{ color: 'var(--primary)' }}>{age} years old</strong>
+                              </span>
+                            ) : null
+                          })()}
+                        </div>
+                      ) : (
+                        <>
+                          <input
+                            max={new Date().toISOString().split('T')[0]} type="date"
+                            name="dob"
+                            value={formData.dob}
+                            onChange={handleInputChange}
+                            required
+                          />
+                          {formData.dob && (() => {
+                            const today = new Date()
+                            const birth = new Date(formData.dob)
+                            let age = today.getFullYear() - birth.getFullYear()
+                            const m = today.getMonth() - birth.getMonth()
+                            if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
+                            return age >= 0 ? (
+                              <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                                Age: <strong style={{ color: 'var(--primary)' }}>{age} years old</strong>
+                              </span>
+                            ) : null
+                          })()}
+                        </>
+                      )}
                     </div>
                     <div className="form-group">
                       <label>Place of Birth <span style={{ color: "#dc2626" }}>*</span></label>

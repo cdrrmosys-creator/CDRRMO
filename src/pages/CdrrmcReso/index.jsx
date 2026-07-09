@@ -21,7 +21,9 @@ const INITIAL_FORM_STATE = {
   title: '',
   date_passed: '',
   description: '',
-  files: []
+  files: [],
+  created_by: '',
+  updated_by: ''
 }
 
 export default function CdrrmcReso() {
@@ -168,7 +170,9 @@ const handleOpenAdd = () => {
       title: rec.title || '',
       date_passed: rec.date_passed || '',
       description: rec.description || '',
-      files: rec.files || []
+      files: rec.files || [],
+      created_by: rec.created_by || '',
+      updated_by: rec.updated_by || ''
     })
     setIsModalOpen(true)
   }
@@ -772,6 +776,42 @@ const handleOpenAdd = () => {
               </div>
             </div>
           </div>
+
+          {/* Creator & Editor Info */}
+          {isViewing && (formData.created_by || formData.updated_by) && (
+            <div style={{
+              marginTop: '24px',
+              paddingTop: '16px',
+              borderTop: '2px solid var(--border-light)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              fontSize: '12px',
+              color: 'var(--text-muted)',
+              background: 'var(--bg-app)',
+              padding: '12px 16px',
+              borderRadius: '8px'
+            }}>
+              {formData.created_by && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="ri-user-add-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                  <span>Published by:</span>
+                  <strong style={{ color: 'var(--text)' }}>
+                    {formData.created_by.split('@')[0]}
+                  </strong>
+                </div>
+              )}
+              {formData.updated_by && formData.updated_by !== formData.created_by && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="ri-edit-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                  <span>Last edited by:</span>
+                  <strong style={{ color: 'var(--text)' }}>
+                    {formData.updated_by.split('@')[0]}
+                  </strong>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
             <div></div>

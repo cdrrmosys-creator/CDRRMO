@@ -19,7 +19,7 @@ const COLORS    = {
   vouchers  : '#b45309',
 }
 
-const DUTY_PALETTE     = ['#16a34a','#dc2626','#2563eb','#d97706']
+const DUTY_PALETTE     = ['#16a34a','#dc2626','#2563eb']
 const TEAM_PALETTE     = { Alpha:'#2563eb', Bravo:'#16a34a', Charlie:'#d97706', Delta:'#dc2626', Unknown:'#6b7280' }
 const ASSIST_PALETTE   = ['#0891b2', '#16a34a', '#7c3aed']
 const VOUCHER_COLOR    = '#b45309'
@@ -305,7 +305,7 @@ export default function Dashboard() {
       const client = supabaseAdmin || supabase
       const [
         { count: empC, data: empD },
-        { count: volC },
+        { count: volC, data: volD },
         { count: incC, data: incD },
         { count: drownC, data: drownD },
         { count: transC, data: transD },
@@ -316,7 +316,7 @@ export default function Dashboard() {
         { data: calEventsRecent }
       ] = await Promise.all([
         client.from('employees').select('duty_status', { count: 'exact' }),
-        client.from('volunteers').select('id, status', { count: 'exact' }),
+        client.from('volunteers').select('id, status', { count: 'exact' }).neq('status', 'Inactive').neq('status', 'Expired'),
         client.from('incidents').select('severity, nature_of_incident, date, time_of_call, place_of_incident, record_id, team').order('date', { ascending: false }),
         client.from('drowning_incidents').select('date, location, victim_name'),
         client.from('transport').select('date_time, patient_name, destination'),
@@ -340,13 +340,13 @@ export default function Dashboard() {
         vouchers: vouchD?.length || 0,
       })
 
-      // Employee duty status
+      // Employee duty status + Active Volunteers
       const eg = groupBy(empD, 'duty_status')
+      const activeVolunteers = (volD || []).length
       setEmpStatus([
         { name:'On Duty',  value: eg['On Duty']  || 0 },
         { name:'Off Duty', value: eg['Off Duty'] || 0 },
-        { name:'Standby',  value: eg['Standby']  || 0 },
-        { name:'On Leave', value: eg['On Leave'] || 0 },
+        { name:'Active Volunteers', value: activeVolunteers },
       ])
 
       // Incidents by team

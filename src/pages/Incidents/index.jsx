@@ -627,12 +627,12 @@ export default function Incidents() {
           <table style={{ tableLayout: 'fixed', width: '100%' }}>
             <colgroup>
               <col style={{ width: '12%'  }} />{/* Date */}
-              <col style={{ width: '9%'   }} />{/* Time of Call */}
-              <col style={{ width: '8%'   }} />{/* Team */}
+              <col style={{ width: '10%'  }} />{/* Time of Call */}
+              <col style={{ width: '9%'   }} />{/* Team */}
               <col style={{ width: '22%'  }} />{/* Nature */}
-              <col style={{ width: '15%'  }} />{/* Victim */}
+              <col style={{ width: '16%'  }} />{/* Victim */}
               <col style={{ width: '16%'  }} />{/* Place */}
-              <col />{/* Transfer To — remaining */}
+              <col style={{ width: '15%'  }} />{/* Transfer To */}
             </colgroup>
             <thead>
               <tr>

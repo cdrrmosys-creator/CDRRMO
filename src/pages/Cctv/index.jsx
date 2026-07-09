@@ -444,13 +444,13 @@ export default function Cctv() {
       ) : (
         <>
         <div className="data-table">
-          <table>
+          <table style={{ width: '100%' }}>
             <thead>
               <tr>
-                <th>Report Title</th>
-                <th>Date Covered</th>
-                <th>Prepared By</th>
-                <th>Attachments</th>
+                <th style={{ width: '35%' }}>Report Title</th>
+                <th style={{ width: '20%' }}>Date Covered</th>
+                <th style={{ width: '25%' }}>Prepared By</th>
+                <th style={{ width: '20%' }}>Attachments</th>
               </tr>
             </thead>
             <tbody>
@@ -482,7 +482,7 @@ export default function Cctv() {
                   </td>
                 </tr>
               ))}
-              <TableGhostRows count={pageSize - pagedRecords.length} colSpan={5} />
+              <TableGhostRows count={pageSize - pagedRecords.length} colSpan={4} />
             </tbody>
           </table>
         </div>
