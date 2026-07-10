@@ -396,10 +396,9 @@ export default function Drivers() {
             <tbody>
               {pagedRecords.map((driver) => (
                 <tr key={driver.id} onClick={() => handleViewDetails(driver)} style={{ cursor: 'pointer', height: '49px' }} className="table-row-clickable">
-                  <td><code style={{ fontWeight: '700' }}>{driver.driver_id || '-'}</code></td>
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      <span style={{ fontWeight: '700' }}>{driver.name || '-'}</span>
+                      <code style={{ fontWeight: '700' }}>{driver.driver_id || '-'}</code>
                       {driver.created_by && (
                         <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <i className="ri-user-line" style={{ fontSize: '12px' }}></i>
@@ -413,6 +412,7 @@ export default function Drivers() {
                       )}
                     </div>
                   </td>
+                  <td><span style={{ fontWeight: '700' }}>{driver.name || '-'}</span></td>
                   <td><div style={{ fontFamily: 'monospace', fontWeight: '600' }}>{driver.license_no || 'Not provided'}</div></td>
                   <td>
                     {driver.license_expiry ? (

@@ -1000,29 +1000,42 @@ const handleOpenAdd = () => {
                         }}
                       >
                         <td style={{ fontWeight: '700' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {overdue ? (
-                              <i 
-                                className="ri-error-warning-fill"
-                                style={{ 
-                                  color: '#dc2626', 
-                                  fontSize: '18px',
-                                  animation: 'pulse 2s infinite'
-                                }}
-                                title="OVERDUE: This event is past due and still pending/scheduled!"
-                              ></i>
-                            ) : urgencyStatus && (
-                              <i 
-                                className={urgencyStatus === 'today' ? 'ri-alarm-warning-fill' : 'ri-time-line'}
-                                style={{ 
-                                  color: rowAccentColor, 
-                                  fontSize: '16px',
-                                  animation: urgencyStatus === 'today' ? 'pulse 2s infinite' : 'none'
-                                }}
-                                title={urgencyStatus === 'today' ? 'Event is today!' : 'Upcoming within 7 days'}
-                              ></i>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              {overdue ? (
+                                <i 
+                                  className="ri-error-warning-fill"
+                                  style={{ 
+                                    color: '#dc2626', 
+                                    fontSize: '18px',
+                                    animation: 'pulse 2s infinite'
+                                  }}
+                                  title="OVERDUE: This event is past due and still pending/scheduled!"
+                                ></i>
+                              ) : urgencyStatus && (
+                                <i 
+                                  className={urgencyStatus === 'today' ? 'ri-alarm-warning-fill' : 'ri-time-line'}
+                                  style={{ 
+                                    color: rowAccentColor, 
+                                    fontSize: '16px',
+                                    animation: urgencyStatus === 'today' ? 'pulse 2s infinite' : 'none'
+                                  }}
+                                  title={urgencyStatus === 'today' ? 'Event is today!' : 'Upcoming within 7 days'}
+                                ></i>
+                              )}
+                              {event.title}
+                            </div>
+                            {event.data?.created_by && (
+                              <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'normal' }}>
+                                <i className="ri-user-line" style={{ fontSize: '12px' }}></i>
+                                {event.data.created_by.split('@')[0]}
+                                {event.data.updated_by && event.data.updated_by !== event.data.created_by && (
+                                  <span style={{ marginLeft: '6px', color: 'var(--text-muted)' }}>
+                                    • updated by: {event.data.updated_by.split('@')[0]}
+                                  </span>
+                                )}
+                              </span>
                             )}
-                            {event.title}
                           </div>
                         </td>
                         <td>

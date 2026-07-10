@@ -504,15 +504,10 @@ const handleOpenAdd = () => {
                   className="table-row-clickable"
                 >
                   <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
-                    {record.date 
-                      ? format(new Date(record.date), 'MMM dd, yyyy')
-                      : '-'}
-                  </td>
-                  <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      <span style={{ fontWeight: '700' }}>{record.event_name || '-'}</span>
+                      <span>{record.date ? format(new Date(record.date), 'MMM dd, yyyy') : '-'}</span>
                       {record.created_by && (
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'inherit' }}>
                           <i className="ri-user-line" style={{ fontSize: '12px' }}></i>
                           {record.created_by.split('@')[0]}
                           {record.updated_by && record.updated_by !== record.created_by && (
@@ -524,6 +519,7 @@ const handleOpenAdd = () => {
                       )}
                     </div>
                   </td>
+                  <td><span style={{ fontWeight: '700' }}>{record.event_name || '-'}</span></td>
                   <td>
                     <span style={{
                       display: 'inline-block',

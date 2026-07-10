@@ -702,28 +702,25 @@ export default function Pruning() {
                     className="table-row-clickable"
                   >
                     <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {overdue && (
-                          <i 
-                            className="ri-error-warning-fill"
-                            style={{ 
-                              color: '#dc2626', 
-                              fontSize: '16px',
-                              animation: 'pulse 2s infinite'
-                            }}
-                            title="OVERDUE: This pruning request is past due and still pending!"
-                          ></i>
-                        )}
-                        {record.date_of_request 
-                          ? format(new Date(record.date_of_request), 'MMM dd, yyyy')
-                          : record.date ? format(new Date(record.date), 'MMM dd, yyyy') : '-'}
-                      </div>
-                    </td>
-                    <td>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <span style={{ fontWeight: '700' }}>{record.location || '-'}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {overdue && (
+                            <i 
+                              className="ri-error-warning-fill"
+                              style={{ 
+                                color: '#dc2626', 
+                                fontSize: '16px',
+                                animation: 'pulse 2s infinite'
+                              }}
+                              title="OVERDUE: This pruning request is past due and still pending!"
+                            ></i>
+                          )}
+                          {record.date_of_request 
+                            ? format(new Date(record.date_of_request), 'MMM dd, yyyy')
+                            : record.date ? format(new Date(record.date), 'MMM dd, yyyy') : '-'}
+                        </div>
                         {record.created_by && (
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'inherit' }}>
                             <i className="ri-user-line" style={{ fontSize: '12px' }}></i>
                             {record.created_by.split('@')[0]}
                             {record.updated_by && record.updated_by !== record.created_by && (
@@ -735,6 +732,7 @@ export default function Pruning() {
                         )}
                       </div>
                     </td>
+                    <td><span style={{ fontWeight: '700' }}>{record.location || '-'}</span></td>
                     <td onClick={e => e.stopPropagation()}>
                       {(() => {
                         const currentStatus = record.status || 'Pending'
