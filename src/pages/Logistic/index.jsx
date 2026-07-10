@@ -319,15 +319,12 @@ export default function Logistic() {
   const todayStr = new Date().toLocaleDateString('en-CA')
 
   return (
-    <div className="module-container">
-      <div className="module-header">
-        <div>
-          <h1 className="module-title">
-            <i className="ri-shopping-bag-line" style={{ marginRight: '10px', color: 'var(--primary)' }}></i>
-            Logistic (Borrowed Items)
-          </h1>
-          <p className="module-subtitle">Track borrowed items, release dates, and return status</p>
-        </div>
+    <div>
+      <div className="page-header">
+        <h2>
+          <i className="ri-shopping-bag-line" style={{ marginRight: '10px' }}></i>
+          Logistic (Borrowed Items)
+        </h2>
         {(isAdmin || canCreate) && (
           <button className="btn-add" onClick={handleOpenAdd}>
             <i className="ri-add-line"></i> Log Borrowed Item
