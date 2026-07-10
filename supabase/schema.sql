@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS employees (
   children JSONB DEFAULT '[]'::jsonb,
   remarks TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  saved_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- =====================================================
