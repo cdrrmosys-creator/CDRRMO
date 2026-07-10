@@ -36,7 +36,11 @@ const INITIAL_FORM_STATE = {
   with_insurance: false,
   insurance_number: '',
   insurance_id: '',
-  photos: []
+  photos: [],
+  created_by: '',
+  updated_by: '',
+  created_at: '',
+  updated_at: ''
 }
 
 export default function Volunteers() {
@@ -141,7 +145,11 @@ export default function Volunteers() {
       with_insurance: rec.with_insurance || false,
       insurance_number: rec.insurance_number || '',
       insurance_id: rec.insurance_id || '',
-      photos: rec.photos || []
+      photos: rec.photos || [],
+      created_by: rec.created_by || '',
+      updated_by: rec.updated_by || '',
+      created_at: rec.created_at || '',
+      updated_at: rec.updated_at || ''
     })
     setIsModalOpen(true)
   }
@@ -257,9 +265,20 @@ export default function Volunteers() {
 
   const handleStatusChange = async (id, newStatus) => {
     try {
-      const { error } = await supabase.from('volunteers').update({ status: newStatus }).eq('id', id)
+      const { data, error } = await supabase
+        .from('volunteers')
+        .update({ status: newStatus })
+        .eq('id', id)
+        .select()
+      
       if (error) throw error
-      setRecords(records.map(r => r.id === id ? { ...r, status: newStatus } : r))
+      
+      // Update local state with returned data that includes updated_by and updated_at from trigger
+      if (data && data[0]) {
+        setRecords(records.map(r => r.id === id ? data[0] : r))
+      } else {
+        setRecords(records.map(r => r.id === id ? { ...r, status: newStatus } : r))
+      }
     } catch (err) {
       toast.error('Failed to update status: ' + err.message)
     }
@@ -368,7 +387,22 @@ export default function Volunteers() {
             <tbody>
               {pagedRecords.map((record) => (
                 <tr key={record.id} onClick={() => handleViewDetails(record)} style={{ cursor: 'pointer', height: '49px' }} className="table-row-clickable">
-                  <td style={{ fontWeight: '700' }}>{record.volunteer_name || '-'}</td>
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontWeight: '700' }}>{record.volunteer_name || '-'}</span>
+                      {record.created_by && (
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <i className="ri-user-line" style={{ fontSize: '12px' }}></i>
+                          {record.created_by.split('@')[0]}
+                          {record.updated_by && record.updated_by !== record.created_by && (
+                            <span style={{ marginLeft: '6px', color: 'var(--text-muted)' }}>
+                              • updated by: {record.updated_by.split('@')[0]}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td>{record.organization || '-'}</td>
                   <td><code style={{ fontSize: '13px' }}>{record.accreditation_no || '-'}</code></td>
                   <td style={{ fontSize: '13px' }}>{record.date ? format(new Date(record.date), 'MMM dd, yyyy') : '-'}</td>
@@ -636,7 +670,24 @@ export default function Volunteers() {
           </div>
 
           <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
-            <div></div>
+            {isViewing && (formData.created_by || formData.updated_by) ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                {formData.created_by && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="ri-user-add-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                    <span>Encoded by: <strong style={{ color: 'var(--text)' }}>{formData.created_by.split('@')[0]}</strong> {formData.created_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.created_at), 'MMM d, h:mm a')})</span>}</span>
+                  </div>
+                )}
+                {formData.updated_by && formData.updated_by !== formData.created_by && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="ri-edit-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                    <span>Updated by: <strong style={{ color: 'var(--text)' }}>{formData.updated_by.split('@')[0]}</strong> {formData.updated_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.updated_at), 'MMM d, h:mm a')})</span>}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div></div>
+            )}
             {isViewing ? (
               <div style={{ display: 'flex', gap: '12px' }}>{(isAdmin || canDelete) && (
                     <button type="button" className="btn-delete" onClick={handleDeleteFromView} style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>

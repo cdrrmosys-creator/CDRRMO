@@ -54,7 +54,9 @@ const INITIAL_FORM_STATE = {
   address: '',
   status: 'Pending',
   created_by: '',
-  updated_by: ''
+  updated_by: '',
+  created_at: '',
+  updated_at: ''
 }
 
 export default function TrainingRegistrations() {
@@ -212,7 +214,9 @@ export default function TrainingRegistrations() {
       address: rec.address || '',
       status: rec.status || 'Pending',
       created_by: rec.created_by || '',
-      updated_by: rec.updated_by || ''
+      updated_by: rec.updated_by || '',
+      created_at: rec.created_at || '',
+      updated_at: rec.updated_at || ''
     })
     setIsModalOpen(true)
   }
@@ -478,8 +482,23 @@ export default function TrainingRegistrations() {
             </thead>
             <tbody>
               {pagedRecords.map(record => (
-                <tr key={record.id} onClick={() => handleViewDetails(record)} style={{ cursor: 'pointer', height: '49px' }} className="table-row-clickable">
-                  <td style={{ fontWeight: '700' }}>{record.full_name || '-'}</td>
+                <tr key={record.id} onClick={() => handleViewDetails(record)} style={{ cursor: 'pointer' }} className="table-row-clickable">
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontWeight: '700' }}>{record.full_name || '-'}</span>
+                      {record.created_by && (
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <i className="ri-user-line" style={{ fontSize: '12px' }}></i>
+                          {record.created_by.split('@')[0]}
+                          {record.updated_by && record.updated_by !== record.created_by && (
+                            <span style={{ marginLeft: '6px', color: 'var(--text-muted)' }}>
+                              • updated by: {record.updated_by.split('@')[0]}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td>{getGenderBadge(record.gender)}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px' }}>{record.contact_number || '-'}</td>
                   <td>
@@ -685,44 +704,25 @@ export default function TrainingRegistrations() {
             </div>
           </fieldset>
 
-          {/* Creator & Editor Info */}
-          {isViewing && (formData.created_by || formData.updated_by) && (
-            <div style={{
-              marginTop: '24px',
-              paddingTop: '16px',
-              borderTop: '2px solid var(--border-light)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px',
-              fontSize: '12px',
-              color: 'var(--text-muted)',
-              background: 'var(--bg-app)',
-              padding: '12px 16px',
-              borderRadius: '8px'
-            }}>
-              {formData.created_by && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <i className="ri-user-add-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
-                  <span>Published by:</span>
-                  <strong style={{ color: 'var(--text)' }}>
-                    {formData.created_by.split('@')[0]}
-                  </strong>
-                </div>
-              )}
-              {formData.updated_by && formData.updated_by !== formData.created_by && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <i className="ri-edit-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
-                  <span>Last edited by:</span>
-                  <strong style={{ color: 'var(--text)' }}>
-                    {formData.updated_by.split('@')[0]}
-                  </strong>
-                </div>
-              )}
-            </div>
-          )}
-
           <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
-            <div></div>
+            {isViewing && (formData.created_by || formData.updated_by) ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                {formData.created_by && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="ri-user-add-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                    <span>Encoded by: <strong style={{ color: 'var(--text)' }}>{formData.created_by.split('@')[0]}</strong> {formData.created_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.created_at), 'MMM d, h:mm a')})</span>}</span>
+                  </div>
+                )}
+                {formData.updated_by && formData.updated_by !== formData.created_by && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="ri-edit-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                    <span>Updated by: <strong style={{ color: 'var(--text)' }}>{formData.updated_by.split('@')[0]}</strong> {formData.updated_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.updated_at), 'MMM d, h:mm a')})</span>}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div></div>
+            )}
             {isViewing ? (
               <div style={{ display: 'flex', gap: '12px' }}>
                 {(isAdmin || canDelete) && (

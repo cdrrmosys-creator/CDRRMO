@@ -30,6 +30,9 @@
   RETURNS TRIGGER AS $$
   BEGIN
     NEW.updated_by = get_current_user_email();
+    -- Preserve created_at and created_by during updates
+    NEW.created_at = OLD.created_at;
+    NEW.created_by = OLD.created_by;
     RETURN NEW;
   END;
   $$ LANGUAGE plpgsql;

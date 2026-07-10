@@ -28,7 +28,9 @@ const INITIAL_FORM_STATE = {
   location: '',
   participants: '',
   description: '',
-  photos: []
+  photos: [],
+  created_by: '',
+  updated_by: ''
 }
 
 export default function Activities() {
@@ -189,7 +191,11 @@ const handleOpenAdd = () => {
       location: rec.location || '',
       participants: rec.participants || '',
       description: rec.description || '',
-      photos: rec.photos || []
+      photos: rec.photos || [],
+      created_by: rec.created_by || '',
+      updated_by: rec.updated_by || '',
+      created_at: rec.created_at || '',
+      updated_at: rec.updated_at || ''
     })
     setIsModalOpen(true)
   }
@@ -490,10 +496,9 @@ const handleOpenAdd = () => {
               <tr>
                 <th style={{ width: '25%' }}>Activity Title</th>
                 <th style={{ width: '12%' }}>Date</th>
-                <th style={{ width: '20%' }}>Location</th>
+                <th style={{ width: '18%' }}>Location</th>
                 <th style={{ width: '15%' }}>Participants</th>
-                <th style={{ width: '28%' }}>Description</th>
-                
+                <th style={{ width: '30%' }}>Description</th>
               </tr>
             </thead>
             <tbody>
@@ -501,10 +506,25 @@ const handleOpenAdd = () => {
                 <tr 
                   key={record.id}
                   onClick={() => handleViewDetails(record)}
-                  style={{ cursor: 'pointer', height: '49px' }}
+                  style={{ cursor: 'pointer' }}
                   className="table-row-clickable"
                 >
-                  <td style={{ fontWeight: '700' }}>{record.activity_title || '-'}</td>
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontWeight: '700' }}>{record.activity_title || '-'}</span>
+                      {record.created_by && (
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <i className="ri-user-line" style={{ fontSize: '12px' }}></i>
+                          {record.created_by.split('@')[0]}
+                          {record.updated_by && record.updated_by !== record.created_by && (
+                            <span style={{ marginLeft: '6px', color: 'var(--text-muted)' }}>
+                              • updated by: {record.updated_by.split('@')[0]}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
                     {record.date 
                       ? format(new Date(record.date), 'MMM dd, yyyy')
@@ -524,7 +544,6 @@ const handleOpenAdd = () => {
                       {record.description || '-'}
                     </div>
                   </td>
-                  
                 </tr>
               ))}
               <TableGhostRows count={Math.max(0, pageSize - pagedRecords.length)} colSpan={5} />
@@ -650,8 +669,27 @@ const handleOpenAdd = () => {
 
           </div>
 
+          {/* Creator & Editor Info */}
+
           <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
-            <div></div>
+            {isViewing && (formData.created_by || formData.updated_by) ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                {formData.created_by && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="ri-user-add-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                    <span>Encoded by: <strong style={{ color: 'var(--text)' }}>{formData.created_by.split('@')[0]}</strong> {formData.created_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.created_at), 'MMM d, h:mm a')})</span>}</span>
+                  </div>
+                )}
+                {formData.updated_by && formData.updated_by !== formData.created_by && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="ri-edit-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                    <span>Updated by: <strong style={{ color: 'var(--text)' }}>{formData.updated_by.split('@')[0]}</strong> {formData.updated_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.updated_at), 'MMM d, h:mm a')})</span>}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div></div>
+            )}
             {isViewing ? (
               <div style={{ display: 'flex', gap: '12px' }}>{(isAdmin || canDelete) && (
                     <button type="button" className="btn-delete" onClick={handleDeleteFromView} style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', padding: '8px 16px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>

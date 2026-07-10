@@ -24,7 +24,11 @@ const INITIAL_FORM_STATE = {
   end_date: '',
   location: '',
   organizer: '',
-  description: ''
+  description: '',
+  created_by: '',
+  updated_by: '',
+  created_at: '',
+  updated_at: ''
 }
 
 const EVENT_TYPES = [
@@ -489,7 +493,11 @@ const handleOpenAdd = () => {
       end_date: rec.end_date || '',
       location: rec.location || '',
       organizer: rec.organizer || '',
-      description: rec.description || ''
+      description: rec.description || '',
+      created_by: rec.created_by || '',
+      updated_by: rec.updated_by || '',
+      created_at: rec.created_at || '',
+      updated_at: rec.updated_at || ''
     })
     setIsModalOpen(true)
   }
@@ -1251,7 +1259,24 @@ const handleOpenAdd = () => {
           </fieldset>
 
           <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div></div>
+            {isViewing && (formData.created_by || formData.updated_by) ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                {formData.created_by && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="ri-user-add-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                    <span>Encoded by: <strong style={{ color: 'var(--text)' }}>{formData.created_by.split('@')[0]}</strong> {formData.created_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.created_at), 'MMM d, h:mm a')})</span>}</span>
+                  </div>
+                )}
+                {formData.updated_by && formData.updated_by !== formData.created_by && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="ri-edit-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                    <span>Updated by: <strong style={{ color: 'var(--text)' }}>{formData.updated_by.split('@')[0]}</strong> {formData.updated_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.updated_at), 'MMM d, h:mm a')})</span>}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div></div>
+            )}
             {isViewing ? (
               <div style={{ display: 'flex', gap: '12px' }}>{(isAdmin || canDelete) && (
                     <button 

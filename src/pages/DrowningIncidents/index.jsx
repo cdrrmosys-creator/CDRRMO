@@ -36,7 +36,9 @@ const INITIAL_FORM_STATE = {
   responders: '',
   outcome: '',
   remarks: '',
-  photos: []
+  photos: [],
+  created_by: '',
+  updated_by: ''
 }
 
 const OUTCOME_COLORS = {
@@ -169,7 +171,11 @@ export default function DrowningIncidents() {
       responders: rec.responders || '',
       outcome: rec.outcome || '',
       remarks: rec.remarks || '',
-      photos: rec.photos || []
+      photos: rec.photos || [],
+      created_by: rec.created_by || '',
+      updated_by: rec.updated_by || '',
+      created_at: rec.created_at || '',
+      updated_at: rec.updated_at || ''
     })
     setIsModalOpen(true)
   }
@@ -410,9 +416,24 @@ export default function DrowningIncidents() {
               </thead>
               <tbody>
                 {pagedRecords.map(record => (
-                  <tr key={record.id} onClick={() => handleViewDetails(record)} style={{ cursor: 'pointer', height: '49px' }} className="table-row-clickable">
-                    <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
-                      {record.date ? format(new Date(record.date), 'MMM dd, yyyy') : '-'}
+                  <tr key={record.id} onClick={() => handleViewDetails(record)} style={{ cursor: 'pointer' }} className="table-row-clickable">
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <span style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
+                          {record.date ? format(new Date(record.date), 'MMM dd, yyyy') : '-'}
+                        </span>
+                        {record.created_by && (
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <i className="ri-user-line" style={{ fontSize: '12px' }}></i>
+                            {record.created_by.split('@')[0]}
+                            {record.updated_by && record.updated_by !== record.created_by && (
+                              <span style={{ marginLeft: '6px', color: 'var(--text-muted)' }}>
+                                • updated by: {record.updated_by.split('@')[0]}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{record.location || '-'}</td>
                     <td style={{ fontWeight: '700' }}>{record.victim_name || '-'}</td>
@@ -624,7 +645,24 @@ export default function DrowningIncidents() {
           </div>
 
           <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
-            <div></div>
+            {isViewing && (formData.created_by || formData.updated_by) ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                {formData.created_by && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="ri-user-add-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                    <span>Encoded by: <strong style={{ color: 'var(--text)' }}>{formData.created_by.split('@')[0]}</strong> {formData.created_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.created_at), 'MMM d, h:mm a')})</span>}</span>
+                  </div>
+                )}
+                {formData.updated_by && formData.updated_by !== formData.created_by && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="ri-edit-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                    <span>Updated by: <strong style={{ color: 'var(--text)' }}>{formData.updated_by.split('@')[0]}</strong> {formData.updated_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.updated_at), 'MMM d, h:mm a')})</span>}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div></div>
+            )}
             {isViewing ? (
               <div style={{ display: 'flex', gap: '12px' }}>
                 {(isAdmin || canDelete) && (

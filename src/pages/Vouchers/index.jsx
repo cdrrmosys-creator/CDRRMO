@@ -31,7 +31,11 @@ const INITIAL_FORM_STATE = {
   check_number: '',
   or_number: '',
   account_code: '',
-  bank_name: ''
+  bank_name: '',
+  created_by: '',
+  updated_by: '',
+  created_at: '',
+  updated_at: ''
 }
 
 export default function Vouchers() {
@@ -181,7 +185,11 @@ export default function Vouchers() {
       check_number: rec.check_number || '',
       or_number: rec.or_number || '',
       account_code: rec.account_code || '',
-      bank_name: rec.bank_name || ''
+      bank_name: rec.bank_name || '',
+      created_by: rec.created_by || '',
+      updated_by: rec.updated_by || '',
+      created_at: rec.created_at || '',
+      updated_at: rec.updated_at || ''
     })
     setIsModalOpen(true)
   }
@@ -263,14 +271,21 @@ export default function Vouchers() {
     const newStatus = e.target.value
     
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('vouchers')
         .update({ status: newStatus })
         .eq('id', id)
+        .select()
 
       if (error) throw error
 
-      setVouchers(vouchers.map(v => v.id === id ? { ...v, status: newStatus } : v))
+      // Update local state with the returned data that includes updated_by and updated_at from trigger
+      if (data && data[0]) {
+        setVouchers(vouchers.map(v => v.id === id ? data[0] : v))
+      } else {
+        setVouchers(vouchers.map(v => v.id === id ? { ...v, status: newStatus } : v))
+      }
+      
       toast.success('Status updated successfully!')
       await logAudit('Updated', 'Vouchers', id, `Updated status to ${newStatus}`)
     } catch (err) {
@@ -424,14 +439,27 @@ export default function Vouchers() {
                   style={{ cursor: 'pointer', height: '49px' }}
                   className="table-row-clickable"
                 >
-                  <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
-                    {voucher.date 
-                      ? format(new Date(voucher.date), 'MMM dd, yyyy')
-                      : '-'}
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
+                        {voucher.date 
+                          ? format(new Date(voucher.date), 'MMM dd, yyyy')
+                          : '-'}
+                      </span>
+                      {voucher.created_by && (
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <i className="ri-user-line" style={{ fontSize: '12px' }}></i>
+                          {voucher.created_by.split('@')[0]}
+                          {voucher.updated_by && voucher.updated_by !== voucher.created_by && (
+                            <span style={{ marginLeft: '6px', color: 'var(--text-muted)' }}>
+                              • updated by: {voucher.updated_by.split('@')[0]}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </div>
                   </td>
-                  <td style={{ fontWeight: '700' }}>
-                    {voucher.beneficiary_name || voucher.payee || '-'}
-                  </td>
+                  <td style={{ fontWeight: '700' }}>{voucher.beneficiary_name || voucher.payee || '-'}</td>
                   <td style={{ fontFamily: 'monospace' }}>{voucher.check_number || '-'}</td>
                   <td>
                     <div style={{ maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px' }}>
@@ -636,7 +664,24 @@ export default function Vouchers() {
           </fieldset>
 
           <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div></div>
+            {isViewing && (formData.created_by || formData.updated_by) ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                {formData.created_by && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="ri-user-add-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                    <span>Encoded by: <strong style={{ color: 'var(--text)' }}>{formData.created_by.split('@')[0]}</strong> {formData.created_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.created_at), 'MMM d, h:mm a')})</span>}</span>
+                  </div>
+                )}
+                {formData.updated_by && formData.updated_by !== formData.created_by && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="ri-edit-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                    <span>Updated by: <strong style={{ color: 'var(--text)' }}>{formData.updated_by.split('@')[0]}</strong> {formData.updated_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.updated_at), 'MMM d, h:mm a')})</span>}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div></div>
+            )}
             {isViewing ? (
               <div style={{ display: 'flex', gap: '12px' }}>{(isAdmin || canDelete) && (
                     <button 

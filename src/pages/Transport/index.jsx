@@ -26,8 +26,6 @@ const INITIAL_FORM_STATE = {
   record_id: '',
   vehicle: '',
   driver: '',
-  team: '',
-  team_other: '',
   responder: '',
   destination: '',
   date_time: '',
@@ -47,7 +45,9 @@ const INITIAL_FORM_STATE = {
   others_specify: '',
   description: '',
   photos: [],
-  status: 'Scheduled'
+  status: 'Scheduled',
+  created_by: '',
+  updated_by: ''
 }
 
 // Custom tooltip for chart
@@ -365,9 +365,21 @@ export default function Transport() {
 
   const handleStatusChange = async (id, newStatus) => {
     try {
-      const { error } = await supabase.from('transport').update({ status: newStatus }).eq('id', id)
+      const { data, error } = await supabase
+        .from('transport')
+        .update({ status: newStatus })
+        .eq('id', id)
+        .select()
+      
       if (error) throw error
-      setRecords(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r))
+      
+      // Update local state with returned data that includes updated_by and updated_at from trigger
+      if (data && data[0]) {
+        setRecords(prev => prev.map(r => r.id === id ? data[0] : r))
+      } else {
+        setRecords(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r))
+      }
+      
       toast.success('Status updated successfully')
     } catch (err) {
       console.error(err)
@@ -395,30 +407,10 @@ export default function Transport() {
       formattedRescheduleDate = (new Date(d - tzOffset)).toISOString().slice(0, 16)
     }
 
-    // Handle team data - normalize case for matching
-    const standardTeams = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Other']
-    let teamValue = rec.team || ''
-    let teamOtherValue = rec.team_other || ''
-    
-    if (teamValue) {
-      // Try to match team case-insensitively
-      const matchedTeam = standardTeams.find(t => t.toLowerCase() === teamValue.toLowerCase())
-      if (matchedTeam) {
-        // Found a match - use the proper case version
-        teamValue = matchedTeam
-      } else {
-        // No match - set to "Other" and put value in team_other
-        teamOtherValue = teamValue
-        teamValue = 'Other'
-      }
-    }
-
     setFormData({
       record_id: rec.record_id || '',
       vehicle: rec.vehicle || '',
       driver: rec.driver || '',
-      team: teamValue,
-      team_other: teamOtherValue,
       responder: rec.responder || '',
       destination: rec.destination || '',
       date_time: formattedDateTime,
@@ -437,8 +429,12 @@ export default function Transport() {
       action_given: rec.action_given || '',
       others_specify: rec.others_specify || '',
       description: rec.description || '',
+      photos: rec.photos || [],
       status: rec.status || 'Scheduled',
-      photos: rec.photos || []
+      created_by: rec.created_by || '',
+      updated_by: rec.updated_by || '',
+      created_at: rec.created_at || '',
+      updated_at: rec.updated_at || ''
     })
     setIsModalOpen(true)
   }
@@ -838,7 +834,7 @@ export default function Transport() {
                 const overdue = isRecordOverdue(record)
                 
                 // Determine row styling based on overdue status
-                let rowStyle = { cursor: 'pointer', height: '49px' }
+                let rowStyle = { cursor: 'pointer' }
                 if (overdue) {
                   rowStyle = {
                     ...rowStyle,
@@ -854,22 +850,35 @@ export default function Transport() {
                   style={rowStyle}
                   className="table-row-clickable"
                 >
-                  <td style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {overdue && (
-                        <i 
-                          className="ri-error-warning-fill"
-                          style={{ 
-                            color: '#dc2626', 
-                            fontSize: '16px',
-                            animation: 'pulse 2s infinite'
-                          }}
-                          title="OVERDUE: This dispatch is past due and still pending/scheduled!"
-                        ></i>
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'monospace', fontSize: '13px', fontWeight: '600' }}>
+                        {overdue && (
+                          <i 
+                            className="ri-error-warning-fill"
+                            style={{ 
+                              color: '#dc2626', 
+                              fontSize: '16px',
+                              animation: 'pulse 2s infinite'
+                            }}
+                            title="OVERDUE: This dispatch is past due and still pending/scheduled!"
+                          ></i>
+                        )}
+                        {record.date_time 
+                          ? format(new Date(record.date_time), 'MMM dd, yyyy hh:mm a')
+                          : '-'}
+                      </div>
+                      {record.created_by && (
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <i className="ri-user-line" style={{ fontSize: '12px' }}></i>
+                          {record.created_by.split('@')[0]}
+                          {record.updated_by && record.updated_by !== record.created_by && (
+                            <span style={{ marginLeft: '6px', color: 'var(--text-muted)' }}>
+                              • updated by: {record.updated_by.split('@')[0]}
+                            </span>
+                          )}
+                        </span>
                       )}
-                      {record.date_time 
-                        ? format(new Date(record.date_time), 'MMM dd, yyyy hh:mm a')
-                        : '-'}
                     </div>
                   </td>
                   <td style={{ fontWeight: '700' }}>{record.vehicle || '-'}</td>
@@ -933,14 +942,12 @@ export default function Transport() {
         filename="transport_report.xlsx"
         sheetName="Transport"
         dateField="date_time"
-        columns={['record_id', 'date_time', 'vehicle', 'driver', 'team', 'team_other', 'responder', 'destination', 'purpose', 'contact_person', 'remarks', 'status', 'photos']}
+        columns={['record_id', 'date_time', 'vehicle', 'driver', 'responder', 'destination', 'purpose', 'contact_person', 'remarks', 'status', 'photos']}
         headers={{
           record_id: 'Record ID',
           date_time: 'Date & Time',
           vehicle: 'Vehicle',
           driver: 'Driver',
-          team: 'Team',
-          team_other: 'Custom Team',
           responder: 'Responder',
           destination: 'Destination',
           purpose: 'Purpose',
@@ -957,8 +964,6 @@ export default function Transport() {
             }
             return ''
           }
-          if (col === 'team' && val === 'Other' && record.team_other) return record.team_other
-          if (col === 'team_other') return '' // Don't show team_other separately
           if (col === 'date_time' && val) return new Date(val).toLocaleString('en-PH')
           return val
         }}
@@ -1058,35 +1063,12 @@ export default function Transport() {
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Team Name</label>
-                      <select name="team" value={formData.team} onChange={handleInputChange} style={{ padding: '8px' }}>
-                        <option value="">Select Team...</option>
-                        <option value="Alpha">Alpha</option>
-                        <option value="Bravo">Bravo</option>
-                        <option value="Charlie">Charlie</option>
-                        <option value="Delta">Delta</option>
-                        <option value="Other">Other</option>
-                      </select>
+                      <label>Responder</label>
+                      <input type="text" name="responder" value={formData.responder} onChange={handleInputChange} placeholder="e.g. Juan Dela Cruz" />
                     </div>
                     <div className="form-group">
-                      {formData.team === 'Other' ? (
-                        <>
-                          <label>Specify Team</label>
-                          <input
-                            type="text"
-                            name="team_other"
-                            value={formData.team_other || ''}
-                            onChange={handleInputChange}
-                            placeholder="e.g. Echo Team"
-                            style={{ padding: '8px' }}
-                          />
-                        </>
-                      ) : (
-                        <>
-                          <label>Responder</label>
-                          <input type="text" name="responder" value={formData.responder} onChange={handleInputChange} placeholder="e.g. Juan Dela Cruz" />
-                        </>
-                      )}
+                      <label>Contact Person</label>
+                      <input type="text" name="contact_person" value={formData.contact_person} onChange={handleInputChange} placeholder="e.g. Juan Dela Cruz (09123456789)" />
                     </div>
                   </div>
 
@@ -1096,8 +1078,8 @@ export default function Transport() {
                       <input type="text" name="destination" value={formData.destination} onChange={handleInputChange} required placeholder="e.g. Brgy. Atate, Palayan City" />
                     </div>
                     <div className="form-group">
-                      <label>Contact Person</label>
-                      <input type="text" name="contact_person" value={formData.contact_person} onChange={handleInputChange} placeholder="e.g. Juan Dela Cruz (09123456789)" />
+                      <label>Purpose *</label>
+                      <input type="text" name="purpose" value={formData.purpose} onChange={handleInputChange} required placeholder="e.g. Emergency Response / Medical Transport" />
                     </div>
                   </div>
 
@@ -1195,7 +1177,24 @@ export default function Transport() {
           </div>
 
           <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
-            <div></div>
+            {isViewing && (formData.created_by || formData.updated_by) ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                {formData.created_by && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="ri-user-add-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                    <span>Encoded by: <strong style={{ color: 'var(--text)' }}>{formData.created_by.split('@')[0]}</strong> {formData.created_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.created_at), 'MMM d, h:mm a')})</span>}</span>
+                  </div>
+                )}
+                {formData.updated_by && formData.updated_by !== formData.created_by && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="ri-edit-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                    <span>Updated by: <strong style={{ color: 'var(--text)' }}>{formData.updated_by.split('@')[0]}</strong> {formData.updated_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.updated_at), 'MMM d, h:mm a')})</span>}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div></div>
+            )}
             {isViewing ? (
               <div style={{ display: 'flex', gap: '12px' }}>{(isAdmin || canDelete) && (
                     <button 

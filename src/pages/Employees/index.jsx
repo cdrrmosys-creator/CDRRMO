@@ -682,16 +682,20 @@ export default function Employees() {
 
   const handleStatusChange = async (id, newStatus) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('employees')
-        .update({
-          duty_status: newStatus,
-          updated_at: new Date().toISOString()
-        })
+        .update({ duty_status: newStatus })
         .eq('id', id)
+        .select()
 
       if (error) throw error
-      setEmployees(employees.map(emp => emp.id === id ? { ...emp, duty_status: newStatus } : emp))
+      
+      // Update local state with returned data that includes updated_by and updated_at from trigger
+      if (data && data[0]) {
+        setEmployees(employees.map(emp => emp.id === id ? data[0] : emp))
+      } else {
+        setEmployees(employees.map(emp => emp.id === id ? { ...emp, duty_status: newStatus } : emp))
+      }
     } catch (err) {
       console.error('Error updating status:', err)
       toast.error('Failed to update status: ' + err.message)
@@ -894,25 +898,22 @@ export default function Employees() {
                   className="table-row-clickable"
                 >
                   <td><code style={{ fontWeight: '700' }}>{emp.employee_id || '-'}</code></td>
-                  <td style={{ fontWeight: '700' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{
-                        width: '32px', height: '32px', borderRadius: '50%',
-                        background: 'var(--bg-app)', border: '1px solid var(--border-light)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        overflow: 'hidden', flexShrink: 0
-                      }}>
-                        {emp.avatar_url
-                          ? <img src={emp.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : <i className="ri-user-line" style={{ fontSize: '14px', color: 'var(--text-muted)' }}></i>
-                        }
-                      </div>
-                      <div>
-                        <div>{emp.name || '-'}</div>
-                        {emp.sex && emp.sex !== 'Rather not to say' && (
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '400' }}>{emp.sex}</div>
-                        )}
-                      </div>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontWeight: '700' }}>
+                      {emp.avatar_url && (
+                        <img 
+                          src={emp.avatar_url} 
+                          alt={emp.name} 
+                          style={{ 
+                            width: '30px', 
+                            height: '30px', 
+                            borderRadius: '50%', 
+                            objectFit: 'cover',
+                            border: '1px solid var(--border-light)'
+                          }} 
+                        />
+                      )}
+                      {emp.name || '-'}
                     </div>
                   </td>
                   <td style={{ fontSize: '13px' }}>{emp.designation || '-'}</td>
@@ -1705,11 +1706,13 @@ export default function Employees() {
                     return (
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border-light)' }}>
                         <div>
-                          {!isViewing && isEditing && formData.email && isAdmin && (
+                          {!isViewing && isEditing && formData.email && isAdmin ? (
                             <button type="button" className="btn-secondary" onClick={handleResetPassword}
                               style={{ color: '#991b1b', borderColor: '#fecaca', background: '#fef2f2' }} disabled={isSaving}>
                               <i className="ri-key-2-line" style={{ marginRight: '6px' }}></i>Reset Password
                             </button>
+                          ) : (
+                            <div></div>
                           )}
                         </div>
                         {isViewing ? (

@@ -31,7 +31,11 @@ const INITIAL_FORM_STATE = {
   last_maintenance: '',
   notes: '',
   orcr: '',
-  photos: []
+  photos: [],
+  created_by: '',
+  updated_by: '',
+  created_at: '',
+  updated_at: ''
 }
 
 export default function Vehicles() {
@@ -160,7 +164,11 @@ const handleOpenAdd = () => {
       last_maintenance: v.last_maintenance || '',
       notes: v.notes || '',
       orcr: v.orcr || '',
-      photos: v.photos || []
+      photos: v.photos || [],
+      created_by: v.created_by || '',
+      updated_by: v.updated_by || '',
+      created_at: v.created_at || '',
+      updated_at: v.updated_at || ''
     })
     setIsModalOpen(true)
   }
@@ -289,14 +297,21 @@ const handleOpenAdd = () => {
     const newStatus = e.target.value
     
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('vehicles')
         .update({ status: newStatus })
         .eq('id', id)
+        .select()
 
       if (error) throw error
 
-      setVehicles(vehicles.map(v => v.id === id ? { ...v, status: newStatus } : v))
+      // Update local state with returned data that includes updated_by and updated_at from trigger
+      if (data && data[0]) {
+        setVehicles(vehicles.map(v => v.id === id ? data[0] : v))
+      } else {
+        setVehicles(vehicles.map(v => v.id === id ? { ...v, status: newStatus } : v))
+      }
+      
       toast.success('Status updated successfully!')
       await logAudit('Updated', 'Vehicles', id, `Updated status to ${newStatus}`)
     } catch (err) {
@@ -494,9 +509,24 @@ const handleOpenAdd = () => {
                     {vehicle.plate || '-'}
                   </td>
                   <td>
-                    <div style={{ fontWeight: '600' }}>{vehicle.model || '-'}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                      {vehicle.manufacturer} {vehicle.year ? `(${vehicle.year})` : ''}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <div>
+                        <div style={{ fontWeight: '600' }}>{vehicle.model || '-'}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          {vehicle.manufacturer} {vehicle.year ? `(${vehicle.year})` : ''}
+                        </div>
+                      </div>
+                      {vehicle.created_by && (
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <i className="ri-user-line" style={{ fontSize: '12px' }}></i>
+                          {vehicle.created_by.split('@')[0]}
+                          {vehicle.updated_by && vehicle.updated_by !== vehicle.created_by && (
+                            <span style={{ marginLeft: '6px', color: 'var(--text-muted)' }}>
+                              • updated by: {vehicle.updated_by.split('@')[0]}
+                            </span>
+                          )}
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td>{vehicle.type || '-'}</td>
@@ -787,7 +817,24 @@ const handleOpenAdd = () => {
           </div>
 
           <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
-            <div></div>
+            {isViewing && (formData.created_by || formData.updated_by) ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                {formData.created_by && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="ri-user-add-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                    <span>Encoded by: <strong style={{ color: 'var(--text)' }}>{formData.created_by.split('@')[0]}</strong> {formData.created_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.created_at), 'MMM d, h:mm a')})</span>}</span>
+                  </div>
+                )}
+                {formData.updated_by && formData.updated_by !== formData.created_by && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="ri-edit-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
+                    <span>Updated by: <strong style={{ color: 'var(--text)' }}>{formData.updated_by.split('@')[0]}</strong> {formData.updated_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.updated_at), 'MMM d, h:mm a')})</span>}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div></div>
+            )}
             {isViewing ? (
               <div style={{ display: 'flex', gap: '12px' }}>{(isAdmin || canDelete) && (
                     <button 
