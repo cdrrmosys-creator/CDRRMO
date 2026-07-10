@@ -419,8 +419,8 @@ export default function Vouchers() {
         </div>
       ) : (
         <>
-        <div className="data-table">
-          <table>
+        <div className="data-table" style={{ overflow: 'visible' }}>
+          <table style={{ position: 'relative', zIndex: 1 }}>
             <thead>
               <tr>
                 <th>Date</th>
@@ -475,6 +475,7 @@ export default function Vouchers() {
                       options={VOUCHER_STATUS_OPTIONS}
                       onChange={(val) => handleStatusChange({ stopPropagation: () => {}, target: { value: val } }, voucher.id)}
                       disabled={!isAdmin}
+                      align="right"
                     />
                   </td>
                 </tr>

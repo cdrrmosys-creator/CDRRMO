@@ -381,8 +381,8 @@ export default function Drivers() {
         </div>
       ) : (
         <>
-        <div className="data-table">
-          <table style={{ width: '100%' }}>
+        <div className="data-table" style={{ overflow: 'visible' }}>
+          <table style={{ width: '100%', position: 'relative', zIndex: 1 }}>
             <thead>
               <tr>
                 <th style={{ width: '12%' }}>Driver ID</th>
@@ -434,6 +434,7 @@ export default function Drivers() {
                           { value: 'Unavailable', label: 'Unavailable', icon: 'ri-close-circle-fill',    bg: '#fee2e2', color: '#991b1b' },
                         ]}
                         onChange={v => handleStatusChange(driver.id, v)}
+                        align="right"
                       />
                     ) : getStatusBadge(driver.status)}
                   </td>

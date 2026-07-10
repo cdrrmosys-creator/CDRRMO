@@ -9,13 +9,17 @@ import { useState, useEffect, useRef } from 'react'
  *   onChange   – called with new value string
  *   disabled   – optional, renders as a static badge
  *   minWidth   – optional, minimum width for dropdown (default: '180px')
+ *   align      – 'left' | 'right' (default: 'left')
  */
-export default function StatusSelect({ value, options, onChange, disabled = false, minWidth = '180px' }) {
+export default function StatusSelect({ value, options, onChange, disabled = false, minWidth = '180px', align = 'left' }) {
   const [open, setOpen] = useState(false)
+  const [openUp, setOpenUp] = useState(false)
   const ref = useRef(null)
+  const btnRef = useRef(null)
 
   const current = options.find(o => o.value === value) || options[0]
 
+  // Close on outside click
   useEffect(() => {
     const handler = (e) => {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false)
@@ -23,6 +27,18 @@ export default function StatusSelect({ value, options, onChange, disabled = fals
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
+
+  // When opening, decide direction based on available space
+  const handleToggle = () => {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect()
+      // Estimate dropdown height: ~46px per option + 12px padding
+      const estimatedHeight = options.length * 46 + 12
+      const spaceBelow = window.innerHeight - rect.bottom
+      setOpenUp(spaceBelow < estimatedHeight + 8)
+    }
+    setOpen(o => !o)
+  }
 
   if (disabled) {
     return (
@@ -45,8 +61,9 @@ export default function StatusSelect({ value, options, onChange, disabled = fals
     >
       {/* Trigger pill */}
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onClick={handleToggle}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: '6px',
           padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '700',
@@ -67,7 +84,15 @@ export default function StatusSelect({ value, options, onChange, disabled = fals
       {/* Dropdown panel */}
       {open && (
         <div style={{
-          position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 9999,
+          position: 'absolute',
+          // Open upward when near bottom of screen, else downward
+          ...(openUp
+            ? { bottom: 'calc(100% + 6px)', top: 'auto' }
+            : { top: 'calc(100% + 6px)', bottom: 'auto' }
+          ),
+          left: align === 'left' ? 0 : 'auto',
+          right: align === 'right' ? 0 : 'auto',
+          zIndex: 9999,
           background: 'var(--bg-surface, #fff)',
           border: '1px solid var(--border-light, #e5e7eb)',
           borderRadius: '12px',

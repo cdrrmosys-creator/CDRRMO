@@ -816,8 +816,8 @@ export default function Transport() {
           </div>
         ) : (
           <>
-          <div className="data-table">
-            <table>
+          <div className="data-table" style={{ overflow: 'visible' }}>
+            <table style={{ position: 'relative', zIndex: 1 }}>
               <thead>
               <tr>
                 <th>Date & Time</th>
@@ -913,6 +913,7 @@ export default function Transport() {
                           options={optionsWithOverdue}
                           onChange={(val) => handleStatusChange(record.id, val)}
                           disabled={!canUpdate}
+                          align="right"
                         />
                       )
                     })()}

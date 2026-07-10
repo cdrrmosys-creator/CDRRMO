@@ -49,7 +49,8 @@ const EVENT_SOURCES = {
   venues: { label: 'Venues', color: '#f59e0b', icon: 'ri-building-line' },
   activities: { label: 'Activities', color: '#8b5cf6', icon: 'ri-flag-line' },
   events_assistance: { label: 'Events Assistance', color: '#ec4899', icon: 'ri-service-line' },
-  pruning: { label: 'Pruning & Trimming', color: '#14b8a6', icon: 'ri-scissors-cut-line' }
+  pruning: { label: 'Pruning & Trimming', color: '#14b8a6', icon: 'ri-scissors-cut-line' },
+  logistic: { label: 'Logistic (Borrowed)', color: '#84cc16', icon: 'ri-shopping-bag-line' }
 }
 
 export default function CalendarEvents() {
@@ -140,6 +141,10 @@ export default function CalendarEvents() {
         return event.data.type_of_assistance || '—'
       
       case 'pruning':
+        // Show status
+        return event.data.status || '—'
+      
+      case 'logistic':
         // Show status
         return event.data.status || '—'
       
@@ -334,7 +339,8 @@ export default function CalendarEvents() {
       venues: '/venues',
       activities: '/activities',
       events_assistance: '/events-assistance',
-      pruning: '/pruning'
+      pruning: '/pruning',
+      logistic: '/logistic'
     }
     if (routes[source]) {
       // Navigate with record ID as query parameter to auto-open the modal
@@ -442,6 +448,28 @@ export default function CalendarEvents() {
           })
         })
       }
+
+      // Load Logistic (Borrowed Items)
+      try {
+        const { data: logisticData } = await supabase.from('logistic').select('*')
+        if (logisticData) {
+          logisticData.forEach(l => {
+            events.push({
+              id: `log-${l.id}`,
+              title: `Borrowed: ${l.item_type || 'Item'} (${l.borrower_name})`,
+              date: l.date_released,
+              endDate: l.date_returned,
+              color: '#84cc16',
+              type: 'Logistic',
+              source: 'logistic',
+              data: l
+            })
+          })
+        }
+      } catch (logErr) {
+        console.warn('Failed to load logistic aggregated events:', logErr)
+      }
+
 
       setAggregatedEvents(events)
     } catch (err) {
@@ -772,6 +800,7 @@ const handleOpenAdd = () => {
             { label: 'Activities', value: 'activities' },
             { label: 'Events Assistance', value: 'events_assistance' },
             { label: 'Pruning & Trimming', value: 'pruning' },
+            { label: 'Logistic (Borrowed)', value: 'logistic' },
           ]}
           filterColorMap={{
             'calendar_events': { bg: '#dbeafe', color: '#1e40af', icon: 'ri-calendar-line' },
@@ -780,6 +809,7 @@ const handleOpenAdd = () => {
             'activities': { bg: '#ede9fe', color: '#5b21b6', icon: 'ri-flag-line' },
             'events_assistance': { bg: '#fce7f3', color: '#831843', icon: 'ri-service-line' },
             'pruning': { bg: '#e0f2fe', color: '#0c4a6e', icon: 'ri-scissors-cut-line' },
+            'logistic': { bg: '#f1fbf0', color: '#84cc16', icon: 'ri-shopping-bag-line' },
           }}
           hasActiveFilters={hasActiveFilters}
         >
@@ -1156,10 +1186,10 @@ const handleOpenAdd = () => {
           source: EVENT_SOURCES[event.source]?.label || event.type || '—',
           date: event.date || '',
           end_date: event.endDate || '',
-          location: event.data?.location || event.data?.destination || event.data?.facility_name || event.data?.event_name || '—',
+          location: event.data?.location || event.data?.destination || event.data?.facility_name || event.data?.event_name || event.data?.office || '—',
           status_type: getEventStatusOrType(event),
-          organizer: event.data?.organizer || event.data?.booked_by || event.data?.conducted_by || '—',
-          description: event.data?.description || event.data?.purpose || event.data?.remarks || '—'
+          organizer: event.data?.organizer || event.data?.booked_by || event.data?.conducted_by || event.data?.person_in_charge || '—',
+          description: event.data?.description || event.data?.purpose || event.data?.remarks || event.data?.address || '—'
         }))}
         filename="calendar_events_aggregated_report.xlsx"
         sheetName="All Events"

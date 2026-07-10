@@ -13,6 +13,7 @@ const MODULES = [
   { key: 'vouchers',            label: 'Vouchers',               section: 'Operations' },
   { key: 'inventory',           label: 'Inventory',              section: 'Operations' },
   { key: 'transport',           label: 'Transport',              section: 'Operations' },
+  { key: 'logistic',            label: 'Logistic (Borrowed Items)', section: 'Operations' },
   { key: 'venues',              label: 'Venues',                 section: 'Facilities' },
   { key: 'vehicles',            label: 'Vehicles',               section: 'Fleet' },
   { key: 'drivers',             label: 'Drivers',                section: 'Fleet' },

@@ -372,8 +372,8 @@ export default function Volunteers() {
         </div>
       ) : (
         <>
-        <div className="data-table">
-          <table>
+        <div className="data-table" style={{ overflow: 'visible' }}>
+          <table style={{ position: 'relative', zIndex: 1 }}>
             <thead>
               <tr>
                 <th>Volunteer Name</th>
@@ -423,6 +423,7 @@ export default function Volunteers() {
                           value={record.status || 'Active'}
                           options={VOLUNTEER_STATUS_OPTIONS}
                           onChange={v => handleStatusChange(record.id, v)}
+                          align="right"
                         />
                       : getStatusBadge(record.status)
                     }

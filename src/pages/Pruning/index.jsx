@@ -668,8 +668,8 @@ export default function Pruning() {
         </div>
       ) : (
         <>
-        <div className="data-table">
-          <table>
+        <div className="data-table" style={{ overflow: 'visible' }}>
+          <table style={{ position: 'relative', zIndex: 1 }}>
             <thead>
               <tr>
                 <th>Date of Request</th>

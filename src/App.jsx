@@ -37,6 +37,7 @@ import AuditTrail from './pages/AuditTrail'
 import Kloudtrack from './pages/Kloudtrack'
 import UserPermissions from './pages/UserPermissions'
 import PasswordResetRequests from './pages/PasswordResetRequests'
+import Logistic from './pages/Logistic'
 import Layout from './components/Layout'
 
 const ProtectedRoutes = () => {
@@ -117,6 +118,7 @@ function App() {
                 <Route path="audit-trail" element={<AuditTrail />} />
                 <Route path="user-permissions" element={<UserPermissions />} />
                 <Route path="password-reset-requests" element={<PasswordResetRequests />} />
+                <Route path="logistic" element={<Logistic />} />
               </Route>
             </Route>
 

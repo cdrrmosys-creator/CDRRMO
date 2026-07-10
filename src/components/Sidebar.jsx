@@ -57,6 +57,7 @@ export default function Sidebar() {
         { label: 'Vouchers', icon: 'ri-file-text-line', path: '/vouchers' },
         { label: 'Inventory', icon: 'ri-archive-line', path: '/inventory' },
         { label: 'Transport', icon: 'ri-taxi-line', path: '/transport' },
+        { label: 'Logistic (Borrowed)', icon: 'ri-shopping-bag-line', path: '/logistic' },
       ]
     },
     {

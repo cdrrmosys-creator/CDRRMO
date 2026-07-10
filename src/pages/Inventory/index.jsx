@@ -541,8 +541,8 @@ const handleOpenAdd = () => {
           <p>Try adjusting your search or filters.</p>
         </div>
       ) : (
-        <div className="data-table">
-          <table style={{ width: '100%' }}>
+        <div className="data-table" style={{ overflow: 'visible' }}>
+          <table style={{ width: '100%', position: 'relative', zIndex: 1 }}>
             <thead>
               <tr>
                 <th style={{ width: '25%' }}>Item Name</th>
