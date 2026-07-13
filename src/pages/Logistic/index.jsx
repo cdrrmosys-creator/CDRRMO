@@ -34,8 +34,6 @@ const INITIAL_FORM_STATE = {
   status: 'Pending',
   created_by: '',
   updated_by: '',
-  created_at: '',
-  updated_at: ''
 }
 
 const ITEM_CONDITIONS = ['Good', 'Fair', 'Bad', 'New', 'Damaged']
@@ -142,8 +140,6 @@ export default function Logistic() {
     status: rec.status || 'Pending',
     created_by: rec.created_by || '',
     updated_by: rec.updated_by || '',
-    created_at: rec.created_at || '',
-    updated_at: rec.updated_at || ''
   })
 
   const handleOpenAdd = () => {
@@ -418,7 +414,7 @@ export default function Logistic() {
                           <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'normal' }}>
                             <i className="ri-user-line" style={{ fontSize: '12px' }}></i>
                             {record.created_by.split('@')[0]}
-                            {record.updated_by && record.updated_by !== record.created_by && (
+                            {record.updated_by && record.updated_at && record.created_at && record.updated_at !== record.created_at && (
                               <span style={{ marginLeft: '6px' }}>• updated by: {record.updated_by.split('@')[0]}</span>
                             )}
                           </span>

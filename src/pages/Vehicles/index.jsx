@@ -34,8 +34,6 @@ const INITIAL_FORM_STATE = {
   photos: [],
   created_by: '',
   updated_by: '',
-  created_at: '',
-  updated_at: ''
 }
 
 export default function Vehicles() {
@@ -520,7 +518,7 @@ const handleOpenAdd = () => {
                         <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <i className="ri-user-line" style={{ fontSize: '12px' }}></i>
                           {vehicle.created_by.split('@')[0]}
-                          {vehicle.updated_by && vehicle.updated_by !== vehicle.created_by && (
+                          {vehicle.updated_by && vehicle.updated_at && vehicle.created_at && vehicle.updated_at !== vehicle.created_at && (
                             <span style={{ marginLeft: '6px', color: 'var(--text-muted)' }}>
                               • updated by: {vehicle.updated_by.split('@')[0]}
                             </span>
@@ -825,7 +823,7 @@ const handleOpenAdd = () => {
                     <span>Encoded by: <strong style={{ color: 'var(--text)' }}>{formData.created_by.split('@')[0]}</strong> {formData.created_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.created_at), 'MMM d, h:mm a')})</span>}</span>
                   </div>
                 )}
-                {formData.updated_by && formData.updated_by !== formData.created_by && (
+                {formData.updated_by && formData.updated_at && formData.created_at && formData.updated_at !== formData.created_at && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <i className="ri-edit-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
                     <span>Updated by: <strong style={{ color: 'var(--text)' }}>{formData.updated_by.split('@')[0]}</strong> {formData.updated_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.updated_at), 'MMM d, h:mm a')})</span>}</span>

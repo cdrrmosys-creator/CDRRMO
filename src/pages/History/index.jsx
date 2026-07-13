@@ -212,8 +212,6 @@ const handleOpenAdd = () => {
       files: rec.files || [],
       created_by: rec.created_by || '',
       updated_by: rec.updated_by || '',
-      created_at: rec.created_at || '',
-      updated_at: rec.updated_at || ''
     })
     setIsModalOpen(true)
   }
@@ -542,7 +540,7 @@ const handleOpenAdd = () => {
                         <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <i className="ri-user-line" style={{ fontSize: '12px' }}></i>
                           {record.created_by.split('@')[0]}
-                          {record.updated_by && record.updated_by !== record.created_by && (
+                          {record.updated_by && record.updated_at && record.created_at && record.updated_at !== record.created_at && (
                             <span style={{ marginLeft: '6px', color: 'var(--text-muted)' }}>
                               • updated by: {record.updated_by.split('@')[0]}
                             </span>
@@ -931,7 +929,7 @@ const handleOpenAdd = () => {
                     <span>Encoded by: <strong style={{ color: 'var(--text)' }}>{formData.created_by.split('@')[0]}</strong> {formData.created_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.created_at), 'MMM d, h:mm a')})</span>}</span>
                   </div>
                 )}
-                {formData.updated_by && formData.updated_by !== formData.created_by && (
+                {formData.updated_by && formData.updated_at && formData.created_at && formData.updated_at !== formData.created_at && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <i className="ri-edit-line" style={{ fontSize: '14px', color: 'var(--primary)' }}></i>
                     <span>Updated by: <strong style={{ color: 'var(--text)' }}>{formData.updated_by.split('@')[0]}</strong> {formData.updated_at && <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>({format(new Date(formData.updated_at), 'MMM d, h:mm a')})</span>}</span>
