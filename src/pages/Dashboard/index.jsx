@@ -252,8 +252,28 @@ export default function Dashboard() {
     return ''
   }
 
+  // ── COUNTS (year-filtered) — only the 6 stat cards ───────────────────────
+  const counts = useMemo(() => {
+    const noFilter = selectedYear === 'all'
+    const inc  = noFilter ? rawData.incidents       : rawData.incidents.filter(i  => getRecordYear(i.date) === selectedYear)
+    const drwn = noFilter ? rawData.drowning         : rawData.drowning.filter(i  => getRecordYear(i.date) === selectedYear)
+    const trns = noFilter ? rawData.transport        : rawData.transport.filter(i  => getRecordYear(i.date_time || i.date) === selectedYear)
+    const prn  = noFilter ? rawData.pruning          : rawData.pruning.filter(i   => getRecordYear(i.date_of_request || i.date) === selectedYear)
+    const evts = noFilter ? rawData.eventsAssistance : rawData.eventsAssistance.filter(i => getRecordYear(i.date) === selectedYear)
+    const vch  = noFilter ? rawData.vouchers         : rawData.vouchers.filter(i  => getRecordYear(i.date) === selectedYear)
+    const totalPersonnel = (rawData.employees.length || 0) + (rawData.volunteers.filter(v => v.status !== 'Inactive' && v.status !== 'Expired').length || 0)
+    return {
+      personnel: totalPersonnel,
+      incidents: inc.length + drwn.length,
+      transport: trns.length,
+      pruning:   prn.filter(p => p.status === 'Pending').length,
+      events:    evts.length,
+      vouchers:  vch.length
+    }
+  }, [rawData, selectedYear])
+
+  // ── CHARTS / LISTS (always unfiltered) ────────────────────────────────────
   const {
-    counts,
     empStatusData,
     incTeamData,
     recentInc,
@@ -264,19 +284,6 @@ export default function Dashboard() {
     recentAggregatedEvents,
     calendarEvents
   } = useMemo(() => {
-    const byYear = selectedYear === 'all'
-    const filteredIncidents = byYear ? rawData.incidents : rawData.incidents.filter(item => getRecordYear(item.date) === selectedYear)
-    const filteredDrowning = byYear ? rawData.drowning : rawData.drowning.filter(item => getRecordYear(item.date) === selectedYear)
-    const filteredTransport = byYear ? rawData.transport : rawData.transport.filter(item => getRecordYear(item.date_time || item.date) === selectedYear)
-    const filteredPruning = byYear ? rawData.pruning : rawData.pruning.filter(item => getRecordYear(item.date_of_request || item.date) === selectedYear)
-    const filteredEventsAssistance = byYear ? rawData.eventsAssistance : rawData.eventsAssistance.filter(item => getRecordYear(item.date) === selectedYear)
-    const filteredVouchers = byYear ? rawData.vouchers : rawData.vouchers.filter(item => getRecordYear(item.date) === selectedYear)
-    
-    const filteredAggregated = byYear ? rawData.aggregatedEvents : rawData.aggregatedEvents.filter(item => getRecordYear(item.date) === selectedYear)
-    const recentAggregated = [...filteredAggregated].slice(0, 5)
-
-    const totalPersonnel = (rawData.employees.length || 0) + (rawData.volunteers.filter(v => v.status !== 'Inactive' && v.status !== 'Expired').length || 0)
-    
     const eg = groupBy(rawData.employees, 'duty_status')
     const activeVolunteers = rawData.volunteers.filter(v => v.status !== 'Inactive' && v.status !== 'Expired').length
     const empStatus = [
@@ -291,7 +298,7 @@ export default function Dashboard() {
       const map = { alpha: 'Alpha', bravo: 'Bravo', charlie: 'Charlie', delta: 'Delta' }
       return map[v.toLowerCase()] || v
     }
-    const normalizedInc = filteredIncidents.map(r => ({ ...r, _team: normalizeTeam(r.team) }))
+    const normalizedInc = (rawData.incidents || []).map(r => ({ ...r, _team: normalizeTeam(r.team) }))
     const tg = groupBy(normalizedInc, '_team')
     const knownTeams = ['Alpha', 'Bravo', 'Charlie', 'Delta']
     const othersCount = Object.entries(tg).filter(([k]) => !knownTeams.includes(k)).reduce((s, [, v]) => s + v, 0)
@@ -304,71 +311,52 @@ export default function Dashboard() {
     ]
 
     const assist = [
-      { name: 'Transport', value: filteredTransport.length },
-      { name: 'Pruning', value: filteredPruning.length },
-      { name: 'Events', value: filteredEventsAssistance.length }
+      { name: 'Transport', value: rawData.transport.length },
+      { name: 'Pruning',   value: rawData.pruning.length },
+      { name: 'Events',    value: rawData.eventsAssistance.length }
     ]
 
     const vMap = {}
-    filteredVouchers.forEach(v => {
-      if(!v.date) return
+    rawData.vouchers.forEach(v => {
+      if (!v.date) return
       const m = format(new Date(v.date), 'MMM yyyy')
-      const val = typeof v.amount === 'string' ? parseFloat(v.amount.replace(/[^0-9.-]+/g,"")) : (v.amount || 0)
+      const val = typeof v.amount === 'string' ? parseFloat(v.amount.replace(/[^0-9.-]+/g, '')) : (v.amount || 0)
       vMap[m] = (vMap[m] || 0) + val
     })
     const vArr = Object.keys(vMap).map(k => ({ name: k, amount: vMap[k] }))
-    vArr.sort((a,b) => new Date(a.name) - new Date(b.name))
+    vArr.sort((a, b) => new Date(a.name) - new Date(b.name))
     const voucher = vArr.slice(-6)
 
     const reqList = [
-      ...filteredTransport.map(r => ({ date: r.date_time, title: 'Transport: ' + (r.patient_name || 'Patient'), location: r.destination, type: 'Transport', icon: 'ri-taxi-line' })),
-      ...filteredPruning.map(r => ({ date: r.date_of_request, title: 'Pruning & Trimming', location: r.location, type: 'Pruning', icon: 'ri-scissors-line' })),
-      ...filteredEventsAssistance.map(r => ({ date: r.date, title: 'Event: ' + (r.event_name || 'Event'), location: r.location, type: 'Event', icon: 'ri-calendar-event-line' }))
+      ...(rawData.transport || []).map(r => ({ date: r.date_time, title: 'Transport: ' + (r.patient_name || 'Patient'), location: r.destination, type: 'Transport', icon: 'ri-taxi-line' })),
+      ...(rawData.pruning || []).map(r => ({ date: r.date_of_request, title: 'Pruning & Trimming', location: r.location, type: 'Pruning', icon: 'ri-scissors-line' })),
+      ...(rawData.eventsAssistance || []).map(r => ({ date: r.date, title: 'Event: ' + (r.event_name || 'Event'), location: r.location, type: 'Event', icon: 'ri-calendar-event-line' }))
     ]
-    reqList.sort((a,b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
-    const recentRequests = reqList.slice(0, 5)
+    reqList.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
 
-    const recentIncidents = [...filteredIncidents].slice(0, 5)
+    const recentIncidents = [...(rawData.incidents || [])].slice(0, 5)
 
-    const filteredCalEvents = byYear ? rawData.calendarEvents : rawData.calendarEvents.filter(e => getRecordYear(e.start_date) === selectedYear)
-    const allCalEvents = filteredCalEvents.map(e => ({
-      event_title: e.event_title,
-      start_date: e.start_date,
-      end_date: e.end_date,
-      location: e.location,
-      event_type: e.event_type,
-      organizer: e.organizer
+    const allCalEvents = (rawData.calendarEvents || []).map(e => ({
+      event_title: e.event_title, start_date: e.start_date, end_date: e.end_date,
+      location: e.location, event_type: e.event_type, organizer: e.organizer
     }))
-    const filteredCalEventsRecent = byYear ? rawData.calendarEventsRecent : rawData.calendarEventsRecent.filter(e => getRecordYear(e.start_date) === selectedYear)
-    const recentCalEvents = filteredCalEventsRecent.map(e => ({
-      event_title: e.event_title,
-      start_date: e.start_date,
-      end_date: e.end_date,
-      location: e.location,
-      event_type: e.event_type,
-      organizer: e.organizer
+    const recentCalEvents = (rawData.calendarEventsRecent || []).map(e => ({
+      event_title: e.event_title, start_date: e.start_date, end_date: e.end_date,
+      location: e.location, event_type: e.event_type, organizer: e.organizer
     }))
 
     return {
-      counts: {
-        personnel: totalPersonnel,
-        incidents: filteredIncidents.length + filteredDrowning.length,
-        transport: filteredTransport.length,
-        pruning: filteredPruning.filter(p => p.status === 'Pending').length,
-        events: filteredEventsAssistance.length,
-        vouchers: filteredVouchers.length
-      },
       empStatusData: empStatus,
       incTeamData: incTeam,
       assistData: assist,
       voucherData: voucher,
-      recentReq: recentRequests,
+      recentReq: reqList.slice(0, 5),
       recentInc: recentIncidents,
-      aggregatedEvents: filteredAggregated,
-      recentAggregatedEvents: recentAggregated,
+      aggregatedEvents: rawData.aggregatedEvents || [],
+      recentAggregatedEvents: (rawData.aggregatedEvents || []).slice(0, 5),
       calendarEvents: { all: allCalEvents, recent: recentCalEvents }
     }
-  }, [rawData, selectedYear])
+  }, [rawData])
 
   // Trend chart always shows ALL incidents regardless of year filter
   const allIncidents = useMemo(() => [
