@@ -1,5 +1,5 @@
 import { validateForm } from '../../utils/validation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../services/supabase'
 import { uploadFile, deleteFiles } from '../../services/storage'
 import { compressImage } from '../../utils/imageCompression'
@@ -8,6 +8,7 @@ import { format } from 'date-fns'
 import { printPDF } from '../../utils/printPDF'
 import { printIncidentReport } from '../../utils/printIncidentReport'
 import Modal from '../../components/Modal'
+import StatusSelect from '../../components/StatusSelect'
 import ModuleToolbar from '../../components/ModuleToolbar'
 import ListPagination from '../../components/ListPagination'
 import ExportModal from '../../components/ExportModal'
@@ -18,6 +19,9 @@ import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
+} from 'recharts'
 
 // Convert any time value (HH:MM, full datetime string, etc.) to h:mm AM/PM
 const formatTime = (t) => {
@@ -77,6 +81,7 @@ const INITIAL_FORM_STATE = {
   back_to_base: '',
   place_of_incident: '',
   nature_of_incident: '',
+  type_of_accident: '',
   name: '',
   age: '',
   address: '',
@@ -106,7 +111,7 @@ const INITIAL_FORM_STATE = {
 const INCIDENT_EXPORT_COLUMNS = [
   'record_id', 'date', 'time_of_call', 'team',
   'place_of_incident', 'exact_place',
-  'nature_of_incident', 'severity',
+  'nature_of_incident', 'type_of_accident', 'severity',
   'name', 'age', 'address', 'injury_illness_complaint',
   'vehicle', 'vehicle_other', 'helmet', 'liquor',
   'time_of_arrival_at_scene', 'time_of_departure_at_scene',
@@ -119,7 +124,7 @@ const INCIDENT_EXPORT_COLUMNS = [
 const INCIDENT_EXPORT_HEADERS = {
   record_id: 'Record ID', date: 'Date', time_of_call: 'Time of Call', team: 'Team',
   place_of_incident: 'Place of Incident', exact_place: 'Exact Place',
-  nature_of_incident: 'Nature of Incident', severity: 'Severity',
+  nature_of_incident: 'Nature of Incident', type_of_accident: 'Type of Accident', severity: 'Severity',
   name: 'Victim Name', age: 'Age', address: 'Address', injury_illness_complaint: 'Injury / Illness',
   vehicle: 'Vehicle', vehicle_other: 'Vehicle (Other)', helmet: 'Helmet', liquor: 'Liquor',
   time_of_arrival_at_scene: 'Arrival at Scene', time_of_departure_at_scene: 'Departure at Scene',
@@ -156,6 +161,7 @@ export default function Incidents() {
   // Toolbar / filter states
   const [searchTerm, setSearchTerm] = useState('')
   const [filterTeam, setFilterTeam] = useState('')
+  const [filterAccidentType, setFilterAccidentType] = useState('')
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
 
   const [isExportOpen, setIsExportOpen] = useState(false)
@@ -183,6 +189,61 @@ export default function Incidents() {
       toast.error('Failed to load vehicles from fleet')
     }
   }
+
+  const accidentTypeData = useMemo(() => {
+    const counts = {
+      'Single Motor': 0,
+      'Truck': 0,
+      'Jeep': 0,
+      'Self Accident': 0,
+      'Collision': 0,
+      'Hit and Run': 0,
+      'Other': 0
+    }
+    
+    let totalVehicular = 0
+    incidents.forEach(item => {
+      const typeStr = (item.type_of_accident || '').toLowerCase()
+      const nature = (item.nature_of_incident || '').toLowerCase()
+      
+      const isVehicular = nature.includes('vehic') || 
+                          typeStr.includes('motor') || 
+                          typeStr.includes('truck') || 
+                          typeStr.includes('jeep') || 
+                          typeStr.includes('coll') || 
+                          typeStr.includes('hit') || 
+                          typeStr.includes('self')
+
+      if (isVehicular) {
+        totalVehicular++
+        
+        const combined = `${typeStr} ${nature}`
+        if (combined.includes('motor') || combined.includes('mc') || combined.includes('single')) {
+          counts['Single Motor']++
+        } else if (combined.includes('truck')) {
+          counts['Truck']++
+        } else if (combined.includes('jeep')) {
+          counts['Jeep']++
+        } else if (combined.includes('self')) {
+          counts['Self Accident']++
+        } else if (combined.includes('collision') || combined.includes('collide') || combined.includes('coll')) {
+          counts['Collision']++
+        } else if (combined.includes('hit') && (combined.includes('run') || combined.includes('rn') || combined.includes('un'))) {
+          counts['Hit and Run']++
+        } else {
+          counts['Other']++
+        }
+      }
+    })
+    
+    return {
+      total: totalVehicular,
+      chartData: Object.keys(counts).map(key => ({
+        name: key,
+        count: counts[key]
+      }))
+    }
+  }, [incidents])
 
   const filteredRecords = incidents.filter(item => {
     let matchesSearch = true
@@ -214,7 +275,38 @@ export default function Incidents() {
 
     const matchesSeverity = true  // severity not filtered — use team filter below
 
-    return matchesSearch && matchesTeam && matchesSeverity && matchesDate
+    const matchesAccidentType = !filterAccidentType
+      || (() => {
+           const typeStr = (item.type_of_accident || '').toLowerCase()
+           const nature = (item.nature_of_incident || '').toLowerCase()
+           const combined = `${typeStr} ${nature}`
+           
+           const detectedType = (() => {
+             if (combined.includes('motor') || combined.includes('mc') || combined.includes('single')) {
+               return 'Single Motor'
+             }
+             if (combined.includes('truck')) {
+               return 'Truck'
+             }
+             if (combined.includes('jeep')) {
+               return 'Jeep'
+             }
+             if (combined.includes('self')) {
+               return 'Self Accident'
+             }
+             if (combined.includes('collision') || combined.includes('collide') || combined.includes('coll')) {
+               return 'Collision'
+             }
+             if (combined.includes('hit') && (combined.includes('run') || combined.includes('rn') || combined.includes('un'))) {
+               return 'Hit and Run'
+             }
+             return 'Other'
+           })()
+
+           return detectedType === filterAccidentType
+         })()
+
+    return matchesSearch && matchesTeam && matchesSeverity && matchesDate && matchesAccidentType
   }).sort((a, b) => {
     const da = new Date(a.date || a.created_at || 0)
     const db = new Date(b.date || b.created_at || 0)
@@ -582,6 +674,90 @@ export default function Incidents() {
         </button>
       </div>
 
+      {/* Vehicular Incident Analytics */}
+      {incidents.length > 0 && accidentTypeData.total > 0 && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: '20px',
+          marginBottom: '24px'
+        }}>
+          {/* Card 1: Stats Summary */}
+          <div style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-light)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '20px 24px',
+            boxShadow: 'var(--shadow-sm)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between'
+          }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                <i className="ri-roadster-line" style={{ marginRight: '8px', color: 'var(--primary)' }}></i>
+                Vehicular Accident Summary
+              </h3>
+              <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>Overview of all reported vehicular incidents</p>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '20px 0' }}>
+              <div>
+                <div style={{ fontSize: '36px', fontWeight: '800', color: 'var(--primary)' }}>
+                  {accidentTypeData.total}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>
+                  Total Vehicular Incidents
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                  {((accidentTypeData.total / incidents.length) * 100).toFixed(1)}%
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>
+                  Of All Incident Types
+                </div>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', borderTop: '1px solid var(--border-light)', paddingTop: '10px' }}>
+              <i className="ri-info-circle-line" style={{ marginRight: '4px', color: 'var(--primary)' }}></i>
+              Select any vehicle type filter below to view matching records in detail.
+            </div>
+          </div>
+
+          {/* Card 2: Chart Breakdown */}
+          <div style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-light)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '20px 24px',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
+            <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)' }}>
+              <i className="ri-bar-chart-line" style={{ marginRight: '8px', color: 'var(--primary)' }}></i>
+              Accident Type Distribution
+            </h3>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart layout="vertical" data={accidentTypeData.chartData} margin={{ top: 5, right: 15, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} />
+                <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} width={95} interval={0} />
+                <Tooltip
+                  contentStyle={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '12px' }}
+                  formatter={(value) => [value, 'Incidents']}
+                />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                  {accidentTypeData.chartData.map((entry, index) => {
+                    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6b7280']
+                    return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                  })}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {incidents.length > 0 && (
         <ModuleToolbar
@@ -592,7 +768,7 @@ export default function Incidents() {
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
           onPrintClick={handlePrintPDF}
-          onClearFilters={() => { setSearchTerm(''); setFilterTeam(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
+          onClearFilters={() => { setSearchTerm(''); setFilterTeam(''); setFilterAccidentType(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
           filterLabel="All Teams"
           filterOptions={[
             { label: 'Alpha',   value: 'Alpha' },
@@ -608,8 +784,24 @@ export default function Incidents() {
             'Delta':   { bg: '#fee2e2', color: '#991b1b', icon: 'ri-team-line' },
             'Other':   { bg: '#f3f4f6', color: '#374151', icon: 'ri-team-line' },
           }}
-          hasActiveFilters={Boolean(searchTerm || filterTeam || dateRange.start || dateRange.end)}
-        />
+          hasActiveFilters={Boolean(searchTerm || filterTeam || filterAccidentType || dateRange.start || dateRange.end)}
+        >
+          <StatusSelect
+            value={filterAccidentType || ''}
+            options={[
+              { value: '', label: 'All Accident Types', icon: 'ri-filter-line', bg: 'var(--bg-app)', color: 'var(--text-muted)' },
+              { value: 'Single Motor', label: 'Single Motor', icon: 'ri-motorbike-line', bg: '#dbeafe', color: '#1d4ed8' },
+              { value: 'Truck', label: 'Truck', icon: 'ri-truck-line', bg: '#ffedd5', color: '#c2410c' },
+              { value: 'Jeep', label: 'Jeep', icon: 'ri-car-line', bg: '#fef3c7', color: '#b45309' },
+              { value: 'Self Accident', label: 'Self Accident', icon: 'ri-user-unfollow-line', bg: '#f3e8ff', color: '#6b21a8' },
+              { value: 'Collision', label: 'Collision', icon: 'ri-error-warning-line', bg: '#fee2e2', color: '#b91c1c' },
+              { value: 'Hit and Run', label: 'Hit and Run', icon: 'ri-run-line', bg: '#fecaca', color: '#991b1b' },
+              { value: 'Other', label: 'Other', icon: 'ri-question-line', bg: '#f3f4f6', color: '#374151' }
+            ]}
+            onChange={v => { setFilterAccidentType(v); setCurrentPage(1) }}
+            minWidth="180px"
+          />
+        </ModuleToolbar>
       )}
 
       {incidents.length === 0 ? (
@@ -684,7 +876,23 @@ export default function Incidents() {
                     ) : '-'}
                   </td>
                   <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: '600' }}>
-                    {incident.nature_of_incident || '-'}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span>{incident.nature_of_incident || '-'}</span>
+                      {(incident.type_of_accident || (incident.nature_of_incident && incident.nature_of_incident.toLowerCase().includes('vehic'))) && (
+                        <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '600' }}>
+                          • {incident.type_of_accident || (() => {
+                               const combined = (incident.nature_of_incident || '').toLowerCase()
+                               if (combined.includes('motor') || combined.includes('mc') || combined.includes('single')) return 'Single Motor'
+                               if (combined.includes('truck')) return 'Truck'
+                               if (combined.includes('jeep')) return 'Jeep'
+                               if (combined.includes('self')) return 'Self Accident'
+                               if (combined.includes('collision') || combined.includes('collide') || combined.includes('coll')) return 'Collision'
+                               if (combined.includes('hit') && (combined.includes('run') || combined.includes('rn') || combined.includes('un'))) return 'Hit and Run'
+                               return 'Other'
+                             })()}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {incident.name || '-'}
@@ -854,6 +1062,27 @@ export default function Incidents() {
                       </select>
                     </div>
                   </div>
+                  {formData.nature_of_incident && formData.nature_of_incident.toLowerCase().includes('vehic') && (
+                    <div className="form-group" style={{ marginBottom: '12px' }}>
+                      <label style={{ marginBottom: '4px', fontWeight: '600' }}>TYPE OF VEHICULAR ACCIDENT *</label>
+                      <select
+                        name="type_of_accident"
+                        value={formData.type_of_accident}
+                        onChange={handleInputChange}
+                        required
+                        style={{ padding: '8px', width: '100%' }}
+                      >
+                        <option value="">Select Type of Accident...</option>
+                        <option value="Single Motor">Single Motor</option>
+                        <option value="Truck">Truck</option>
+                        <option value="Jeep">Jeep</option>
+                        <option value="Self Accident">Self Accident</option>
+                        <option value="Collision">Collision</option>
+                        <option value="Hit and Run">Hit and Run</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  )}
                   <div className="form-group" style={{ marginBottom: '8px' }}>
                     <label style={{ marginBottom: '4px', fontWeight: '600' }}>Injury / Illness Complaint</label>
                     <textarea name="injury_illness_complaint" value={formData.injury_illness_complaint} onChange={handleInputChange} rows={3} placeholder="Describe injuries or complaints..." style={{ padding: '6px' }} />
@@ -1226,6 +1455,9 @@ export default function Incidents() {
                                                           errs.push('Age is required.')
                   if (!formData.address?.trim())          errs.push('Address is required.')
                   if (!formData.nature_of_incident?.trim()) errs.push('Nature of Incident is required.')
+                  if (formData.nature_of_incident && formData.nature_of_incident.toLowerCase().includes('vehic') && !formData.type_of_accident) {
+                    errs.push('Type of Vehicular Accident is required.')
+                  }
                 }
                 if (activeTab === 'time') {
                   // compare HH:MM strings — lexicographic comparison works for time

@@ -148,6 +148,11 @@ export default function DrrmTraining() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
+    if (name === 'contact_number') {
+      const digitsOnly = value.replace(/\D/g, '').slice(0, 11)
+      setFormData(prev => ({ ...prev, [name]: digitsOnly }))
+      return
+    }
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
@@ -407,7 +412,18 @@ export default function DrrmTraining() {
               <div className="form-row" style={{ gap: '12px' }}>
                 <div className="form-group">
                   <label>Contact Number *</label>
-                  <input type="tel" name="contact_number" value={formData.contact_number} onChange={handleInputChange} required placeholder="e.g. 09171234567" />
+                  <input
+                    type="tel"
+                    name="contact_number"
+                    value={formData.contact_number}
+                    onChange={handleInputChange}
+                    required
+                    inputMode="numeric"
+                    maxLength={11}
+                    pattern="0[0-9]{9,10}"
+                    title="Enter a valid PH mobile number (10–11 digits starting with 0, e.g. 09171234567)"
+                    placeholder="e.g. 09171234567"
+                  />
                 </div>
                 <div className="form-group">
                   <label>Email Address</label>
