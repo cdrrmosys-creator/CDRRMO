@@ -14,7 +14,7 @@ import { usePermissions } from '../../hooks/usePermissions'
 import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
 
-const GENDER_OPTIONS = ['Male', 'Female', 'Prefer not to say']
+const GENDER_OPTIONS = ['Male', 'Female', 'LGBTQ+', 'Preferred Not to Say']
 const CIVIL_STATUS_OPTIONS = ['Single', 'Married', 'Separated', 'Widowed', "It's Complicated"]
 
 const INITIAL_FORM_STATE = {
@@ -123,6 +123,17 @@ export default function DrrmTraining() {
     setIsEditing(true); setIsViewing(false); setSelectedId(rec.id)
     const rawSuffix = (rec.suffix || '').trim()
     const cleanSuffix = JUNK_SUFFIXES.has(rawSuffix.toLowerCase()) ? 'N/A' : rawSuffix
+    
+    // Normalize gender to proper case
+    let normalizedGender = rec.gender || ''
+    if (normalizedGender) {
+      const lower = normalizedGender.toLowerCase()
+      if (lower === 'male') normalizedGender = 'Male'
+      else if (lower === 'female') normalizedGender = 'Female'
+      else if (lower === 'lgbtq+') normalizedGender = 'LGBTQ+'
+      else if (lower === 'preferred not to say' || lower === 'prefer not to say') normalizedGender = 'Preferred Not to Say'
+    }
+
     setFormData({
       record_id:           rec.record_id || '',
       timestamp:           rec.timestamp || '',
@@ -131,7 +142,7 @@ export default function DrrmTraining() {
       last_name:           rec.last_name || '',
       suffix:              cleanSuffix,
       name_on_certificate: rec.name_on_certificate || '',
-      gender:              rec.gender || '',
+      gender:              normalizedGender,
       contact_number:      rec.contact_number || '',
       email_address:       rec.email_address || '',
       office:              rec.office || '',
@@ -205,10 +216,29 @@ export default function DrrmTraining() {
 
   const { currentPage, setCurrentPage, pageSize, setPageSize, totalPages, safePage, pagedRecords } = useListPagination(filteredRecords)
 
-  const getGenderBadge = (g) => {
-    const map = { Male: { bg: '#dbeafe', color: '#1e40af' }, Female: { bg: '#fce7f3', color: '#9d174d' }, 'Prefer not to say': { bg: '#f3f4f6', color: '#374151' } }
-    const s = map[g] || { bg: '#f3f4f6', color: '#374151' }
-    return <span style={{ padding: '3px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: s.bg, color: s.color }}>{g || '-'}</span>
+  const getGenderBadge = (gender) => {
+    if (!gender) return <span style={{ padding: '3px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: '#f3f4f6', color: '#374151' }}>-</span>
+    
+    // Normalize gender to proper case for display
+    const normalized = gender.toLowerCase()
+    let displayValue = gender
+    let colorScheme = { bg: '#f3f4f6', color: '#374151' }
+    
+    if (normalized === 'male') {
+      displayValue = 'Male'
+      colorScheme = { bg: '#dbeafe', color: '#1e40af' }
+    } else if (normalized === 'female') {
+      displayValue = 'Female'
+      colorScheme = { bg: '#fce7f3', color: '#9d174d' }
+    } else if (normalized === 'lgbtq+') {
+      displayValue = 'LGBTQ+'
+      colorScheme = { bg: '#ede9fe', color: '#5b21b6' }
+    } else if (normalized === 'preferred not to say' || normalized === 'prefer not to say') {
+      displayValue = 'Preferred Not to Say'
+      colorScheme = { bg: '#f3f4f6', color: '#374151' }
+    }
+    
+    return <span style={{ padding: '3px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: colorScheme.bg, color: colorScheme.color }}>{displayValue}</span>
   }
 
   const handlePrintPDF = () => {
