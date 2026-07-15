@@ -136,6 +136,36 @@ const INCIDENT_EXPORT_HEADERS = {
   remarks: 'Remarks', photos: 'Photo URLs',
 }
 
+const checkIsVehicular = (item) => {
+  const typeStr = (item.type_of_accident || '').toLowerCase()
+  const nature = (item.nature_of_incident || '').toLowerCase()
+  const vehicleStr = (item.vehicle || '').trim().toLowerCase()
+  const hasVehicle = vehicleStr.length > 0 && vehicleStr !== 'n/a' && vehicleStr !== 'none' && vehicleStr !== '-'
+  
+  return hasVehicle ||
+         nature.includes('vehic') || 
+         typeStr.includes('motor') || 
+         typeStr.includes('truck') || 
+         typeStr.includes('jeep') || 
+         typeStr.includes('coll') || 
+         typeStr.includes('hit') || 
+         typeStr.includes('self') ||
+         typeStr.includes('tricycle') ||
+         typeStr.includes('kolong') ||
+         typeStr.includes('trike') ||
+         nature.includes('tricycle') ||
+         nature.includes('kolong') ||
+         nature.includes('trike') ||
+         nature.includes('overshoot') ||
+         nature.includes('over shoot') ||
+         typeStr.includes('overshoot') ||
+         typeStr.includes('over shoot') ||
+         nature.includes('hit by') ||
+         nature.includes('hit while') ||
+         nature.includes('fall asleep') ||
+         nature.includes('fell asleep')
+}
+
 export default function Incidents() {
   const [incidents, setIncidents] = useState([])
   const [loading, setLoading] = useState(true)
@@ -161,7 +191,9 @@ export default function Incidents() {
   // Toolbar / filter states
   const [searchTerm, setSearchTerm] = useState('')
   const [filterTeam, setFilterTeam] = useState('')
+  const [filterVehicularState, setFilterVehicularState] = useState('')
   const [filterAccidentType, setFilterAccidentType] = useState('')
+  const [filterVehicleType, setFilterVehicleType] = useState('')
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
 
   const [isExportOpen, setIsExportOpen] = useState(false)
@@ -190,14 +222,19 @@ export default function Incidents() {
     }
   }
 
-  const accidentTypeData = useMemo(() => {
-    const counts = {
-      'Single Motor': 0,
-      'Truck': 0,
-      'Jeep': 0,
+  const vehicularAnalyticsData = useMemo(() => {
+    const accidentCounts = {
       'Self Accident': 0,
       'Collision': 0,
       'Hit and Run': 0,
+      'Pedestrian Hit': 0,
+      'Other': 0
+    }
+    const vehicleCounts = {
+      'Single Motor': 0,
+      'Tricycle/Kolong-kolong': 0,
+      'Truck': 0,
+      'Jeep': 0,
       'Other': 0
     }
     
@@ -205,43 +242,54 @@ export default function Incidents() {
     incidents.forEach(item => {
       const typeStr = (item.type_of_accident || '').toLowerCase()
       const nature = (item.nature_of_incident || '').toLowerCase()
+      const vehicleStr = (item.vehicle || '').toLowerCase()
       
-      const isVehicular = nature.includes('vehic') || 
-                          typeStr.includes('motor') || 
-                          typeStr.includes('truck') || 
-                          typeStr.includes('jeep') || 
-                          typeStr.includes('coll') || 
-                          typeStr.includes('hit') || 
-                          typeStr.includes('self')
+      const isVehicular = checkIsVehicular(item)
 
       if (isVehicular) {
         totalVehicular++
         
-        const combined = `${typeStr} ${nature}`
-        if (combined.includes('motor') || combined.includes('mc') || combined.includes('single')) {
-          counts['Single Motor']++
-        } else if (combined.includes('truck')) {
-          counts['Truck']++
-        } else if (combined.includes('jeep')) {
-          counts['Jeep']++
-        } else if (combined.includes('self')) {
-          counts['Self Accident']++
-        } else if (combined.includes('collision') || combined.includes('collide') || combined.includes('coll')) {
-          counts['Collision']++
-        } else if (combined.includes('hit') && (combined.includes('run') || combined.includes('rn') || combined.includes('un'))) {
-          counts['Hit and Run']++
+        const eventCombined = `${typeStr} ${nature}`
+        const vehicleCombined = `${typeStr} ${nature} ${vehicleStr}`
+
+        // 1. Detect Accident Type
+        if (eventCombined.includes('hit') && (eventCombined.includes('run') || eventCombined.includes('rn'))) {
+          accidentCounts['Hit and Run']++
+        } else if (eventCombined.includes('hit by') || eventCombined.includes('hit while')) {
+          accidentCounts['Pedestrian Hit']++
+        } else if (eventCombined.includes('self') || eventCombined.includes('overshoot') || eventCombined.includes('over shoot') || eventCombined.includes('fall asleep') || eventCombined.includes('fell asleep')) {
+          accidentCounts['Self Accident']++
+        } else if (eventCombined.includes('collision') || eventCombined.includes('collide') || eventCombined.includes('coll')) {
+          accidentCounts['Collision']++
         } else {
-          counts['Other']++
+          accidentCounts['Other']++
+        }
+
+        // 2. Detect Vehicle Type
+        if (vehicleCombined.includes('motor') || vehicleCombined.includes('mc') || vehicleCombined.includes('single')) {
+          vehicleCounts['Single Motor']++
+        } else if (vehicleCombined.includes('tricycle') || vehicleCombined.includes('trike') || vehicleCombined.includes('kolong') || vehicleCombined.includes('klg')) {
+          vehicleCounts['Tricycle/Kolong-kolong']++
+        } else if (vehicleCombined.includes('truck')) {
+          vehicleCounts['Truck']++
+        } else if (vehicleCombined.includes('jeep')) {
+          vehicleCounts['Jeep']++
+        } else {
+          vehicleCounts['Other']++
         }
       }
     })
     
     return {
       total: totalVehicular,
-      chartData: Object.keys(counts).map(key => ({
+      accidentTypeData: Object.keys(accidentCounts).map(key => ({
         name: key,
-        count: counts[key]
-      }))
+        count: accidentCounts[key]
+      })).sort((a, b) => b.count - a.count),
+      vehicleTypeData: Object.keys(vehicleCounts).map(key => ({
+        name: key,
+        count: vehicleCounts[key]
+      })).sort((a, b) => b.count - a.count)
     }
   }, [incidents])
 
@@ -274,39 +322,65 @@ export default function Incidents() {
     }
 
     const matchesSeverity = true  // severity not filtered — use team filter below
+    let matchesVehicularState = true
+    if (filterVehicularState === 'vehicular') {
+      matchesVehicularState = checkIsVehicular(item)
+    } else if (filterVehicularState === 'non-vehicular') {
+      matchesVehicularState = !checkIsVehicular(item)
+    }
 
     const matchesAccidentType = !filterAccidentType
       || (() => {
            const typeStr = (item.type_of_accident || '').toLowerCase()
            const nature = (item.nature_of_incident || '').toLowerCase()
-           const combined = `${typeStr} ${nature}`
+           const eventCombined = `${typeStr} ${nature}`
            
            const detectedType = (() => {
-             if (combined.includes('motor') || combined.includes('mc') || combined.includes('single')) {
-               return 'Single Motor'
+             if (eventCombined.includes('hit') && (eventCombined.includes('run') || eventCombined.includes('rn'))) {
+               return 'Hit and Run'
              }
-             if (combined.includes('truck')) {
-               return 'Truck'
+             if (eventCombined.includes('hit by') || eventCombined.includes('hit while')) {
+               return 'Pedestrian Hit'
              }
-             if (combined.includes('jeep')) {
-               return 'Jeep'
-             }
-             if (combined.includes('self')) {
+             if (eventCombined.includes('self') || eventCombined.includes('overshoot') || eventCombined.includes('over shoot') || eventCombined.includes('fall asleep') || eventCombined.includes('fell asleep')) {
                return 'Self Accident'
              }
-             if (combined.includes('collision') || combined.includes('collide') || combined.includes('coll')) {
+             if (eventCombined.includes('collision') || eventCombined.includes('collide') || eventCombined.includes('coll')) {
                return 'Collision'
-             }
-             if (combined.includes('hit') && (combined.includes('run') || combined.includes('rn') || combined.includes('un'))) {
-               return 'Hit and Run'
              }
              return 'Other'
            })()
-
+ 
            return detectedType === filterAccidentType
          })()
 
-    return matchesSearch && matchesTeam && matchesSeverity && matchesDate && matchesAccidentType
+    const matchesVehicleType = !filterVehicleType
+      || (() => {
+           const typeStr = (item.type_of_accident || '').toLowerCase()
+           const nature = (item.nature_of_incident || '').toLowerCase()
+           const vehicleStr = (item.vehicle || '').toLowerCase()
+           const vehicleCombined = `${typeStr} ${nature} ${vehicleStr}`
+           
+           const detectedVehicle = (() => {
+             if (vehicleCombined.includes('motor') || vehicleCombined.includes('mc') || vehicleCombined.includes('single')) {
+               return 'Single Motor'
+             }
+             if (vehicleCombined.includes('tricycle') || vehicleCombined.includes('trike') || vehicleCombined.includes('kolong') || vehicleCombined.includes('klg')) {
+               return 'Tricycle/Kolong-kolong'
+             }
+             if (vehicleCombined.includes('truck')) {
+               return 'Truck'
+             }
+             if (vehicleCombined.includes('jeep')) {
+               return 'Jeep'
+             }
+             return 'Other'
+           })()
+ 
+           return detectedVehicle === filterVehicleType
+         })()
+
+    return matchesSearch && matchesTeam && matchesSeverity && matchesDate && matchesVehicularState && matchesAccidentType && matchesVehicleType
   }).sort((a, b) => {
     const da = new Date(a.date || a.created_at || 0)
     const db = new Date(b.date || b.created_at || 0)
@@ -675,7 +749,7 @@ export default function Incidents() {
       </div>
 
       {/* Vehicular Incident Analytics */}
-      {incidents.length > 0 && accidentTypeData.total > 0 && (
+      {incidents.length > 0 && vehicularAnalyticsData.total > 0 && (
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
@@ -704,7 +778,7 @@ export default function Incidents() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '20px 0' }}>
               <div>
                 <div style={{ fontSize: '36px', fontWeight: '800', color: 'var(--primary)' }}>
-                  {accidentTypeData.total}
+                  {vehicularAnalyticsData.total}
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>
                   Total Vehicular Incidents
@@ -712,7 +786,7 @@ export default function Incidents() {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                  {((accidentTypeData.total / incidents.length) * 100).toFixed(1)}%
+                  {((vehicularAnalyticsData.total / incidents.length) * 100).toFixed(1)}%
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>
                   Of All Incident Types
@@ -722,11 +796,11 @@ export default function Incidents() {
 
             <div style={{ fontSize: '12px', color: 'var(--text-muted)', borderTop: '1px solid var(--border-light)', paddingTop: '10px' }}>
               <i className="ri-info-circle-line" style={{ marginRight: '4px', color: 'var(--primary)' }}></i>
-              Select any vehicle type filter below to view matching records in detail.
+              Select any accident type or vehicle type filter below to view matching records.
             </div>
           </div>
 
-          {/* Card 2: Chart Breakdown */}
+          {/* Card 2: Accident Type Chart Breakdown */}
           <div style={{
             background: 'var(--bg-surface)',
             border: '1px solid var(--border-light)',
@@ -739,18 +813,61 @@ export default function Incidents() {
               Accident Type Distribution
             </h3>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart layout="vertical" data={accidentTypeData.chartData} margin={{ top: 5, right: 15, left: 10, bottom: 5 }}>
+              <BarChart layout="vertical" data={vehicularAnalyticsData.accidentTypeData} margin={{ top: 5, right: 15, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} />
-                <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} width={95} interval={0} />
+                <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} width={110} interval={0} />
                 <Tooltip
                   contentStyle={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '12px' }}
                   formatter={(value) => [value, 'Incidents']}
                 />
                 <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-                  {accidentTypeData.chartData.map((entry, index) => {
-                    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6b7280']
-                    return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                  {vehicularAnalyticsData.accidentTypeData.map((entry, index) => {
+                    const colorMap = {
+                      'Self Accident':  '#8b5cf6',
+                      'Collision':      '#ec4899',
+                      'Hit and Run':    '#ef4444',
+                      'Pedestrian Hit': '#eab308',
+                      'Other':          '#6b7280',
+                    }
+                    return <Cell key={`cell-${index}`} fill={colorMap[entry.name] || '#6b7280'} />
+                  })}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Card 3: Vehicle Type Chart Breakdown */}
+          <div style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-light)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '20px 24px',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
+            <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)' }}>
+              <i className="ri-bar-chart-line" style={{ marginRight: '8px', color: 'var(--primary)' }}></i>
+              Vehicle Type Distribution
+            </h3>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart layout="vertical" data={vehicularAnalyticsData.vehicleTypeData} margin={{ top: 5, right: 15, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} />
+                <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} width={140} interval={0} />
+                <Tooltip
+                  contentStyle={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '12px' }}
+                  formatter={(value) => [value, 'Incidents']}
+                />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                  {vehicularAnalyticsData.vehicleTypeData.map((entry, index) => {
+                    const colorMap = {
+                      'Single Motor':           '#3b82f6',
+                      'Tricycle/Kolong-kolong': '#06b6d4',
+                      'Truck':                  '#10b981',
+                      'Jeep':                   '#f59e0b',
+                      'Other':                  '#6b7280',
+                    }
+                    return <Cell key={`cell-${index}`} fill={colorMap[entry.name] || '#6b7280'} />
                   })}
                 </Bar>
               </BarChart>
@@ -768,7 +885,7 @@ export default function Incidents() {
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
           onPrintClick={handlePrintPDF}
-          onClearFilters={() => { setSearchTerm(''); setFilterTeam(''); setFilterAccidentType(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
+          onClearFilters={() => { setSearchTerm(''); setFilterTeam(''); setFilterVehicularState(''); setFilterAccidentType(''); setFilterVehicleType(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
           filterLabel="All Teams"
           filterOptions={[
             { label: 'Alpha',   value: 'Alpha' },
@@ -784,23 +901,54 @@ export default function Incidents() {
             'Delta':   { bg: '#fee2e2', color: '#991b1b', icon: 'ri-team-line' },
             'Other':   { bg: '#f3f4f6', color: '#374151', icon: 'ri-team-line' },
           }}
-          hasActiveFilters={Boolean(searchTerm || filterTeam || filterAccidentType || dateRange.start || dateRange.end)}
+          hasActiveFilters={Boolean(searchTerm || filterTeam || filterVehicularState || filterAccidentType || filterVehicleType || dateRange.start || dateRange.end)}
         >
           <StatusSelect
-            value={filterAccidentType || ''}
+            value={filterVehicularState || ''}
             options={[
-              { value: '', label: 'All Accident Types', icon: 'ri-filter-line', bg: 'var(--bg-app)', color: 'var(--text-muted)' },
+              { value: '', label: 'All Incident Types', icon: 'ri-filter-line', bg: 'var(--bg-app)', color: 'var(--text-muted)' },
+              { value: 'vehicular', label: 'Vehicular Accident', icon: 'ri-roadster-line', bg: '#eff6ff', color: '#1d4ed8' },
+              { value: 'non-vehicular', label: 'Non-Vehicular Incident', icon: 'ri-heart-pulse-line', bg: '#fef2f2', color: '#dc2626' }
+            ]}
+            onChange={v => {
+              setFilterVehicularState(v);
+              if (v === 'non-vehicular') {
+                setFilterAccidentType('');
+                setFilterVehicleType('');
+              }
+              setCurrentPage(1);
+            }}
+            minWidth="175px"
+          />
+          {filterVehicularState !== 'non-vehicular' && (
+            <>
+              <StatusSelect
+                value={filterAccidentType || ''}
+                options={[
+                  { value: '', label: 'All Accident Types', icon: 'ri-filter-line', bg: 'var(--bg-app)', color: 'var(--text-muted)' },
+                  { value: 'Self Accident', label: 'Self Accident', icon: 'ri-user-unfollow-line', bg: '#f3e8ff', color: '#6b21a8' },
+                  { value: 'Collision', label: 'Collision', icon: 'ri-error-warning-line', bg: '#fee2e2', color: '#b91c1c' },
+                  { value: 'Hit and Run', label: 'Hit and Run', icon: 'ri-run-line', bg: '#fecaca', color: '#991b1b' },
+                  { value: 'Pedestrian Hit', label: 'Pedestrian Hit', icon: 'ri-walk-line', bg: '#fef9c3', color: '#854d0e' },
+                  { value: 'Other', label: 'Other', icon: 'ri-question-line', bg: '#f3f4f6', color: '#374151' }
+                ]}
+                onChange={v => { setFilterAccidentType(v); setCurrentPage(1) }}
+                minWidth="185px"
+              />
+              <StatusSelect
+                value={filterVehicleType || ''}
+                options={[
+                  { value: '', label: 'All Vehicle Types', icon: 'ri-filter-line', bg: 'var(--bg-app)', color: 'var(--text-muted)' },
               { value: 'Single Motor', label: 'Single Motor', icon: 'ri-motorbike-line', bg: '#dbeafe', color: '#1d4ed8' },
+              { value: 'Tricycle/Kolong-kolong', label: 'Tricycle/Kolong-kolong', icon: 'ri-taxi-line', bg: '#d1fae5', color: '#065f46' },
               { value: 'Truck', label: 'Truck', icon: 'ri-truck-line', bg: '#ffedd5', color: '#c2410c' },
               { value: 'Jeep', label: 'Jeep', icon: 'ri-car-line', bg: '#fef3c7', color: '#b45309' },
-              { value: 'Self Accident', label: 'Self Accident', icon: 'ri-user-unfollow-line', bg: '#f3e8ff', color: '#6b21a8' },
-              { value: 'Collision', label: 'Collision', icon: 'ri-error-warning-line', bg: '#fee2e2', color: '#b91c1c' },
-              { value: 'Hit and Run', label: 'Hit and Run', icon: 'ri-run-line', bg: '#fecaca', color: '#991b1b' },
               { value: 'Other', label: 'Other', icon: 'ri-question-line', bg: '#f3f4f6', color: '#374151' }
             ]}
-            onChange={v => { setFilterAccidentType(v); setCurrentPage(1) }}
+            onChange={v => { setFilterVehicleType(v); setCurrentPage(1) }}
             minWidth="180px"
           />
+          </>)}
         </ModuleToolbar>
       )}
 
@@ -881,15 +1029,23 @@ export default function Incidents() {
                       {(incident.type_of_accident || (incident.nature_of_incident && incident.nature_of_incident.toLowerCase().includes('vehic'))) && (
                         <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '600' }}>
                           • {incident.type_of_accident || (() => {
-                               const combined = (incident.nature_of_incident || '').toLowerCase()
-                               if (combined.includes('motor') || combined.includes('mc') || combined.includes('single')) return 'Single Motor'
-                               if (combined.includes('truck')) return 'Truck'
-                               if (combined.includes('jeep')) return 'Jeep'
-                               if (combined.includes('self')) return 'Self Accident'
-                               if (combined.includes('collision') || combined.includes('collide') || combined.includes('coll')) return 'Collision'
-                               if (combined.includes('hit') && (combined.includes('run') || combined.includes('rn') || combined.includes('un'))) return 'Hit and Run'
+                               const eventCombined = (incident.nature_of_incident || '').toLowerCase() + ' ' + (incident.type_of_accident || '').toLowerCase()
+                               const vehicleCombined = eventCombined + ' ' + (incident.vehicle || '').toLowerCase()
+                               if (eventCombined.includes('hit') && (eventCombined.includes('run') || eventCombined.includes('rn'))) return 'Hit and Run'
+                               if (eventCombined.includes('hit by') || eventCombined.includes('hit while')) return 'Pedestrian Hit'
+                               if (eventCombined.includes('self') || eventCombined.includes('overshoot') || eventCombined.includes('over shoot') || eventCombined.includes('fall asleep') || eventCombined.includes('fell asleep')) return 'Self Accident'
+                               if (eventCombined.includes('collision') || eventCombined.includes('collide') || eventCombined.includes('coll')) return 'Collision'
+                               if (vehicleCombined.includes('motor') || vehicleCombined.includes('mc') || vehicleCombined.includes('single')) return 'Single Motor'
+                               if (vehicleCombined.includes('truck')) return 'Truck'
+                               if (vehicleCombined.includes('jeep')) return 'Jeep'
+                               if (vehicleCombined.includes('tricycle') || vehicleCombined.includes('trike') || vehicleCombined.includes('kolong') || vehicleCombined.includes('klg')) return 'Tricycle/Kolong-kolong'
                                return 'Other'
                              })()}
+                        </span>
+                      )}
+                      {incident.vehicle && (
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                          • {incident.vehicle}
                         </span>
                       )}
                     </div>
@@ -1076,9 +1232,11 @@ export default function Incidents() {
                         <option value="Single Motor">Single Motor</option>
                         <option value="Truck">Truck</option>
                         <option value="Jeep">Jeep</option>
-                        <option value="Self Accident">Self Accident</option>
+                        <option value="Tricycle/Kolong-kolong">Tricycle / Kolong-kolong</option>
+                        <option value="Self Accident">Self Accident (incl. Overshoot)</option>
                         <option value="Collision">Collision</option>
                         <option value="Hit and Run">Hit and Run</option>
+                        <option value="Pedestrian Hit">Pedestrian Hit</option>
                         <option value="Other">Other</option>
                       </select>
                     </div>
