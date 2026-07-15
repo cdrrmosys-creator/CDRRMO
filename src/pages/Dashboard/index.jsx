@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase, supabaseAdmin } from '../../services/supabase'
 import { useAuthStore } from '../../stores/useAuthStore'
@@ -217,27 +217,164 @@ export default function Dashboard() {
   const { user } = useAuthStore()
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading]         = useState(true)
-  const [counts, setCounts]           = useState({})
-  
-  const [empStatusData, setEmpStatus] = useState([])
-  const [incTeamData, setIncTeam]     = useState([])
-  
-  const [assistData, setAssistData]   = useState([])
-  const [voucherData, setVoucherData] = useState([])
-  
+  const [rawData, setRawData] = useState({
+    employees: [],
+    volunteers: [],
+    incidents: [],
+    drowning: [],
+    transport: [],
+    pruning: [],
+    eventsAssistance: [],
+    vouchers: [],
+    calendarEvents: [],
+    calendarEventsRecent: [],
+    aggregatedEvents: []
+  })
+
   const [chartData, setChartData]     = useState([])
   const [trendPeriod, setTrendPeriod] = useState('month')
   const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'))
-  const [selectedYear, setSelectedYear] = useState('2025')
-  
-  const [allIncidents, setAllIncidents] = useState([])
-  
-  const [recentInc, setRecentInc]     = useState([])
-  const [recentReq, setRecentReq]     = useState([])
-  const [calendarEvents, setCalendarEvents] = useState({ all: [], recent: [] })
-  const [aggregatedEvents, setAggregatedEvents] = useState([])
-  const [recentAggregatedEvents, setRecentAggregatedEvents] = useState([])
+  const [selectedYear, setSelectedYear] = useState('all')
+  const [trendYear, setTrendYear] = useState('2025')
   const [hoveredDay, setHoveredDay] = useState(null)
+
+  const getRecordYear = (dateStr) => {
+    if (!dateStr) return ''
+    const cleanStr = String(dateStr).trim()
+    if (cleanStr.length >= 4) {
+      const y = cleanStr.substring(0, 4)
+      if (!isNaN(y) && parseInt(y) >= 2000 && parseInt(y) <= 2100) return y
+    }
+    try {
+      const d = new Date(dateStr)
+      if (!isNaN(d.getTime())) return String(d.getFullYear())
+    } catch (e) {}
+    return ''
+  }
+
+  const {
+    counts,
+    empStatusData,
+    incTeamData,
+    recentInc,
+    assistData,
+    voucherData,
+    recentReq,
+    aggregatedEvents,
+    recentAggregatedEvents,
+    calendarEvents
+  } = useMemo(() => {
+    const byYear = selectedYear === 'all'
+    const filteredIncidents = byYear ? rawData.incidents : rawData.incidents.filter(item => getRecordYear(item.date) === selectedYear)
+    const filteredDrowning = byYear ? rawData.drowning : rawData.drowning.filter(item => getRecordYear(item.date) === selectedYear)
+    const filteredTransport = byYear ? rawData.transport : rawData.transport.filter(item => getRecordYear(item.date_time || item.date) === selectedYear)
+    const filteredPruning = byYear ? rawData.pruning : rawData.pruning.filter(item => getRecordYear(item.date_of_request || item.date) === selectedYear)
+    const filteredEventsAssistance = byYear ? rawData.eventsAssistance : rawData.eventsAssistance.filter(item => getRecordYear(item.date) === selectedYear)
+    const filteredVouchers = byYear ? rawData.vouchers : rawData.vouchers.filter(item => getRecordYear(item.date) === selectedYear)
+    
+    const filteredAggregated = byYear ? rawData.aggregatedEvents : rawData.aggregatedEvents.filter(item => getRecordYear(item.date) === selectedYear)
+    const recentAggregated = [...filteredAggregated].slice(0, 5)
+
+    const totalPersonnel = (rawData.employees.length || 0) + (rawData.volunteers.filter(v => v.status !== 'Inactive' && v.status !== 'Expired').length || 0)
+    
+    const eg = groupBy(rawData.employees, 'duty_status')
+    const activeVolunteers = rawData.volunteers.filter(v => v.status !== 'Inactive' && v.status !== 'Expired').length
+    const empStatus = [
+      { name:'On Duty',  value: eg['On Duty']  || 0 },
+      { name:'Off Duty', value: eg['Off Duty'] || 0 },
+      { name:'Active Volunteers', value: activeVolunteers },
+    ]
+
+    const normalizeTeam = (val) => {
+      if (!val) return 'Others'
+      const v = String(val).trim()
+      const map = { alpha: 'Alpha', bravo: 'Bravo', charlie: 'Charlie', delta: 'Delta' }
+      return map[v.toLowerCase()] || v
+    }
+    const normalizedInc = filteredIncidents.map(r => ({ ...r, _team: normalizeTeam(r.team) }))
+    const tg = groupBy(normalizedInc, '_team')
+    const knownTeams = ['Alpha', 'Bravo', 'Charlie', 'Delta']
+    const othersCount = Object.entries(tg).filter(([k]) => !knownTeams.includes(k)).reduce((s, [, v]) => s + v, 0)
+    const incTeam = [
+      { name: 'Alpha',   value: tg['Alpha']   || 0, fill: TEAM_PALETTE.Alpha },
+      { name: 'Bravo',   value: tg['Bravo']   || 0, fill: TEAM_PALETTE.Bravo },
+      { name: 'Charlie', value: tg['Charlie'] || 0, fill: TEAM_PALETTE.Charlie },
+      { name: 'Delta',   value: tg['Delta']   || 0, fill: TEAM_PALETTE.Delta },
+      { name: 'Others',  value: othersCount,         fill: TEAM_PALETTE.Unknown },
+    ]
+
+    const assist = [
+      { name: 'Transport', value: filteredTransport.length },
+      { name: 'Pruning', value: filteredPruning.length },
+      { name: 'Events', value: filteredEventsAssistance.length }
+    ]
+
+    const vMap = {}
+    filteredVouchers.forEach(v => {
+      if(!v.date) return
+      const m = format(new Date(v.date), 'MMM yyyy')
+      const val = typeof v.amount === 'string' ? parseFloat(v.amount.replace(/[^0-9.-]+/g,"")) : (v.amount || 0)
+      vMap[m] = (vMap[m] || 0) + val
+    })
+    const vArr = Object.keys(vMap).map(k => ({ name: k, amount: vMap[k] }))
+    vArr.sort((a,b) => new Date(a.name) - new Date(b.name))
+    const voucher = vArr.slice(-6)
+
+    const reqList = [
+      ...filteredTransport.map(r => ({ date: r.date_time, title: 'Transport: ' + (r.patient_name || 'Patient'), location: r.destination, type: 'Transport', icon: 'ri-taxi-line' })),
+      ...filteredPruning.map(r => ({ date: r.date_of_request, title: 'Pruning & Trimming', location: r.location, type: 'Pruning', icon: 'ri-scissors-line' })),
+      ...filteredEventsAssistance.map(r => ({ date: r.date, title: 'Event: ' + (r.event_name || 'Event'), location: r.location, type: 'Event', icon: 'ri-calendar-event-line' }))
+    ]
+    reqList.sort((a,b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
+    const recentRequests = reqList.slice(0, 5)
+
+    const recentIncidents = [...filteredIncidents].slice(0, 5)
+
+    const filteredCalEvents = byYear ? rawData.calendarEvents : rawData.calendarEvents.filter(e => getRecordYear(e.start_date) === selectedYear)
+    const allCalEvents = filteredCalEvents.map(e => ({
+      event_title: e.event_title,
+      start_date: e.start_date,
+      end_date: e.end_date,
+      location: e.location,
+      event_type: e.event_type,
+      organizer: e.organizer
+    }))
+    const filteredCalEventsRecent = byYear ? rawData.calendarEventsRecent : rawData.calendarEventsRecent.filter(e => getRecordYear(e.start_date) === selectedYear)
+    const recentCalEvents = filteredCalEventsRecent.map(e => ({
+      event_title: e.event_title,
+      start_date: e.start_date,
+      end_date: e.end_date,
+      location: e.location,
+      event_type: e.event_type,
+      organizer: e.organizer
+    }))
+
+    return {
+      counts: {
+        personnel: totalPersonnel,
+        incidents: filteredIncidents.length + filteredDrowning.length,
+        transport: filteredTransport.length,
+        pruning: filteredPruning.filter(p => p.status === 'Pending').length,
+        events: filteredEventsAssistance.length,
+        vouchers: filteredVouchers.length
+      },
+      empStatusData: empStatus,
+      incTeamData: incTeam,
+      assistData: assist,
+      voucherData: voucher,
+      recentReq: recentRequests,
+      recentInc: recentIncidents,
+      aggregatedEvents: filteredAggregated,
+      recentAggregatedEvents: recentAggregated,
+      calendarEvents: { all: allCalEvents, recent: recentCalEvents }
+    }
+  }, [rawData, selectedYear])
+
+  // Trend chart always shows ALL incidents regardless of year filter
+  const allIncidents = useMemo(() => [
+    ...(rawData.incidents || []).map(i => ({ date: i.date || i.created_at, type: 'General' })),
+    ...(rawData.drowning || []).map(i => ({ date: i.date, type: 'Drowning' }))
+  ], [rawData])
 
   useEffect(() => { fetchAll() }, [])
 
@@ -254,8 +391,8 @@ export default function Dashboard() {
       start = new Date(y, m - 1, 1);
       end = new Date(y, m - 1 + 3, 0); // last day of 3rd month
     } else if (trendPeriod === 'month') {
-      start = new Date(selectedYear, 0, 1);
-      end = new Date(selectedYear, 11, 31);
+      start = new Date(trendYear, 0, 1);
+      end = new Date(trendYear, 11, 31);
     }
 
     start.setHours(0,0,0,0);
@@ -297,7 +434,7 @@ export default function Dashboard() {
     }
 
     setChartData(data.map(m => ({ label: m.label, Incidents: m.count })))
-  }, [allIncidents, trendPeriod, selectedMonth, selectedYear])
+  }, [allIncidents, trendPeriod, selectedMonth, trendYear])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -327,87 +464,8 @@ export default function Dashboard() {
         client.from('calendar_events').select('event_title, event_type, start_date, end_date, location, organizer').order('start_date', { ascending: false }).limit(5)
       ])
 
-      const totalPersonnel = (empC || 0) + (volC || 0)
-      const totalIncidents = (incD?.length || 0) + (drownD?.length || 0)
-      const pendingPruning = (pruneD || []).filter(p => p.status === 'Pending').length
-
-      setCounts({
-        personnel: totalPersonnel,
-        incidents: totalIncidents,
-        transport: transD?.length || 0,
-        pruning: pendingPruning,
-        events: evtsD?.length || 0,
-        vouchers: vouchD?.length || 0,
-      })
-
-      // Employee duty status + Active Volunteers
-      const eg = groupBy(empD, 'duty_status')
-      const activeVolunteers = (volD || []).length
-      setEmpStatus([
-        { name:'On Duty',  value: eg['On Duty']  || 0 },
-        { name:'Off Duty', value: eg['Off Duty'] || 0 },
-        { name:'Active Volunteers', value: activeVolunteers },
-      ])
-
-      // Incidents by team
-      const normalizeTeam = (val) => {
-        if (!val) return 'Others'
-        const v = String(val).trim()
-        const map = { alpha: 'Alpha', bravo: 'Bravo', charlie: 'Charlie', delta: 'Delta' }
-        return map[v.toLowerCase()] || v
-      }
-      const normalizedInc = (incD || []).map(r => ({ ...r, _team: normalizeTeam(r.team) }))
-      const tg = groupBy(normalizedInc, '_team')
-      const knownTeams = ['Alpha', 'Bravo', 'Charlie', 'Delta']
-      const othersCount = Object.entries(tg).filter(([k]) => !knownTeams.includes(k)).reduce((s, [, v]) => s + v, 0)
-      setIncTeam([
-        { name: 'Alpha',   value: tg['Alpha']   || 0, fill: TEAM_PALETTE.Alpha },
-        { name: 'Bravo',   value: tg['Bravo']   || 0, fill: TEAM_PALETTE.Bravo },
-        { name: 'Charlie', value: tg['Charlie'] || 0, fill: TEAM_PALETTE.Charlie },
-        { name: 'Delta',   value: tg['Delta']   || 0, fill: TEAM_PALETTE.Delta },
-        { name: 'Others',  value: othersCount,         fill: TEAM_PALETTE.Unknown },
-      ])
-
-      // Combine Incidents + Drowning for trend chart
-      const combinedInc = [
-        ...(incD || []).map(i => ({ date: i.date || i.created_at, type: 'General' })),
-        ...(drownD || []).map(i => ({ date: i.date, type: 'Drowning' }))
-      ]
-      setAllIncidents(combinedInc)
-      setRecentInc((incD || []).slice(0, 5))
-
-      // Assistance Pie Data
-      setAssistData([
-        { name: 'Transport', value: transD?.length || 0 },
-        { name: 'Pruning', value: pruneD?.length || 0 },
-        { name: 'Events', value: evtsD?.length || 0 }
-      ])
-
-      // Voucher Bar Data (Last 6 Months)
-      const vMap = {}
-      ;(vouchD || []).forEach(v => {
-        if(!v.date) return
-        const m = format(new Date(v.date), 'MMM yyyy')
-        const val = typeof v.amount === 'string' ? parseFloat(v.amount.replace(/[^0-9.-]+/g,"")) : (v.amount || 0)
-        vMap[m] = (vMap[m] || 0) + val
-      })
-      const vArr = Object.keys(vMap).map(k => ({ name: k, amount: vMap[k] }))
-      vArr.sort((a,b) => new Date(a.name) - new Date(b.name))
-      setVoucherData(vArr.slice(-6))
-
-      // Recent Service Requests Feed
-      const reqList = [
-        ...(transD || []).map(r => ({ date: r.date_time, title: 'Transport: ' + (r.patient_name || 'Patient'), location: r.destination, type: 'Transport', icon: 'ri-taxi-line' })),
-        ...(pruneD || []).map(r => ({ date: r.date_of_request, title: 'Pruning & Trimming', location: r.location, type: 'Pruning', icon: 'ri-scissors-line' })),
-        ...(evtsD || []).map(r => ({ date: r.date, title: 'Event: ' + (r.event_name || 'Event'), location: r.location, type: 'Event', icon: 'ri-calendar-event-line' }))
-      ]
-      reqList.sort((a,b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
-      setRecentReq(reqList.slice(0, 5))
-
-      // Aggregated Events from all modules (EXACT COPY from CalendarEvents module)
       const events = []
       
-      // Load Calendar Events
       if (calEventsD) {
         calEventsD.forEach(e => {
           events.push({
@@ -423,14 +481,13 @@ export default function Dashboard() {
         })
       }
 
-      // Load Transport Bookings (uses date_time field)
       const { data: transportData } = await client.from('transport').select('*')
       if (transportData) {
         transportData.forEach(t => {
           events.push({
             id: `trans-${t.id}`,
             title: `Transport: ${t.purpose || 'Booking'}`,
-            date: t.date_time ? t.date_time.split('T')[0] : null, // Extract date from timestamp
+            date: t.date_time ? t.date_time.split('T')[0] : null,
             color: '#10b981',
             type: 'Transport',
             source: 'transport',
@@ -439,7 +496,6 @@ export default function Dashboard() {
         })
       }
 
-      // Load Venue Bookings (uses date field, not booking_date)
       const { data: venuesData } = await client.from('venues').select('*')
       if (venuesData) {
         venuesData.forEach(v => {
@@ -455,7 +511,6 @@ export default function Dashboard() {
         })
       }
 
-      // Load Activities (uses date field and activity_title)
       const { data: activitiesData } = await client.from('activities').select('*')
       if (activitiesData) {
         activitiesData.forEach(a => {
@@ -471,7 +526,6 @@ export default function Dashboard() {
         })
       }
 
-      // Load Events Assistance (uses date field, not event_date)
       const { data: eventsData } = await client.from('events_assistance').select('*')
       if (eventsData) {
         eventsData.forEach(e => {
@@ -487,7 +541,6 @@ export default function Dashboard() {
         })
       }
 
-      // Load Pruning & Trimming (correct table name: pruning_trimming)
       const { data: pruningData } = await client.from('pruning_trimming').select('*')
       if (pruningData) {
         pruningData.forEach(p => {
@@ -503,40 +556,25 @@ export default function Dashboard() {
         })
       }
 
-      // Sort all events by date (most recent first)
       events.sort((a, b) => {
         if (!a.date) return 1
         if (!b.date) return -1
         return new Date(b.date).getTime() - new Date(a.date).getTime()
       })
-      
-      setAggregatedEvents(events) // All events for calendar view
-      setRecentAggregatedEvents(events.slice(0, 5)) // Top 5 for list view
 
-      // Calendar Events - all for calendar view and first 5 for list
-      const allEvents = (calEventsD || []).map(e => ({
-        event_title: e.event_title,
-        start_date: e.start_date,
-        end_date: e.end_date,
-        location: e.location,
-        event_type: e.event_type,
-        organizer: e.organizer
-      }))
-      
-      const recentEvents = (calEventsRecent || []).map(e => ({
-        event_title: e.event_title,
-        start_date: e.start_date,
-        end_date: e.end_date,
-        location: e.location,
-        event_type: e.event_type,
-        organizer: e.organizer
-      }))
-      
-      console.log('Calendar events loaded:', allEvents.length, 'total events')
-      console.log('Recent events:', recentEvents.length, 'events')
-      console.log('Recent events data:', recentEvents)
-      
-      setCalendarEvents({ all: allEvents, recent: recentEvents })
+      setRawData({
+        employees: empD || [],
+        volunteers: volD || [],
+        incidents: incD || [],
+        drowning: drownD || [],
+        transport: transD || [],
+        pruning: pruneD || [],
+        eventsAssistance: evtsD || [],
+        vouchers: vouchD || [],
+        calendarEvents: calEventsD || [],
+        calendarEventsRecent: calEventsRecent || [],
+        aggregatedEvents: events
+      })
 
     } catch (err) {
       console.error('Dashboard error:', err)
@@ -602,14 +640,30 @@ export default function Dashboard() {
           )}
         </div>
         {activeTab === 'overview' && (
-          <button onClick={fetchAll} style={{
-            display:'flex', alignItems:'center', gap:'6px',
-            padding:'8px 16px', borderRadius:'8px',
-            background:'var(--bg-app)', border:'1px solid var(--border-light)',
-            fontSize:'13px', fontWeight:'700', cursor:'pointer', color:'var(--text-muted)'
-          }}>
-            <i className="ri-refresh-line" /> Refresh
-          </button>
+          <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'8px', background:'var(--bg-app)', border:'1px solid var(--border-light)', borderRadius:'8px', padding:'6px 12px' }}>
+              <i className="ri-calendar-line" style={{ fontSize:'14px', color:'var(--text-muted)' }} />
+              <span style={{ fontSize:'12px', fontWeight:'600', color:'var(--text-muted)' }}>Year:</span>
+              <select
+                value={selectedYear}
+                onChange={e => setSelectedYear(e.target.value)}
+                style={{ background:'transparent', border:'none', outline:'none', fontSize:'13px', fontWeight:'700', color:'var(--text)', cursor:'pointer', fontFamily:'inherit' }}
+              >
+                <option value="all">All Years</option>
+                {[2026, 2025, 2024, 2023].map(y => (
+                  <option key={y} value={String(y)}>{y}</option>
+                ))}
+              </select>
+            </div>
+            <button onClick={fetchAll} style={{
+              display:'flex', alignItems:'center', gap:'6px',
+              padding:'8px 16px', borderRadius:'8px',
+              background:'var(--bg-app)', border:'1px solid var(--border-light)',
+              fontSize:'13px', fontWeight:'700', cursor:'pointer', color:'var(--text-muted)'
+            }}>
+              <i className="ri-refresh-line" /> Refresh
+            </button>
+          </div>
         )}
       </div>
 
@@ -706,7 +760,7 @@ export default function Dashboard() {
               {trendPeriod === 'month' && (
                 <>
                   <span style={{ color:'var(--text-muted)' }}>Year:</span>
-                  <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)} 
+                  <select value={trendYear} onChange={e => setTrendYear(e.target.value)} 
                     style={{ background:'var(--bg-app)', border:'1px solid var(--border-light)', borderRadius:'6px', padding:'2px 6px', color:'var(--text)', fontSize:'12px', fontFamily:'inherit', cursor:'pointer' }}>
                     <option value="2026">2026</option>
                     <option value="2025">2025</option>
