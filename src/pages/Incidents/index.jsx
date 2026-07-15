@@ -775,21 +775,29 @@ export default function Incidents() {
               <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>Overview of all reported vehicular incidents</p>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '20px 0' }}>
-              <div>
-                <div style={{ fontSize: '36px', fontWeight: '800', color: 'var(--primary)' }}>
-                  {vehicularAnalyticsData.total}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: '20px 0' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                  {incidents.length}
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>
-                  Total Vehicular Incidents
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', lineHeight: '1.2' }}>
+                  Total Incidents
                 </div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-primary)' }}>
+              <div style={{ flex: 1, borderLeft: '1px solid var(--border-light)', paddingLeft: '16px' }}>
+                <div style={{ fontSize: '28px', fontWeight: '800', color: 'var(--primary)' }}>
+                  {vehicularAnalyticsData.total}
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', lineHeight: '1.2' }}>
+                  Vehicular Accidents
+                </div>
+              </div>
+              <div style={{ flex: 1, borderLeft: '1px solid var(--border-light)', paddingLeft: '16px', textAlign: 'right' }}>
+                <div style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)' }}>
                   {((vehicularAnalyticsData.total / incidents.length) * 100).toFixed(1)}%
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>
-                  Of All Incident Types
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', lineHeight: '1.2' }}>
+                  Vehicular Ratio
                 </div>
               </div>
             </div>
