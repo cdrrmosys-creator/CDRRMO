@@ -17,30 +17,31 @@
   --sidebar-w: 260px;
   --topbar-h: 76px;
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
-  --shadow-float: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.1), 0 4px 12px -2px rgba(0, 0, 0, 0.05);
+  --shadow-float: 0 20px 32px -8px rgba(0, 0, 0, 0.14), 0 8px 16px -4px rgba(0, 0, 0, 0.06);
 
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 24px;
-  --topbar-bg: rgba(255, 255, 255, 0.8);
+  --topbar-bg: rgba(255, 255, 255, 0.85);
+  --transition-fast: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 [data-theme="dark"] {
-  --primary-bg: rgba(220, 38, 38, 0.1);
-  --bg-app: #0f172a;
+  --primary-bg: rgba(220, 38, 38, 0.15);
+  --bg-app: #0b1324;
   --bg-surface: #1e293b;
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
   --border-light: #334155;
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.5);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5);
-  --shadow-float: 0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.5);
-  --topbar-bg: rgba(30, 41, 59, 0.8);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 14px -2px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 20px 32px -8px rgba(0, 0, 0, 0.6);
+  --topbar-bg: rgba(30, 41, 59, 0.85);
 }
 
 /* Reset */
@@ -654,12 +655,19 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
 }
 
 .btn-add:hover {
   background: var(--primary-dark);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(220, 38, 38, 0.35);
+}
+
+.btn-add:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2);
 }
 
 /* Tables */
@@ -780,7 +788,16 @@ tbody td {
   justify-content: center;
   cursor: pointer;
   font-size: 16px;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-icon:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-icon:active {
+  transform: translateY(0);
 }
 
 .btn-edit {
@@ -790,6 +807,7 @@ tbody td {
 
 .btn-edit:hover {
   background: #bfdbfe;
+  color: #1d4ed8;
 }
 
 .btn-delete {
@@ -799,6 +817,7 @@ tbody td {
 
 .btn-delete:hover {
   background: #fecaca;
+  color: #7f1d1d;
 }
 
 /* Loading State */
@@ -1030,11 +1049,16 @@ tbody td {
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-secondary:hover {
   background: var(--border-light);
+  transform: translateY(-1px);
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
 }
 
 .btn-submit {
@@ -1042,15 +1066,23 @@ tbody td {
   color: #fff;
   border: none;
   border-radius: var(--radius-md);
-  padding: 10px 20px;
+  padding: 10px 22px;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
 }
 
 .btn-submit:hover {
   background: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(220, 38, 38, 0.35);
+}
+
+.btn-submit:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.2);
 }
 
 /* Fix show/hide eye icon position in password inputs */
@@ -1411,19 +1443,24 @@ tbody td {
   background: #1d4ed8;
 }
 
-/* Scrollbar styling for Dark Mode compatibility */
+/* Scrollbar styling for Light & Dark Mode compatibility */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--bg-body);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-dark);
-  border-radius: 4px;
+  background: var(--border-light);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: background 0.2s ease;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
+  border: 1px solid transparent;
+  background-clip: content-box;
 }
 
