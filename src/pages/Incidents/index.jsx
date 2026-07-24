@@ -166,6 +166,21 @@ const checkIsVehicular = (item) => {
          nature.includes('fell asleep')
 }
 
+const getRecordYear = (dateStr) => {
+  if (!dateStr) return ''
+  const cleanStr = String(dateStr).trim()
+  if (cleanStr.length >= 4) {
+    const y = cleanStr.substring(0, 4)
+    if (!isNaN(y) && parseInt(y, 10) >= 2000 && parseInt(y, 10) <= 2100) return y
+  }
+  try {
+    const d = new Date(dateStr)
+    if (!isNaN(d.getTime())) return String(d.getFullYear())
+  } catch (e) {}
+  return ''
+}
+
+
 export default function Incidents() {
   const [incidents, setIncidents] = useState([])
   const [loading, setLoading] = useState(true)
@@ -222,6 +237,23 @@ export default function Incidents() {
     }
   }
 
+  const [analyticsYear, setAnalyticsYear] = useState('all')
+
+  const availableYears = useMemo(() => {
+    const years = new Set()
+    incidents.forEach(item => {
+      const yr = getRecordYear(item.date || item.created_at)
+      if (yr) years.add(yr)
+    })
+    years.add(String(new Date().getFullYear()))
+    return Array.from(years).sort((a, b) => b - a)
+  }, [incidents])
+
+  const analyticsIncidents = useMemo(() => {
+    if (analyticsYear === 'all') return incidents
+    return incidents.filter(item => getRecordYear(item.date || item.created_at) === analyticsYear)
+  }, [incidents, analyticsYear])
+
   const vehicularAnalyticsData = useMemo(() => {
     const accidentCounts = {
       'Self Accident': 0,
@@ -239,7 +271,7 @@ export default function Incidents() {
     }
     
     let totalVehicular = 0
-    incidents.forEach(item => {
+    analyticsIncidents.forEach(item => {
       const typeStr = (item.type_of_accident || '').toLowerCase()
       const nature = (item.nature_of_incident || '').toLowerCase()
       const vehicleStr = (item.vehicle || '').toLowerCase()
@@ -291,7 +323,7 @@ export default function Incidents() {
         count: vehicleCounts[key]
       })).sort((a, b) => b.count - a.count)
     }
-  }, [incidents])
+  }, [analyticsIncidents])
 
   const filteredRecords = incidents.filter(item => {
     let matchesSearch = true
@@ -380,7 +412,9 @@ export default function Incidents() {
            return detectedVehicle === filterVehicleType
          })()
 
-    return matchesSearch && matchesTeam && matchesSeverity && matchesDate && matchesVehicularState && matchesAccidentType && matchesVehicleType
+     const matchesYear = analyticsYear === 'all' || getRecordYear(item.date || item.created_at) === analyticsYear
+
+     return matchesSearch && matchesTeam && matchesSeverity && matchesDate && matchesVehicularState && matchesAccidentType && matchesVehicleType && matchesYear
   }).sort((a, b) => {
     const da = new Date(a.date || a.created_at || 0)
     const db = new Date(b.date || b.created_at || 0)
@@ -749,7 +783,7 @@ export default function Incidents() {
       </div>
 
       {/* Vehicular Incident Analytics */}
-      {incidents.length > 0 && vehicularAnalyticsData.total > 0 && (
+      {incidents.length > 0 && (
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
@@ -768,17 +802,56 @@ export default function Incidents() {
             justifyContent: 'space-between'
           }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                <i className="ri-roadster-line" style={{ marginRight: '8px', color: 'var(--primary)' }}></i>
-                Vehicular Accident Summary
-              </h3>
-              <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>Overview of all reported vehicular incidents</p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                  <i className="ri-roadster-line" style={{ marginRight: '8px', color: 'var(--primary)' }}></i>
+                  Vehicular Accident Summary
+                </h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                    <i className="ri-calendar-line" style={{ marginRight: '3px' }}></i>Year:
+                  </span>
+                  <select
+                    value={analyticsYear}
+                    onChange={(e) => {
+                      const yr = e.target.value
+                      setAnalyticsYear(yr)
+                      setCurrentPage(1)
+                      if (yr === 'all') {
+                        setDateRange({ start: '', end: '' })
+                      } else {
+                        setDateRange({ start: `${yr}-01-01`, end: `${yr}-12-31` })
+                      }
+                    }}
+                    style={{
+                      background: 'var(--bg-app)',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: '6px',
+                      padding: '3px 8px',
+                      color: 'var(--text-primary)',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      fontFamily: 'inherit',
+                      cursor: 'pointer',
+                      outline: 'none'
+                    }}
+                  >
+                    <option value="all">All Years</option>
+                    {availableYears.map(yr => (
+                      <option key={yr} value={yr}>{yr}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                {analyticsYear === 'all' ? 'Overview of all reported vehicular incidents' : `Overview of vehicular incidents for ${analyticsYear}`}
+              </p>
             </div>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: '20px 0' }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                  {incidents.length}
+                  {analyticsIncidents.length}
                 </div>
                 <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', lineHeight: '1.2' }}>
                   Total Incidents
@@ -794,7 +867,7 @@ export default function Incidents() {
               </div>
               <div style={{ flex: 1, borderLeft: '1px solid var(--border-light)', paddingLeft: '16px', textAlign: 'right' }}>
                 <div style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                  {((vehicularAnalyticsData.total / incidents.length) * 100).toFixed(1)}%
+                  {analyticsIncidents.length > 0 ? ((vehicularAnalyticsData.total / analyticsIncidents.length) * 100).toFixed(1) : '0.0'}%
                 </div>
                 <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', lineHeight: '1.2' }}>
                   Vehicular Ratio
@@ -886,14 +959,27 @@ export default function Incidents() {
 
       {incidents.length > 0 && (
         <ModuleToolbar
+          dateRange={dateRange}
           onSearch={(v) => { setSearchTerm(v); setCurrentPage(1) }}
           onFilterChange={(v) => { setFilterTeam(v); setCurrentPage(1) }}
-          onDateRangeChange={(r) => { setDateRange(r); setCurrentPage(1) }}
+          onDateRangeChange={(r) => {
+            setDateRange(r)
+            setCurrentPage(1)
+            if (!r.start && !r.end) {
+              setAnalyticsYear('all')
+            } else if (r.start) {
+              const yrStart = getRecordYear(r.start)
+              const yrEnd = r.end ? getRecordYear(r.end) : yrStart
+              if (yrStart && yrStart === yrEnd) {
+                setAnalyticsYear(yrStart)
+              }
+            }
+          }}
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
           onPrintClick={handlePrintPDF}
-          onClearFilters={() => { setSearchTerm(''); setFilterTeam(''); setFilterVehicularState(''); setFilterAccidentType(''); setFilterVehicleType(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
+          onClearFilters={() => { setSearchTerm(''); setFilterTeam(''); setFilterVehicularState(''); setFilterAccidentType(''); setFilterVehicleType(''); setDateRange({ start: '', end: '' }); setAnalyticsYear('all'); setCurrentPage(1) }}
           filterLabel="All Teams"
           filterOptions={[
             { label: 'Alpha',   value: 'Alpha' },
@@ -909,7 +995,7 @@ export default function Incidents() {
             'Delta':   { bg: '#fee2e2', color: '#991b1b', icon: 'ri-team-line' },
             'Other':   { bg: '#f3f4f6', color: '#374151', icon: 'ri-team-line' },
           }}
-          hasActiveFilters={Boolean(searchTerm || filterTeam || filterVehicularState || filterAccidentType || filterVehicleType || dateRange.start || dateRange.end)}
+          hasActiveFilters={Boolean(searchTerm || filterTeam || filterVehicularState || filterAccidentType || filterVehicleType || dateRange.start || dateRange.end || analyticsYear !== 'all')}
         >
           <StatusSelect
             value={filterVehicularState || ''}

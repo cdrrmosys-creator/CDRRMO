@@ -28,6 +28,7 @@ export default function ModuleToolbar({
   filterColorMap = {},
   filterMinWidth,
   onDateRangeChange,
+  dateRange,
   searchPlaceholder = 'Search records…',
   pageSize = 10,
   onPageSizeChange,
@@ -39,8 +40,11 @@ export default function ModuleToolbar({
 }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [filter, setFilter] = useState('')
-  const [dateStart, setDateStart] = useState('')
-  const [dateEnd, setDateEnd] = useState('')
+  const [internalDateStart, setInternalDateStart] = useState('')
+  const [internalDateEnd, setInternalDateEnd] = useState('')
+
+  const dateStart = dateRange !== undefined ? (dateRange?.start || '') : internalDateStart
+  const dateEnd = dateRange !== undefined ? (dateRange?.end || '') : internalDateEnd
 
   const handleSearchChange = (e) => {
     const val = e.target.value
@@ -55,20 +59,20 @@ export default function ModuleToolbar({
   }
 
   const handleDateStartChange = (val) => {
-    setDateStart(val)
+    if (dateRange === undefined) setInternalDateStart(val)
     onDateRangeChange?.({ start: val, end: dateEnd })
   }
 
   const handleDateEndChange = (val) => {
-    setDateEnd(val)
+    if (dateRange === undefined) setInternalDateEnd(val)
     onDateRangeChange?.({ start: dateStart, end: val })
   }
 
   const handleClear = () => {
     setSearchTerm('')
     setFilter('')
-    setDateStart('')
-    setDateEnd('')
+    setInternalDateStart('')
+    setInternalDateEnd('')
     onClearFilters?.()
   }
 
@@ -132,14 +136,14 @@ export default function ModuleToolbar({
       {onDateRangeChange && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <input
-            max={new Date().toISOString().split('T')[0]} type="date"
+            type="date"
             value={dateStart}
             onChange={e => handleDateStartChange(e.target.value)}
             style={{ padding: '7px 8px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontSize: '13px', color: 'var(--text)' }}
           />
           <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>–</span>
           <input
-            max={new Date().toISOString().split('T')[0]} type="date"
+            type="date"
             value={dateEnd}
             min={dateStart || undefined}
             onChange={e => handleDateEndChange(e.target.value)}

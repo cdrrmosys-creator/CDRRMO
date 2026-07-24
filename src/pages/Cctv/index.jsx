@@ -1,3 +1,4 @@
+import { validateForm } from '../../utils/validation'
 import ModuleToolbar from '../../components/ModuleToolbar'
 import ListPagination from '../../components/ListPagination'
 import ExportModal from '../../components/ExportModal'
@@ -199,6 +200,11 @@ export default function Cctv() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
+    if (name === 'client_contact') {
+      const digitsOnly = value.replace(/\D/g, '').slice(0, 11)
+      setFormData(prev => ({ ...prev, [name]: digitsOnly }))
+      return
+    }
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
@@ -246,6 +252,15 @@ export default function Cctv() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    const errors = validateForm({
+      'Contact No.': { rule: 'mobile', value: formData.client_contact, required: false },
+    })
+    if (Object.keys(errors).length > 0) {
+      Object.values(errors).forEach(msg => toast.error(msg))
+      return
+    }
+
     setIsSaving(true)
 
     try {
@@ -678,7 +693,7 @@ export default function Cctv() {
                       </div>
                       <div className="form-group">
                         <label>Contact No.</label>
-                        <input type="text" name="client_contact" value={formData.client_contact} onChange={handleInputChange} placeholder="e.g. 09123456789" />
+                        <input type="text" name="client_contact" value={formData.client_contact} onChange={handleInputChange} placeholder="e.g. 09123456789" maxLength={11} />
                       </div>
                     </div>
                     <div className="form-group">
