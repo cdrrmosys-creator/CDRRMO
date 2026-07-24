@@ -971,15 +971,16 @@ tbody td {
 .modal-form .form-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .modal-form .form-group label {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
   color: var(--text-main);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  margin-bottom: 0;
 }
 
 .modal-form input,

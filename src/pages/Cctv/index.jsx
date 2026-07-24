@@ -16,6 +16,18 @@ import { useToast } from '../../components/Toast'
 import { useConfirm } from '../../components/ConfirmDialog'
 import { uploadFile, deleteFiles } from '../../services/storage'
 
+const NATURE_OF_INCIDENT_OPTIONS = [
+  'Vehicular Accident',
+  'Theft / Robbery',
+  'Physical Injuries / Assault',
+  'Missing Person',
+  'Property Damage',
+  'Fire Incident',
+  'Medical Emergency',
+  'Disturbance / Altercation',
+  'Other'
+]
+
 const INITIAL_FORM_STATE = {
   record_id: '',
   report_title: '',
@@ -28,6 +40,7 @@ const INITIAL_FORM_STATE = {
   client_address: '',
   exact_place: '',
   nature_of_incident: '',
+  nature_of_incident_other: '',
   time_of_incident: '',
   others: '',
   prepared_by: '',
@@ -175,6 +188,10 @@ export default function Cctv() {
     setIsViewing(false)
     setSelectedId(rec.id)
     setPendingFiles([])
+    
+    const natureVal = rec.nature_of_incident || ''
+    const isPredefinedNature = NATURE_OF_INCIDENT_OPTIONS.filter(o => o !== 'Other').includes(natureVal)
+
     setFormData({
       record_id: rec.record_id || '',
       report_title: rec.report_title || '',
@@ -186,7 +203,8 @@ export default function Cctv() {
       client_contact: rec.client_contact || '',
       client_address: rec.client_address || '',
       exact_place: rec.exact_place || '',
-      nature_of_incident: rec.nature_of_incident || '',
+      nature_of_incident: natureVal ? (isPredefinedNature ? natureVal : 'Other') : '',
+      nature_of_incident_other: natureVal ? (isPredefinedNature ? '' : natureVal) : '',
       time_of_incident: rec.time_of_incident || '',
       others: rec.others || '',
       prepared_by: rec.prepared_by || '',
@@ -283,10 +301,16 @@ export default function Cctv() {
         }
       }
 
+      const finalNature = formData.nature_of_incident === 'Other'
+        ? (formData.nature_of_incident_other.trim() || 'Other')
+        : formData.nature_of_incident
+
       const payload = {
         ...formData,
+        nature_of_incident: finalNature,
         files: [...(formData.files || []), ...newFileUrls]
       }
+      delete payload.nature_of_incident_other
 
       if (isEditing) {
         const { data, error } = await supabase
@@ -682,8 +706,8 @@ export default function Cctv() {
                     </div>
                   </div>
 
-                  <div style={{ borderTop: '2px solid var(--border-light)', marginTop: '4px', paddingTop: '14px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <div style={{ borderTop: '2px solid var(--border-light)', marginTop: '8px', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                       <i className="ri-cctv-line" style={{ marginRight: '6px' }}></i>Incident Details
                     </div>
                     <div className="form-row">
@@ -710,10 +734,40 @@ export default function Cctv() {
                         <input type="time" name="time_of_incident" value={formData.time_of_incident} onChange={handleInputChange} />
                       </div>
                     </div>
-                    <div className="form-group">
-                      <label>Nature of Incident</label>
-                      <input type="text" name="nature_of_incident" value={formData.nature_of_incident} onChange={handleInputChange} placeholder="e.g. Vehicular Accident, Theft, Missing Person" />
-                    </div>
+                    {formData.nature_of_incident === 'Other' ? (
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>Nature of Incident</label>
+                          <select name="nature_of_incident" value={formData.nature_of_incident} onChange={handleInputChange}>
+                            <option value="">-- Select Nature of Incident --</option>
+                            {NATURE_OF_INCIDENT_OPTIONS.map(opt => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label>Specific Nature of Incident *</label>
+                          <input
+                            type="text"
+                            name="nature_of_incident_other"
+                            value={formData.nature_of_incident_other}
+                            onChange={handleInputChange}
+                            placeholder="e.g. Vandalism, Illegal Dumping"
+                            required
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="form-group">
+                        <label>Nature of Incident</label>
+                        <select name="nature_of_incident" value={formData.nature_of_incident} onChange={handleInputChange}>
+                          <option value="">-- Select Nature of Incident --</option>
+                          {NATURE_OF_INCIDENT_OPTIONS.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     <div className="form-group">
                       <label>Others</label>
                       <input type="text" name="others" value={formData.others} onChange={handleInputChange} placeholder="Other notes" />
