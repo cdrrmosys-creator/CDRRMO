@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, createContext, useContext } from 'react'
+import { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react'
 
 // ── Context ──────────────────────────────────────────────────────
 const ToastContext = createContext(null)
@@ -13,29 +13,32 @@ export function useToast() {
 function ToastItem({ toast, onRemove }) {
   const [leaving, setLeaving] = useState(false)
   const duration = toast.duration || 4000
-  const [remaining, setRemaining] = useState(duration)
   const [isHovered, setIsHovered] = useState(false)
+  const remainingRef = useRef(duration)
+  const startTimeRef = useRef(null)
+
+  const handleClose = useCallback(() => {
+    setLeaving(true)
+    setTimeout(() => onRemove(toast.id), 300)
+  }, [onRemove, toast.id])
 
   useEffect(() => {
     if (leaving) return
     if (isHovered) return
 
-    const startTime = Date.now()
+    startTimeRef.current = Date.now()
     const timer = setTimeout(() => {
-      setLeaving(true)
-      setTimeout(() => onRemove(toast.id), 300)
-    }, remaining)
+      handleClose()
+    }, remainingRef.current)
 
     return () => {
       clearTimeout(timer)
-      setRemaining(prev => Math.max(0, prev - (Date.now() - startTime)))
+      if (startTimeRef.current) {
+        const elapsed = Date.now() - startTimeRef.current
+        remainingRef.current = Math.max(0, remainingRef.current - elapsed)
+      }
     }
-  }, [isHovered, remaining, leaving, toast.id, onRemove])
-
-  const handleClose = () => {
-    setLeaving(true)
-    setTimeout(() => onRemove(toast.id), 300)
-  }
+  }, [isHovered, leaving, handleClose])
 
   const icons = {
     success: 'ri-checkbox-circle-fill',

@@ -236,26 +236,47 @@ export default function CalendarEvents() {
     setCurrentPage(1)
   }
 
-  const handlePrintPDF = (overrideRecords) => {
-    const list = overrideRecords ?? filteredRecords
-    // Convert aggregated events to PDF-friendly format
-    const pdfRecords = list.map(event => ({
-      event_title: event.title || '—',
-      source: EVENT_SOURCES[event.source]?.label || event.type || '—',
-      date: event.date || '',
-      location: event.data?.location || event.data?.destination || event.data?.facility_name || '—',
-      status_type: getEventStatusOrType(event)
-    }))
+  const formatCalendarEventForExport = (event) => {
+    const rawTitle = event.title || '—'
+    const organizer = event.data?.organizer || event.data?.booked_by || event.data?.conducted_by || event.data?.person_in_charge || ''
+    const eventTitle = (organizer && organizer !== '—') ? `${rawTitle} (Organizer: ${organizer})` : rawTitle
+
+    const startDateFormatted = event.date ? format(new Date(event.date), 'MMM dd, yyyy') : ''
+    const endDateFormatted = event.endDate ? format(new Date(event.endDate), 'MMM dd, yyyy') : ''
     
+    let dateDisplay = '—'
+    if (startDateFormatted && endDateFormatted && startDateFormatted !== endDateFormatted) {
+      dateDisplay = `${startDateFormatted} – ${endDateFormatted}`
+    } else {
+      dateDisplay = startDateFormatted || endDateFormatted || '—'
+    }
+
+    return {
+      event_title: eventTitle,
+      source: EVENT_SOURCES[event.source]?.label || event.type || '—',
+      date: dateDisplay,
+      date_raw: event.date || '',
+      location: event.data?.location || event.data?.destination || event.data?.facility_name || event.data?.event_name || event.data?.office || '—',
+      status_type: getEventStatusOrType(event),
+      description: event.data?.description || event.data?.purpose || event.data?.remarks || event.data?.address || '—'
+    }
+  }
+
+  const handlePrintPDF = (overrideRecords) => {
+    const pdfRecords = overrideRecords
+      ? overrideRecords
+      : filteredRecords.map(formatCalendarEventForExport)
+
     printPDF({
       title: 'Calendar Events Report',
-      subtitle: `${list.length} events`,
+      subtitle: `${pdfRecords.length} events`,
       columns: [
         { header: 'Event Title', key: 'event_title' },
-        { header: 'Source', key: 'source' },
-        { header: 'Date', key: 'date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+        { header: 'Source Module', key: 'source' },
+        { header: 'Date', key: 'date' },
         { header: 'Location', key: 'location' },
-        { header: 'Status/Type', key: 'status_type' },
+        { header: 'Status / Type', key: 'status_type' },
+        { header: 'Description / Remarks', key: 'description' },
       ],
       records: pdfRecords,
     })
@@ -1177,28 +1198,17 @@ const handleOpenAdd = () => {
       <ExportModal
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}
-        records={aggregatedEvents.map(event => ({
-          event_title: event.title || '—',
-          source: EVENT_SOURCES[event.source]?.label || event.type || '—',
-          date: event.date || '',
-          end_date: event.endDate || '',
-          location: event.data?.location || event.data?.destination || event.data?.facility_name || event.data?.event_name || event.data?.office || '—',
-          status_type: getEventStatusOrType(event),
-          organizer: event.data?.organizer || event.data?.booked_by || event.data?.conducted_by || event.data?.person_in_charge || '—',
-          description: event.data?.description || event.data?.purpose || event.data?.remarks || event.data?.address || '—'
-        }))}
+        records={filteredRecords.map(formatCalendarEventForExport)}
         filename="calendar_events_all_modules_report.xlsx"
         sheetName="All Events"
-        dateField="date"
-        columns={['event_title', 'source', 'date', 'end_date', 'location', 'status_type', 'organizer', 'description']}
+        dateField="date_raw"
+        columns={['event_title', 'source', 'date', 'location', 'status_type', 'description']}
         headers={{
           event_title: 'Event / Activity',
           source: 'Source Module',
           date: 'Date',
-          end_date: 'End Date',
           location: 'Location',
           status_type: 'Status / Type',
-          organizer: 'Organizer',
           description: 'Description / Remarks'
         }}
         onSuccess={(count) => toast.success(`Exported ${count} events successfully.`)}
