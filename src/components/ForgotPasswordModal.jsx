@@ -38,7 +38,7 @@ export default function ForgotPasswordModal({ onClose }) {
       // ── Step 2: Check for existing pending request to prevent spam ────────
       const { data: existing, error: checkError } = await supabase
         .from('password_reset_requests')
-        .select('id, status')
+        .select('id, status, requested_at')
         .eq('email', normalizedEmail)
         .eq('status', 'pending')
         .maybeSingle()
@@ -46,9 +46,25 @@ export default function ForgotPasswordModal({ onClose }) {
       if (checkError) throw checkError
 
       if (existing) {
-        setError('A reset request for this account is already pending. Please wait for an administrator to process it.')
-        setSubmitting(false)
-        return
+        const requestedAt = new Date(existing.requested_at)
+        const now = new Date()
+        const oneDayMs = 24 * 60 * 60 * 1000 // 1 day
+        if (now - requestedAt < oneDayMs) {
+          setError('A reset request for this account is already pending. Please wait at least 24 hours before submitting another request.')
+          setSubmitting(false)
+          return
+        } else {
+          // Mark the old pending request as rejected/superseded to avoid cluttering the admin panel
+          await supabase
+            .from('password_reset_requests')
+            .update({
+              status: 'rejected',
+              resolved_at: now.toISOString(),
+              resolved_by: 'system (superseded)',
+              notes: 'Superseded by a newer password reset request.'
+            })
+            .eq('id', existing.id)
+        }
       }
 
       // ── Step 3: Submit the reset request ─────────────────────────────────
