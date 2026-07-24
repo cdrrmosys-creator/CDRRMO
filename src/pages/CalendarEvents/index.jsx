@@ -1187,10 +1187,21 @@ const handleOpenAdd = () => {
           organizer: event.data?.organizer || event.data?.booked_by || event.data?.conducted_by || event.data?.person_in_charge || '—',
           description: event.data?.description || event.data?.purpose || event.data?.remarks || event.data?.address || '—'
         }))}
-        filename="calendar_events_aggregated_report.xlsx"
+        filename="calendar_events_all_modules_report.xlsx"
         sheetName="All Events"
         dateField="date"
-        onSuccess={(count) => toast.success(`Exported ${count} aggregated events successfully.`)}
+        columns={['event_title', 'source', 'date', 'end_date', 'location', 'status_type', 'organizer', 'description']}
+        headers={{
+          event_title: 'Event / Activity',
+          source: 'Source Module',
+          date: 'Date',
+          end_date: 'End Date',
+          location: 'Location',
+          status_type: 'Status / Type',
+          organizer: 'Organizer',
+          description: 'Description / Remarks'
+        }}
+        onSuccess={(count) => toast.success(`Exported ${count} events successfully.`)}
         onError={(msg) => toast.error(msg)}
       />
 
