@@ -955,6 +955,12 @@ tbody td {
   gap: 16px;
 }
 
+.modal-form fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

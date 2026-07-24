@@ -18,12 +18,24 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
 
+const TYPE_OF_ASSISTANCE_OPTIONS = [
+  'Ambulance Standby',
+  'First-Aid Station',
+  'Medical & First-Aid Team',
+  'Logistical Assistance',
+  'Crowd Control & Security',
+  'Water Tanker / Water Supply',
+  'Communication & Monitoring',
+  'Other'
+]
+
 const INITIAL_FORM_STATE = {
   record_id: '',
   event_name: '',
   date: '',
   location: '',
   type_of_assistance: '',
+  type_of_assistance_other: '',
   requestor: '',
   description: '',
   remarks: '',
@@ -212,12 +224,17 @@ const handleOpenAdd = () => {
     setIsEditing(true)
     setIsViewing(false)
     setSelectedId(rec.id)
+
+    const assistanceVal = rec.type_of_assistance || ''
+    const isPredefinedAssistance = TYPE_OF_ASSISTANCE_OPTIONS.filter(o => o !== 'Other').includes(assistanceVal)
+
     setFormData({
       record_id: rec.record_id || '',
       event_name: rec.event_name || '',
       date: rec.date || '',
       location: rec.location || '',
-      type_of_assistance: rec.type_of_assistance || '',
+      type_of_assistance: assistanceVal ? (isPredefinedAssistance ? assistanceVal : 'Other') : '',
+      type_of_assistance_other: assistanceVal ? (isPredefinedAssistance ? '' : assistanceVal) : '',
       requestor: rec.requestor || '',
       description: rec.description || '',
       remarks: rec.remarks || '',
@@ -236,11 +253,21 @@ const handleOpenAdd = () => {
     e.preventDefault()
     setIsSaving(true)
 
+    const finalAssistance = formData.type_of_assistance === 'Other'
+      ? (formData.type_of_assistance_other?.trim() || 'Other')
+      : formData.type_of_assistance
+
+    const dataToSave = {
+      ...formData,
+      type_of_assistance: finalAssistance
+    }
+    delete dataToSave.type_of_assistance_other
+
     try {
       if (isEditing) {
         const { data, error } = await supabase
           .from('events_assistance')
-          .update(formData)
+          .update(dataToSave)
           .eq('id', selectedId)
           .select()
 
@@ -251,7 +278,7 @@ const handleOpenAdd = () => {
       } else {
         const { data, error } = await supabase
           .from('events_assistance')
-          .insert([formData])
+          .insert([dataToSave])
           .select()
 
         if (error) throw error
@@ -261,7 +288,7 @@ const handleOpenAdd = () => {
       }
       setIsModalOpen(false)
     } catch (err) {
-      console.error('Error saving events assistance record:', err)
+      console.error('Error saving record:', err)
       toast.error('Error saving record: ' + err.message)
     } finally {
       setIsSaving(false)
@@ -567,9 +594,55 @@ const handleOpenAdd = () => {
         title={isViewing ? 'View Details' : (isEditing ? 'Edit Assistance Request' : 'Request Event Assistance')}
       >
         <form onSubmit={handleSubmit} className="modal-form">
-          <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0 }}>
+          <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {formData.type_of_assistance === 'Other' ? (
+            <div className="form-row">
+              <div className="form-group">
+                <label>Type of Assistance *</label>
+                <select
+                  name="type_of_assistance"
+                  value={formData.type_of_assistance}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="">-- Select Type of Assistance --</option>
+                  {TYPE_OF_ASSISTANCE_OPTIONS.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Specific Type of Assistance *</label>
+                <input
+                  type="text"
+                  name="type_of_assistance_other"
+                  value={formData.type_of_assistance_other}
+                  onChange={handleInputChange}
+                  placeholder="e.g. Traffic Assistance"
+                  required
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="form-row">
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label>Type of Assistance *</label>
+                <select
+                  name="type_of_assistance"
+                  value={formData.type_of_assistance}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="">-- Select Type of Assistance --</option>
+                  {TYPE_OF_ASSISTANCE_OPTIONS.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
           <div className="form-row">
-            
             <div className="form-group">
               <label>Event Name *</label>
               <input 
@@ -579,6 +652,16 @@ const handleOpenAdd = () => {
                 onChange={handleInputChange} 
                 required 
                 placeholder="e.g. City Charter Day Parade"
+              />
+            </div>
+            <div className="form-group">
+              <label>Requestor / Agency</label>
+              <input 
+                type="text" 
+                name="requestor" 
+                value={formData.requestor} 
+                onChange={handleInputChange} 
+                placeholder="e.g. LGU Palayan - Tourism Office"
               />
             </div>
           </div>
@@ -602,30 +685,7 @@ const handleOpenAdd = () => {
                 value={formData.location}
                 onChange={handleInputChange}
                 required
-              />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label>Type of Assistance *</label>
-              <input 
-                type="text" 
-                name="type_of_assistance" 
-                value={formData.type_of_assistance} 
-                onChange={handleInputChange} 
-                required 
-                placeholder="e.g. Ambulance Standby, First-Aid Station"
-              />
-            </div>
-            <div className="form-group">
-              <label>Requestor / Agency</label>
-              <input 
-                type="text" 
-                name="requestor" 
-                value={formData.requestor} 
-                onChange={handleInputChange} 
-                placeholder="e.g. LGU Palayan - Tourism Office"
+                placeholder="e.g. Palayan City Hall Plaza"
               />
             </div>
           </div>
