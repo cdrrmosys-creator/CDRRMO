@@ -3,6 +3,7 @@ import ListPagination from '../../components/ListPagination'
 import ExportModal from '../../components/ExportModal'
 import TableGhostRows from '../../components/TableGhostRows'
 import useListPagination from '../../hooks/useListPagination'
+import PalayanCityMap from '../../components/PalayanCityMap'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../services/supabase'
 import { logAudit } from '../../services/audit'
@@ -25,6 +26,7 @@ const INITIAL_FORM_STATE = {
 
 export default function Maps() {
   const [records, setRecords] = useState([])
+  const [incidents, setIncidents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -49,7 +51,20 @@ export default function Maps() {
 
   useEffect(() => {
     loadRecords()
+    loadIncidents()
   }, [])
+
+  const loadIncidents = async () => {
+    try {
+      const { data } = await supabase
+        .from('incidents')
+        .select('id, record_id, date, nature_of_incident, place_of_incident, specific_location, exact_place')
+        .order('date', { ascending: false })
+      setIncidents(data || [])
+    } catch (err) {
+      console.info('Could not load incidents for map:', err.message)
+    }
+  }
 
   const filteredRecords = records.filter(item => {
     let matchesSearch = true
@@ -287,6 +302,9 @@ const handleOpenAdd = () => {
           Add Map
         </button>
       </div>
+
+      {/* Palayan City Incident Map */}
+      <PalayanCityMap incidents={incidents} />
 
       {records.length > 0 && (
         <ModuleToolbar
