@@ -119,7 +119,7 @@ export default function Cctv() {
     setCurrentPage(1)
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'CCTV Records Report',
       subtitle: `${filteredRecords.length} records`,
@@ -132,7 +132,7 @@ export default function Cctv() {
         }},
         { header: 'Prepared By', key: 'prepared_by' },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -466,7 +466,6 @@ export default function Cctv() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
         />
@@ -569,6 +568,7 @@ export default function Cctv() {
           return val
         }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

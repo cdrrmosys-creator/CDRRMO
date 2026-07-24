@@ -167,7 +167,7 @@ export default function Employees() {
     setCurrentPage(1)
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'Employees Report',
       subtitle: `${filteredEmployees.length} employees`,
@@ -181,7 +181,7 @@ export default function Employees() {
         { header: 'Role', key: 'role' },
         { header: 'Status', key: 'duty_status' },
       ],
-      records: filteredEmployees,
+      records: overrideRecords ?? filteredEmployees,
     })
   }
 
@@ -824,7 +824,6 @@ export default function Employees() {
           pageSize={pageSize}
           onPageSizeChange={handlePageSizeChange}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
           filterLabel="All Status"
@@ -971,6 +970,7 @@ export default function Employees() {
           return val
         }}
         onSuccess={(count) => toast.success(`Exported ${count} records.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

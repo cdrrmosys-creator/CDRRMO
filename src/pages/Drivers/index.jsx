@@ -260,7 +260,7 @@ export default function Drivers() {
     return <span style={{ fontSize: '11px', fontWeight: '700', color: isExpired ? '#991b1b' : '#065f46' }}>{isExpired ? '⚠️ EXPIRED' : '✓ Valid'}</span>
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'Drivers Report',
       subtitle: `${filteredRecords.length} drivers`,
@@ -272,7 +272,7 @@ export default function Drivers() {
         { header: 'Contact', key: 'contact' },
         { header: 'Status', key: 'status' },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -346,7 +346,6 @@ export default function Drivers() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={() => { setSearchTerm(''); setFilter(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
           hasActiveFilters={Boolean(searchTerm || filter || dateRange.start || dateRange.end)}
           filterLabel="All Status"
@@ -480,6 +479,7 @@ export default function Drivers() {
           return val
         }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

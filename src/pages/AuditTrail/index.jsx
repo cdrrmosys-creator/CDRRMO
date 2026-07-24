@@ -69,7 +69,7 @@ export default function AuditTrail() {
     setCurrentPage(1)
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'Audit Trail Report',
       subtitle: `${filteredRecords.length} entries`,
@@ -80,7 +80,7 @@ export default function AuditTrail() {
         { header: 'Module', key: 'module' },
         { header: 'Details', key: 'details' },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -206,7 +206,6 @@ export default function AuditTrail() {
           pageSize={pageSize}
           onPageSizeChange={handlePageSizeChange}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           filterLabel="All Actions"
           filterOptions={[
@@ -308,6 +307,7 @@ export default function AuditTrail() {
           details: 'Details',
         }}
         onSuccess={(count) => toast.success(`Exported ${count} records.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
     </div>

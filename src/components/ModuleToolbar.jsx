@@ -33,7 +33,6 @@ export default function ModuleToolbar({
   pageSize = 10,
   onPageSizeChange,
   onExportClick,
-  onPrintClick,
   onClearFilters,
   hasActiveFilters = false,
   children,
@@ -161,7 +160,7 @@ export default function ModuleToolbar({
         </button>
       )}
 
-      {(onPageSizeChange || onExportClick || onPrintClick) && (
+      {(onPageSizeChange || onExportClick) && (
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
           {onPageSizeChange && (
             <>
@@ -179,7 +178,7 @@ export default function ModuleToolbar({
             </>
           )}
 
-          {onPageSizeChange && (onExportClick || onPrintClick) && (
+          {onPageSizeChange && onExportClick && (
             <div style={{ width: '1px', height: '20px', background: 'var(--border-light)' }} />
           )}
 
@@ -188,28 +187,13 @@ export default function ModuleToolbar({
               onClick={onExportClick}
               style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
-                padding: '7px 14px', borderRadius: '8px',
-                background: '#16a34a', color: '#fff',
+                padding: '7px 16px', borderRadius: '8px',
+                background: 'var(--primary)', color: '#fff',
                 border: 'none', fontSize: '13px', fontWeight: '700',
                 cursor: 'pointer', whiteSpace: 'nowrap',
               }}
             >
-              <i className="ri-file-excel-2-line" style={{ fontSize: '15px' }} /> Export XLSX
-            </button>
-          )}
-
-          {onPrintClick && (
-            <button
-              onClick={onPrintClick}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                padding: '7px 14px', borderRadius: '8px',
-                background: '#2563eb', color: '#fff',
-                border: 'none', fontSize: '13px', fontWeight: '700',
-                cursor: 'pointer', whiteSpace: 'nowrap',
-              }}
-            >
-              <i className="ri-printer-line" style={{ fontSize: '15px' }} /> Print PDF
+              <i className="ri-share-box-line" style={{ fontSize: '15px' }} /> Export
             </button>
           )}
         </div>

@@ -99,7 +99,7 @@ export default function Vouchers() {
     setCurrentPage(1)
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'Vouchers Report',
       subtitle: `${filteredRecords.length} vouchers`,
@@ -112,7 +112,7 @@ export default function Vouchers() {
         { header: 'Insurance', key: 'has_insurance', format: v => v ? 'Insured' : 'None' },
         { header: 'Status', key: 'status' },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -381,7 +381,6 @@ export default function Vouchers() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           filterLabel="All Status"
           filterOptions={[
@@ -502,6 +501,7 @@ export default function Vouchers() {
           return val
         }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

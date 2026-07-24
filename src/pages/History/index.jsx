@@ -120,7 +120,7 @@ export default function History() {
     setCurrentPage(1)
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'History Report',
       subtitle: `${filteredRecords.length} records`,
@@ -139,7 +139,7 @@ export default function History() {
         },
         { header: 'Description', key: 'description' },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -471,7 +471,6 @@ const handleOpenAdd = () => {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           filterLabel="All Types"
           filterOptions={[
@@ -630,6 +629,7 @@ const handleOpenAdd = () => {
           return val
         }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

@@ -135,7 +135,7 @@ export default function Documentation() {
     setCurrentPage(1)
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'Documentation Report',
       subtitle: `${filteredRecords.length} documents`,
@@ -155,7 +155,7 @@ export default function Documentation() {
         { header: 'Filed By', key: 'filed_by' },
         { header: 'Description', key: 'description' },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -483,7 +483,6 @@ export default function Documentation() {
           pageSize={pageSize}
           onPageSizeChange={handlePageSizeChange}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           filterLabel="All Types"
           filterOptions={[
@@ -649,6 +648,7 @@ export default function Documentation() {
           return val
         }}
         onSuccess={(count) => toast.success(`Exported ${count} records.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

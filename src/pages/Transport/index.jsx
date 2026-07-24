@@ -284,7 +284,7 @@ export default function Transport() {
     setCurrentPage(1)
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'Transport Dispatch Report',
       subtitle: `${filteredRecords.length} records`,
@@ -296,7 +296,7 @@ export default function Transport() {
         { header: 'Purpose', key: 'purpose' },
         { header: 'Status', key: 'status' },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -765,7 +765,6 @@ export default function Transport() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
           filterLabel="All Status"
@@ -967,6 +966,7 @@ export default function Transport() {
           return val
         }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

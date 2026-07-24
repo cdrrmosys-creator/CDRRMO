@@ -98,7 +98,7 @@ export default function CdrrmcMeeting() {
     setCurrentPage(1)
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'CDRRMC Meetings Report',
       subtitle: `${filteredRecords.length} meetings`,
@@ -109,7 +109,7 @@ export default function CdrrmcMeeting() {
         { header: 'Attendees', key: 'attendees' },
         { header: 'Minutes Summary', key: 'minutes_summary' },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -366,7 +366,6 @@ const handleOpenAdd = () => {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
         />
@@ -516,6 +515,7 @@ const handleOpenAdd = () => {
           return val
         }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

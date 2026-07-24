@@ -247,7 +247,7 @@ export default function TrainingAttended() {
     }
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'Training Attended Report',
       subtitle: `${filteredRecords.length} trainings`,
@@ -267,7 +267,7 @@ export default function TrainingAttended() {
           }
         },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -377,7 +377,6 @@ export default function TrainingAttended() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={() => { setSearchTerm(''); setFilter(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
           hasActiveFilters={Boolean(searchTerm || filter || dateRange.start || dateRange.end)}
         />
@@ -517,6 +516,7 @@ export default function TrainingAttended() {
           return val
         }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

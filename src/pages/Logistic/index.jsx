@@ -285,7 +285,7 @@ export default function Logistic() {
     } catch (err) { toast.error('Failed to delete: ' + err.message) }
   }
 
-  const handlePrintPDF = () => printPDF({
+  const handlePrintPDF = (overrideRecords) => printPDF({
     title: 'Borrowed Items Report',
     subtitle: `${filteredRecords.length} records`,
     columns: [
@@ -298,7 +298,7 @@ export default function Logistic() {
       { header: 'Qty', key: 'quantity' },
       { header: 'Status', key: 'status' },
     ],
-    records: filteredRecords,
+    records: overrideRecords ?? filteredRecords,
   })
 
   const handleMarkAsReturnedQuick = (e, rec) => {
@@ -356,7 +356,6 @@ export default function Logistic() {
         pageSize={pageSize}
         onPageSizeChange={setPageSize}
         onExportClick={() => setIsExportOpen(true)}
-        onPrintClick={handlePrintPDF}
         onClearFilters={handleClearFilters}
         filterLabel="All Statuses"
         filterOptions={[
@@ -488,6 +487,7 @@ export default function Logistic() {
           status: 'Status'
         }}
         onSuccess={(count) => toast.success(`Exported ${count} logs successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

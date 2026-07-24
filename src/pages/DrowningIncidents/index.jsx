@@ -276,7 +276,7 @@ export default function DrowningIncidents() {
     return <span style={{ padding: '3px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: c.bg, color: c.color }}>{outcome || '-'}</span>
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'Drowning Incidents Report',
       subtitle: `${filteredRecords.length} incidents`,
@@ -297,7 +297,7 @@ export default function DrowningIncidents() {
         },
         { header: 'Outcome', key: 'outcome' },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -368,7 +368,6 @@ export default function DrowningIncidents() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={() => { setSearchTerm(''); setFilter(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
           filterLabel="All Outcomes"
           filterOptions={[
@@ -472,6 +471,7 @@ export default function DrowningIncidents() {
           return val
         }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

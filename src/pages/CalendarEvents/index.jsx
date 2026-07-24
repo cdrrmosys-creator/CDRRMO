@@ -236,9 +236,10 @@ export default function CalendarEvents() {
     setCurrentPage(1)
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
+    const list = overrideRecords ?? filteredRecords
     // Convert aggregated events to PDF-friendly format
-    const pdfRecords = filteredRecords.map(event => ({
+    const pdfRecords = list.map(event => ({
       event_title: event.title || '—',
       source: EVENT_SOURCES[event.source]?.label || event.type || '—',
       date: event.date || '',
@@ -248,7 +249,7 @@ export default function CalendarEvents() {
     
     printPDF({
       title: 'Calendar Events Report',
-      subtitle: `${filteredRecords.length} events`,
+      subtitle: `${list.length} events`,
       columns: [
         { header: 'Event Title', key: 'event_title' },
         { header: 'Source', key: 'source' },
@@ -786,7 +787,6 @@ const handleOpenAdd = () => {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           filterLabel="All Sources"
           filterOptions={[
@@ -1202,6 +1202,7 @@ const handleOpenAdd = () => {
           description: 'Description / Remarks'
         }}
         onSuccess={(count) => toast.success(`Exported ${count} events successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

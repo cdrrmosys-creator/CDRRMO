@@ -190,7 +190,7 @@ export default function ClientSatisfaction() {
     setCurrentPage(1)
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'Client Satisfaction Report',
       subtitle: `${filteredRecords.length} records`,
@@ -207,7 +207,7 @@ export default function ClientSatisfaction() {
           }
         },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -515,7 +515,6 @@ export default function ClientSatisfaction() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
         />
@@ -615,6 +614,7 @@ export default function ClientSatisfaction() {
         sheetName="Client Satisfaction"
         dateField="date"
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

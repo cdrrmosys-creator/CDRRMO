@@ -383,7 +383,7 @@ const handleOpenAdd = () => {
     setCurrentPage(1)
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'Inventory Report',
       subtitle: `${filteredItems.length} items`,
@@ -396,7 +396,7 @@ const handleOpenAdd = () => {
         { header: 'End User', key: 'end_user' },
         { header: 'Date Acquired', key: 'date_acquired', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
       ],
-      records: filteredItems,
+      records: overrideRecords ?? filteredItems,
     })
   }
 
@@ -465,7 +465,6 @@ const handleOpenAdd = () => {
           pageSize={pageSize}
           onPageSizeChange={handlePageSizeChange}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
           filterLabel="All Categories"
@@ -653,6 +652,7 @@ const handleOpenAdd = () => {
           return val
         }}
         onSuccess={(count) => toast.success(`Exported ${count} records.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

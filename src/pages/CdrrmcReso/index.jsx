@@ -95,7 +95,7 @@ export default function CdrrmcReso() {
     setCurrentPage(1)
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'CDRRMC Resolutions Report',
       subtitle: `${filteredRecords.length} resolutions`,
@@ -105,7 +105,7 @@ export default function CdrrmcReso() {
         { header: 'Date Passed', key: 'date_passed', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
         { header: 'Description', key: 'description' },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -407,7 +407,6 @@ const handleOpenAdd = () => {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
         />
@@ -534,6 +533,7 @@ const handleOpenAdd = () => {
           return val
         }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

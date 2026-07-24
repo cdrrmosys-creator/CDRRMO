@@ -282,7 +282,7 @@ const handleOpenAdd = () => {
     }
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'Activities Report',
       subtitle: `${filteredRecords.length} activities`,
@@ -293,7 +293,7 @@ const handleOpenAdd = () => {
         { header: 'Participants', key: 'participants' },
         { header: 'Description', key: 'description' },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -454,7 +454,6 @@ const handleOpenAdd = () => {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={() => { setSearchTerm(''); setFilter(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
           hasActiveFilters={Boolean(searchTerm || filter || dateRange.start || dateRange.end)}
         />
@@ -563,7 +562,7 @@ const handleOpenAdd = () => {
       <ExportModal
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}
-        records={records}
+        records={filteredRecords}
         filename="activities_report.xlsx"
         sheetName="Activities"
         dateField="date"
@@ -586,6 +585,18 @@ const handleOpenAdd = () => {
           }
           return val
         }}
+        pdfConfig={{
+          title: 'Activities Report',
+          subtitle: (count) => `${count} activities`,
+          columns: [
+            { header: 'Activity Title', key: 'activity_title' },
+            { header: 'Date', key: 'date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
+            { header: 'Location', key: 'location' },
+            { header: 'Participants', key: 'participants' },
+            { header: 'Description', key: 'description' },
+          ]
+        }}
+        onPrintPdf={handlePrintPDF}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
         onError={(msg) => toast.error(msg)}
       />

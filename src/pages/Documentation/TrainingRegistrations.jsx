@@ -120,7 +120,7 @@ export default function TrainingRegistrations() {
     setCurrentPage(1)
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'Training Registrations Report',
       subtitle: `${filteredRecords.length} registrations`,
@@ -137,7 +137,7 @@ export default function TrainingRegistrations() {
         { header: 'Designation', key: 'designation' },
         { header: 'Civil Status', key: 'civil_status' },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -425,7 +425,6 @@ export default function TrainingRegistrations() {
           pageSize={pageSize}
           onPageSizeChange={handlePageSizeChange}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
           filterOptions={[
@@ -557,6 +556,7 @@ export default function TrainingRegistrations() {
           return val
         }}
         onSuccess={(count) => toast.success(`Exported ${count} records.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

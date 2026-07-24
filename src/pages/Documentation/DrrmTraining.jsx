@@ -241,7 +241,7 @@ export default function DrrmTraining() {
     return <span style={{ padding: '3px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: colorScheme.bg, color: colorScheme.color }}>{displayValue}</span>
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'DRRM Office Training Report',
       subtitle: `${filteredRecords.length} records`,
@@ -262,7 +262,7 @@ export default function DrrmTraining() {
         { header: 'Designation', key: 'designation' },
         { header: 'Civil Status', key: 'civil_status' },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -293,7 +293,6 @@ export default function DrrmTraining() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={() => { setSearchTerm(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
           hasActiveFilters={Boolean(searchTerm || dateRange.start || dateRange.end)}
         />
@@ -554,6 +553,7 @@ export default function DrrmTraining() {
         columns={DRRM_EXPORT_COLUMNS}
         headers={DRRM_EXPORT_HEADERS}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
     </div>

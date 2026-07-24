@@ -87,7 +87,7 @@ export default function Maps() {
     setCurrentPage(1)
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'Maps / CCTV Locations Report',
       subtitle: `${filteredRecords.length} records`,
@@ -97,7 +97,7 @@ export default function Maps() {
         { header: 'Coverage Area', key: 'coverage_area' },
         { header: 'Last Updated', key: 'last_updated', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -296,7 +296,6 @@ const handleOpenAdd = () => {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
         />
@@ -378,6 +377,7 @@ const handleOpenAdd = () => {
         sheetName="Maps"
         dateField="date_updated"
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

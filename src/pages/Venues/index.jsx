@@ -258,7 +258,7 @@ export default function Venues() {
     setCurrentPage(1)
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'Venues Report',
       subtitle: `${filteredRecords.length} records`,
@@ -281,7 +281,7 @@ export default function Venues() {
         { header: 'Conducted By', key: 'conducted_by' },
         { header: 'Contact No.', key: 'contact_number' },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -593,7 +593,6 @@ export default function Venues() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
         />
@@ -727,6 +726,7 @@ export default function Venues() {
         sheetName="Venues"
         dateField="date"
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

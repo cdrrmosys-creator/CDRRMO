@@ -280,7 +280,7 @@ export default function Volunteers() {
     }
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'Volunteers Registry Report',
       subtitle: `${filteredRecords.length} volunteers`,
@@ -291,7 +291,7 @@ export default function Volunteers() {
         { header: 'Date Registered', key: 'date', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
         { header: 'Status', key: 'status' },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -336,7 +336,6 @@ export default function Volunteers() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={() => { setSearchTerm(''); setFilter(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
                     filterLabel="All Status"
           filterOptions={[
@@ -480,6 +479,7 @@ export default function Volunteers() {
           return val
         }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

@@ -753,7 +753,7 @@ export default function Incidents() {
     )
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'Incident Reports',
       subtitle: `${filteredRecords.length} records`,
@@ -765,7 +765,7 @@ export default function Incidents() {
         { header: 'Location', key: 'place_of_incident' },
         { header: 'Transfer To', key: 'transfer_to', format: (v, rec) => v === 'Other' ? (rec.transfer_to_other || 'Other') : (v || '—') },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -978,7 +978,6 @@ export default function Incidents() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={() => { setSearchTerm(''); setFilterTeam(''); setFilterVehicularState(''); setFilterAccidentType(''); setFilterVehicleType(''); setDateRange({ start: '', end: '' }); setAnalyticsYear('all'); setCurrentPage(1) }}
           filterLabel="All Teams"
           filterOptions={[
@@ -1811,6 +1810,7 @@ export default function Incidents() {
           return val
         }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
     </div>

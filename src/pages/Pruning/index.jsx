@@ -265,7 +265,7 @@ export default function Pruning() {
     setCurrentPage(1)
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'Pruning & Trimming Report',
       subtitle: `${filteredRecords.length} records`,
@@ -277,7 +277,7 @@ export default function Pruning() {
         { header: 'Conducted By', key: 'conducted_by' },
         { header: 'Remarks', key: 'remarks' },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -644,7 +644,6 @@ export default function Pruning() {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
         />
@@ -813,6 +812,7 @@ export default function Pruning() {
           return val
         }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

@@ -325,7 +325,7 @@ const handleOpenAdd = () => {
     { value: 'Unavailable', label: 'Unavailable', icon: 'ri-close-circle-fill',    bg: '#f3f4f6', color: '#374151' },
   ]
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'Vehicles Report',
       subtitle: `${filteredRecords.length} vehicles`,
@@ -338,7 +338,7 @@ const handleOpenAdd = () => {
         { header: 'Status', key: 'status' },
         { header: 'Last Maintenance', key: 'last_maintenance', format: v => v ? format(new Date(v), 'MMM dd, yyyy') : '—' },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -447,7 +447,6 @@ const handleOpenAdd = () => {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={() => { setSearchTerm(''); setFilter(''); setDateRange({ start: '', end: '' }); setCurrentPage(1) }}
           hasActiveFilters={Boolean(searchTerm || filter || dateRange.start || dateRange.end)}
           filterLabel="All Status"
@@ -591,6 +590,7 @@ const handleOpenAdd = () => {
           return val
         }}
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 

@@ -124,7 +124,7 @@ export default function EventsAssistance() {
     setCurrentPage(1)
   }
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = (overrideRecords) => {
     printPDF({
       title: 'Events Assistance Report',
       subtitle: `${filteredRecords.length} records`,
@@ -135,7 +135,7 @@ export default function EventsAssistance() {
         { header: 'Location', key: 'location' },
         { header: 'Requestor', key: 'requestor' },
       ],
-      records: filteredRecords,
+      records: overrideRecords ?? filteredRecords,
     })
   }
 
@@ -473,7 +473,6 @@ const handleOpenAdd = () => {
           pageSize={pageSize}
           onPageSizeChange={setPageSize}
           onExportClick={() => setIsExportOpen(true)}
-          onPrintClick={handlePrintPDF}
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
         />
@@ -584,6 +583,7 @@ const handleOpenAdd = () => {
         sheetName="Events Assistance"
         dateField="date"
         onSuccess={(count) => toast.success(`Exported ${count} records successfully.`)}
+        onPrintPdf={handlePrintPDF}
         onError={(msg) => toast.error(msg)}
       />
 
