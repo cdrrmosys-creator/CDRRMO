@@ -703,8 +703,10 @@ export default function Employees() {
   }
 
   const DUTY_STATUS_OPTIONS = [
-    { value: 'On Duty',  label: 'On Duty',  icon: 'ri-checkbox-circle-fill', bg: '#d1fae5', color: '#065f46' },
-    { value: 'Off Duty', label: 'Off Duty', icon: 'ri-close-circle-fill',    bg: '#fee2e2', color: '#991b1b' },
+    { value: 'On Duty',  label: 'On Duty',  icon: 'ri-checkbox-circle-fill',  bg: '#d1fae5', color: '#065f46' },
+    { value: 'Off Duty', label: 'Off Duty', icon: 'ri-close-circle-fill',     bg: '#fee2e2', color: '#991b1b' },
+    { value: 'On Leave', label: 'On Leave', icon: 'ri-calendar-event-fill',   bg: '#fef3c7', color: '#b45309' },
+    { value: 'Standby',  label: 'Standby',  icon: 'ri-time-fill',             bg: '#ede9fe', color: '#6d28d9' },
   ]
 
   const renderDutyStatus = (emp) => (
@@ -779,14 +781,18 @@ export default function Employees() {
           total:    employees.length,
           onDuty:   employees.filter(e => e.duty_status === 'On Duty').length,
           offDuty:  employees.filter(e => e.duty_status === 'Off Duty').length,
+          onLeave:  employees.filter(e => e.duty_status === 'On Leave').length,
+          standby:  employees.filter(e => e.duty_status === 'Standby').length,
         }
         const cards = [
           { label: 'Total',    count: counts.total,   value: '',         icon: 'ri-team-line',          accent: '#2563eb' },
           { label: 'On Duty',  count: counts.onDuty,  value: 'On Duty',  icon: 'ri-user-follow-line',   accent: '#16a34a' },
           { label: 'Off Duty', count: counts.offDuty, value: 'Off Duty', icon: 'ri-user-unfollow-line', accent: '#dc2626' },
+          { label: 'On Leave', count: counts.onLeave, value: 'On Leave', icon: 'ri-calendar-event-line', accent: '#b45309' },
+          { label: 'Standby',  count: counts.standby, value: 'Standby',  icon: 'ri-time-line',           accent: '#6d28d9' },
         ]
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '20px' }}>
             {cards.map(c => (
               <div
                 key={c.label}
@@ -830,10 +836,14 @@ export default function Employees() {
           filterOptions={[
             { label: 'On Duty',  value: 'On Duty' },
             { label: 'Off Duty', value: 'Off Duty' },
+            { label: 'On Leave', value: 'On Leave' },
+            { label: 'Standby',  value: 'Standby' },
           ]}
           filterColorMap={{
             'On Duty':  { bg: '#d1fae5', color: '#065f46', icon: 'ri-user-follow-line' },
             'Off Duty': { bg: '#fee2e2', color: '#991b1b', icon: 'ri-user-unfollow-line' },
+            'On Leave': { bg: '#fef3c7', color: '#b45309', icon: 'ri-calendar-event-line' },
+            'Standby':  { bg: '#ede9fe', color: '#6d28d9', icon: 'ri-time-line' },
           }}
         />
       )}

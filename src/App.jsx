@@ -9,6 +9,7 @@ import { ConfirmProvider } from './components/ConfirmDialog'
 import ChangePassword from './pages/Auth/ChangePassword'
 import Dashboard from './pages/Dashboard'
 import Employees from './pages/Employees'
+import Attendance from './pages/Attendance'
 import Incidents from './pages/Incidents'
 import DrowningIncidents from './pages/DrowningIncidents'
 import Vouchers from './pages/Vouchers'
@@ -91,6 +92,7 @@ function App() {
               {/* Protected Routes */}
               <Route element={<ProtectedRoutes />}>
                 <Route path="employees" element={<Employees />} />
+                <Route path="attendance" element={<Attendance />} />
                 <Route path="incidents" element={<Incidents />} />
                 <Route path="drowning-incidents" element={<DrowningIncidents />} />
                 <Route path="vouchers" element={<Vouchers />} />

@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 const MODULES = [
   { key: 'dashboard',           label: 'Dashboard',              section: 'General' },
   { key: 'employees',           label: 'Employees',              section: 'Personnel' },
+  { key: 'attendance',          label: 'Attendance',             section: 'Personnel' },
   { key: 'incidents',           label: 'Incidents',              section: 'Operations' },
   { key: 'cctv',                label: 'Command Center CCTV',    section: 'Operations' },
   { key: 'vouchers',            label: 'Vouchers',               section: 'Operations' },
