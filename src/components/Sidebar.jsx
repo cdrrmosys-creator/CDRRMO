@@ -45,6 +45,7 @@ export default function Sidebar() {
       items: [
         { label: 'Employees', icon: 'ri-team-line', path: '/employees' },
         { label: 'Attendance', icon: 'ri-calendar-check-line', path: '/attendance' },
+        { label: 'Duty Roster', icon: 'ri-swap-line', path: '/duty-roster' },
       ]
     },
     {
