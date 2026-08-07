@@ -1,3 +1,5 @@
+import * as XLSX from 'xlsx'
+
 const INTERNAL_FIELDS = new Set(['id', 'created_at', 'updated_at'])
 
 export function filterRecordsByDateRange(records, { from, to, dateField = 'date' }) {
@@ -43,21 +45,18 @@ export function recordsToExportRows(records, { columns, headers, transformValue 
 }
 
 export function downloadXlsx(rows, { filename = 'export.xlsx', sheetName = 'Data', headers } = {}) {
-  if (!window.XLSX) {
-    throw new Error('Export library not loaded. Check your internet connection.')
-  }
   if (!rows.length) {
     throw new Error('No records to export.')
   }
 
-  const ws = window.XLSX.utils.json_to_sheet(rows)
+  const ws = XLSX.utils.json_to_sheet(rows)
   if (headers) {
     ws['!cols'] = Object.values(headers).map(label => ({
       wch: Math.max(String(label).length + 2, 14),
     }))
   }
 
-  const wb = window.XLSX.utils.book_new()
-  window.XLSX.utils.book_append_sheet(wb, ws, sheetName)
-  window.XLSX.writeFile(wb, filename)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, sheetName)
+  XLSX.writeFile(wb, filename)
 }

@@ -793,7 +793,17 @@ export default function Dashboard() {
               <XAxis dataKey="label" tick={{ fontSize:12, fontWeight:600 }} axisLine={false} tickLine={false} />
               <YAxis allowDecimals={false} tick={{ fontSize:11 }} axisLine={false} tickLine={false} />
               <Tooltip content={<CustomTooltip />} />
-              <Area type="monotone" dataKey="Incidents" stroke={PRIMARY} strokeWidth={2.5} fill="url(#incGrad)" dot={{ r:4, fill:PRIMARY, strokeWidth:0 }} activeDot={{ r:6 }} />
+              <Area
+                type="natural"
+                dataKey="Incidents"
+                stroke={PRIMARY}
+                strokeWidth={3}
+                fill="url(#incGrad)"
+                dot={{ r: 3, fill: '#fff', stroke: PRIMARY, strokeWidth: 2 }}
+                activeDot={{ r: 6, fill: PRIMARY, stroke: '#fff', strokeWidth: 2 }}
+                isAnimationActive={true}
+                animationDuration={800}
+              />
             </AreaChart>
           </ResponsiveContainer>
         )}
