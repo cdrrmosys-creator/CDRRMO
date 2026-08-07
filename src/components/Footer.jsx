@@ -8,33 +8,63 @@ export default function Footer() {
 
       <div className="footer-inner">
 
-        {/* ── Column 1: Office Identity ── */}
+        {/* ── Column 1: Office Identity & NPC Certification (2x2 Grid Aligned) ── */}
         <div className="footer-col footer-col-brand">
-          <div className="footer-logos">
-            <img
-              src="https://bakohorlnjuvqgwslzfm.supabase.co/storage/v1/object/public/Logos/Palayan%20city%20logo.png"
-              alt="Palayan City Logo"
-              className="footer-logo-img"
-              onError={(e) => { e.target.style.display = 'none' }}
-            />
-            <img
-              src="https://bakohorlnjuvqgwslzfm.supabase.co/storage/v1/object/public/Logos/CDRRMO%20logo.png"
-              alt="CDRRMO Logo"
-              className="footer-logo-img footer-logo-main"
-              onError={(e) => { e.target.style.display = 'none' }}
-            />
-            <img
-              src="https://bakohorlnjuvqgwslzfm.supabase.co/storage/v1/object/public/Logos/Rescue%20Logo.png"
-              alt="Rescue Logo"
-              className="footer-logo-img"
-              onError={(e) => { e.target.style.display = 'none' }}
-            />
-          </div>
-          <div className="footer-org-name">
-            <span className="footer-city">City of Palayan</span>
-            <span className="footer-city-sub">Capital of Nueva Ecija</span>
-            <span className="footer-office">City Disaster Risk Reduction and Management Office</span>
-            <span className="footer-rescue">Palayan City Rescue</span>
+          <div className="footer-brand-container">
+            {/* Row 1: Office Identity */}
+            <div className="footer-brand-row">
+              <div className="footer-brand-logos-col">
+                <img
+                  src="https://bakohorlnjuvqgwslzfm.supabase.co/storage/v1/object/public/Logos/Palayan%20city%20logo.png"
+                  alt="Palayan City Logo"
+                  className="footer-logo-img footer-logo-main"
+                  onError={(e) => { e.target.style.display = 'none' }}
+                />
+                <img
+                  src="https://bakohorlnjuvqgwslzfm.supabase.co/storage/v1/object/public/Logos/CDRRMO%20logo.png"
+                  alt="CDRRMO Logo"
+                  className="footer-logo-img footer-logo-main"
+                  onError={(e) => { e.target.style.display = 'none' }}
+                />
+                <img
+                  src="https://bakohorlnjuvqgwslzfm.supabase.co/storage/v1/object/public/Logos/Rescue%20Logo.png"
+                  alt="Rescue Logo"
+                  className="footer-logo-img"
+                  onError={(e) => { e.target.style.display = 'none' }}
+                />
+              </div>
+              
+              <div className="footer-brand-text-col">
+                <span className="footer-city">City of Palayan</span>
+                <span className="footer-city-sub">Capital of Nueva Ecija</span>
+                <span className="footer-office">City Disaster Risk Reduction and Management Office</span>
+                <span className="footer-rescue">Palayan City Rescue</span>
+              </div>
+            </div>
+
+            {/* Row 2: NPC Certification */}
+            <div className="footer-brand-row footer-npc-row">
+              <div className="footer-brand-logos-col footer-npc-logo-col">
+                <img
+                  src="https://bakohorlnjuvqgwslzfm.supabase.co/storage/v1/object/public/Logos/NPC%20Logo.png"
+                  alt="National Privacy Commission Seal"
+                  className="footer-npc-seal"
+                  onError={(e) => { e.target.style.display = 'none' }}
+                />
+              </div>
+
+              <div className="footer-brand-text-col footer-npc-text-col">
+                <div className="footer-npc-badge-tag">
+                  <i className="ri-shield-check-fill" /> DPO / DPS REGISTERED
+                </div>
+                <div className="footer-npc-cert-title">
+                  National Privacy Commission
+                </div>
+                <div className="footer-npc-cert-sub">
+                  Data Privacy Act of 2012 Compliant System
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -145,25 +175,8 @@ export default function Footer() {
             © {currentYear} CDRRMO Palayan City. All rights reserved.
           </div>
 
-          {/* Powered by & NPC */}
+          {/* Powered by ICT Division */}
           <div className="footer-badges">
-            {/* NPC Badge */}
-            <div className="footer-badge footer-badge-npc" title="DPO/DPS Registered — National Privacy Commission">
-              <img
-                src="https://bakohorlnjuvqgwslzfm.supabase.co/storage/v1/object/public/Logos/NPC%20Logo.png"
-                alt="NPC Philippines Logo"
-                className="footer-badge-img"
-                onError={(e) => { e.target.style.display = 'none' }}
-              />
-              <div className="footer-badge-text">
-                <span className="footer-badge-main">NPC</span>
-                <span className="footer-badge-sub">DPO/DPS Registered</span>
-              </div>
-            </div>
-
-            <div className="footer-badge-divider" />
-
-            {/* Powered by ICT Division */}
             <div className="footer-badge footer-badge-ict" title="Powered by ICT Division">
               <img
                 src="https://bakohorlnjuvqgwslzfm.supabase.co/storage/v1/object/public/Logos/ICT%20Logo.png"

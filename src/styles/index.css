@@ -1505,29 +1505,45 @@ tbody td {
 .footer-col:first-child { padding-left: 0; }
 .footer-col:last-child  { padding-right: 0; border-right: none; }
 
-/* ── Brand Column ── */
+/* ── Brand Column (2x2 Grid Vertical Alignment) ── */
 .footer-col-brand {
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
-.footer-logos {
+.footer-brand-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.footer-brand-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 16px;
+}
+
+.footer-brand-logos-col {
+  width: 135px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .footer-logo-img {
   height: 38px;
   object-fit: contain;
-  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.12));
+  filter: drop-shadow(0 2px 5px rgba(0,0,0,0.12));
   transition: transform 0.2s ease;
 }
 .footer-logo-img:hover   { transform: scale(1.08); }
 .footer-logo-main        { height: 46px; }
 
-.footer-org-name {
+.footer-brand-text-col {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1552,14 +1568,75 @@ tbody td {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
-  margin-top: 4px;
-  line-height: 1.4;
+  margin-top: 2px;
+  line-height: 1.35;
 }
 
 .footer-rescue {
   font-size: 12px;
   font-weight: 700;
   color: var(--primary);
+}
+
+/* ── NPC Row in 2x2 Grid ── */
+.footer-npc-row {
+  margin-top: 4px;
+}
+
+.footer-npc-logo-col {
+  justify-content: center;
+}
+
+.footer-npc-seal {
+  height: 105px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.15));
+  transition: transform 0.2s ease;
+}
+.footer-npc-seal:hover {
+  transform: scale(1.06);
+}
+
+.footer-npc-text-col {
+  gap: 4px;
+}
+
+.footer-npc-badge-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--primary-dark);
+  background: var(--primary-bg);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: 12px;
+  padding: 3px 8px;
+  width: fit-content;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.footer-npc-cert-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: 0.2px;
+  line-height: 1.3;
+}
+
+.footer-npc-cert-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+[data-theme="dark"] .footer-npc-badge-tag {
+  background: rgba(220, 38, 38, 0.15);
+  color: #fca5a5;
+  border-color: rgba(220, 38, 38, 0.3);
 }
 
 /* ── Section titles ── */
@@ -1721,7 +1798,7 @@ tbody td {
   background: var(--border-light);
 }
 
-/* NPC Badge */
+/* NPC / ICT Badge */
 .footer-badge {
   display: flex;
   align-items: center;
@@ -1739,7 +1816,7 @@ tbody td {
 }
 
 .footer-badge-img {
-  height: 28px;
+  height: 32px;
   width: auto;
   object-fit: contain;
 }
@@ -1789,4 +1866,9 @@ tbody td {
 [data-theme="dark"] .footer-badge {
   background: rgba(255,255,255,0.04);
 }
+
+
+
+
+
 
