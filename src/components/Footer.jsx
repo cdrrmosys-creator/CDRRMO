@@ -165,34 +165,6 @@ export default function Footer() {
         </div>
 
       </div>
-
-      {/* ── Bottom Bar ── */}
-      <div className="footer-bottom">
-        <div className="footer-bottom-inner">
-
-          {/* Copyright */}
-          <div className="footer-copyright">
-            © {currentYear} CDRRMO Palayan City. All rights reserved.
-          </div>
-
-          {/* Powered by ICT Division */}
-          <div className="footer-badges">
-            <div className="footer-badge footer-badge-ict" title="Powered by ICT Division">
-              <img
-                src="https://bakohorlnjuvqgwslzfm.supabase.co/storage/v1/object/public/Logos/ICT%20Logo.png"
-                alt="ICT Division Logo"
-                className="footer-badge-img"
-                onError={(e) => { e.target.style.display = 'none' }}
-              />
-              <div className="footer-badge-text">
-                <span className="footer-badge-sub">Powered by</span>
-                <span className="footer-badge-main">ICT Division</span>
-              </div>
-            </div>
-          </div>
-
-        </div>
-      </div>
     </footer>
   )
 }

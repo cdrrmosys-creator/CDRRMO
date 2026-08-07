@@ -224,6 +224,28 @@ export default function Sidebar() {
           return null
         })}
       </div>
+
+      {/* ── Sidebar Footer: Powered by ICT Division ── */}
+      <div className="sidebar-footer">
+        <div className="sidebar-footer-inner">
+          <div className="sidebar-copyright">
+            © 2026 CDRRMO Palayan City
+          </div>
+          
+          <div className="sidebar-ict-badge">
+            <img
+              src="https://bakohorlnjuvqgwslzfm.supabase.co/storage/v1/object/public/Logos/ICT%20Logo.png"
+              alt="ICT Division Logo"
+              className="sidebar-ict-logo"
+              onError={(e) => { e.target.style.display = 'none' }}
+            />
+            <div className="sidebar-ict-text">
+              <span className="sidebar-ict-sub">POWERED BY</span>
+              <span className="sidebar-ict-main">ICT Division</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

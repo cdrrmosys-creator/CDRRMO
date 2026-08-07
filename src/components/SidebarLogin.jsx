@@ -87,6 +87,26 @@ export default function SidebarLogin() {
             </div>
           </div>
         </div>
+
+        {/* Sidebar Footer */}
+        <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', fontWeight: '600' }}>
+            © 2026 CDRRMO Palayan City
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 8px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.15)' }}>
+            <img
+              src="https://bakohorlnjuvqgwslzfm.supabase.co/storage/v1/object/public/Logos/ICT%20Logo.png"
+              alt="ICT Division Logo"
+              style={{ width: '20px', height: '20px', objectFit: 'contain' }}
+              onError={(e) => { e.target.style.display = 'none' }}
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.1' }}>
+              <span style={{ fontSize: '8px', fontWeight: '700', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.4px' }}>POWERED BY</span>
+              <span style={{ fontSize: '10px', fontWeight: '800', color: '#fff' }}>ICT Division</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
