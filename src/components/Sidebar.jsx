@@ -139,7 +139,7 @@ export default function Sidebar() {
       <div className="sidebar-header">
         <div className="sidebar-logo">
           <img
-            src="https://lh3.googleusercontent.com/d/1H0xg8TFCBl6A2jPycEZNI6dxyX-HmWZ8"
+            src="https://bakohorlnjuvqgwslzfm.supabase.co/storage/v1/object/public/Logos/CDRRMO%20logo.png"
             alt="CDRRMO Logo"
             style={{ width: '36px', height: '36px', objectFit: 'contain' }}
             onError={(e) => { e.target.style.display = 'none' }}

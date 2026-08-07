@@ -1464,3 +1464,329 @@ tbody td {
   background-clip: content-box;
 }
 
+/* ============================================================
+   APP FOOTER
+   ============================================================ */
+.app-footer {
+  flex-shrink: 0;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-light);
+  position: relative;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  /* Stretch to cancel page-content padding */
+  margin: 32px -32px -32px -32px;
+  border-radius: 0 0 0 0;
+}
+
+/* Decorative gradient top bar */
+.footer-gradient-bar {
+  height: 3px;
+  background: linear-gradient(90deg,
+    var(--primary-dark) 0%,
+    var(--primary) 40%,
+    var(--primary-light) 70%,
+    #f97316 100%
+  );
+}
+
+/* ── Inner grid ── */
+.footer-inner {
+  display: grid;
+  grid-template-columns: 1.4fr 1.3fr 1fr;
+  gap: 0;
+  padding: 24px 32px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.footer-col {
+  padding: 0 24px;
+  border-right: 1px solid var(--border-light);
+}
+.footer-col:first-child { padding-left: 0; }
+.footer-col:last-child  { padding-right: 0; border-right: none; }
+
+/* ── Brand Column ── */
+.footer-col-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.footer-logos {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.footer-logo-img {
+  height: 38px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.12));
+  transition: transform 0.2s ease;
+}
+.footer-logo-img:hover   { transform: scale(1.08); }
+.footer-logo-main        { height: 46px; }
+
+.footer-org-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.footer-city {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.footer-city-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}
+
+.footer-office {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.footer-rescue {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* ── Section titles ── */
+.footer-section-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+/* ── Contact List ── */
+.footer-contact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footer-contact-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.footer-contact-icon {
+  font-size: 15px;
+  color: var(--primary);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.footer-contact-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 1px;
+}
+
+.footer-contact-value {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-main);
+  line-height: 1.5;
+}
+
+.footer-contact-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+  transition: color 0.2s, text-decoration 0.2s;
+  line-height: 1.5;
+}
+.footer-contact-link:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+}
+
+/* ── Hotlines ── */
+.footer-hotlines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footer-hotline-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, var(--primary-bg), rgba(220,38,38,0.06));
+  border: 1px solid rgba(220,38,38,0.25);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  width: fit-content;
+}
+
+.footer-hotline-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg-app);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.footer-hotline-group:hover {
+  border-color: rgba(220,38,38,0.35);
+  box-shadow: 0 2px 8px rgba(220,38,38,0.08);
+}
+
+.footer-hotline-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.network-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.network-dot.globe { background: #0066cc; }
+.network-dot.smart { background: #00aa44; }
+
+.footer-hotline-number {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--primary);
+  text-decoration: none;
+  letter-spacing: 0.5px;
+  transition: color 0.2s;
+}
+.footer-hotline-number:hover { color: var(--primary-dark); }
+
+/* ── Bottom Bar ── */
+.footer-bottom {
+  padding: 12px 32px;
+}
+
+.footer-bottom-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.footer-copyright {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.footer-badges {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.footer-badge-divider {
+  width: 1px;
+  height: 36px;
+  background: var(--border-light);
+}
+
+/* NPC Badge */
+.footer-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-surface);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  cursor: default;
+}
+.footer-badge:hover {
+  border-color: rgba(220,38,38,0.3);
+  box-shadow: var(--shadow-sm);
+}
+
+.footer-badge-img {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+}
+
+/* ICT Icon */
+.footer-ict-icon {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.footer-badge-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.footer-badge-main {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: 0.3px;
+}
+
+.footer-badge-sub {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .app-footer {
+  background: var(--bg-surface);
+}
+[data-theme="dark"] .footer-hotline-group {
+  background: rgba(255,255,255,0.03);
+}
+[data-theme="dark"] .footer-badge {
+  background: rgba(255,255,255,0.04);
+}
+

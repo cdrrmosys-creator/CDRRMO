@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim()
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim()
+const supabaseServiceKey = (import.meta.env.VITE_SUPABASE_SERVICE_KEY || '').trim()
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Missing Supabase environment variables. Please check your .env file or Vercel environment settings.')
@@ -17,10 +17,18 @@ export const supabaseAdmin = supabaseServiceKey
   ? createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
-        persistSession: false
+        persistSession: false,
+        detectSessionInUrl: false,
+        storageKey: 'sb-admin-auth-token'
+      },
+      global: {
+        headers: {
+          Authorization: `Bearer ${supabaseServiceKey}`
+        }
       }
     })
   : null
+
 
 // Export useful database methods
 export const db = {

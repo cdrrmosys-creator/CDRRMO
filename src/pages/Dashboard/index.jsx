@@ -214,7 +214,7 @@ function LegendPills({ items }) {
 // ── MAIN COMPONENT ────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { user } = useAuthStore()
+  const { user, initializing } = useAuthStore()
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading]         = useState(true)
   const [rawData, setRawData] = useState({
@@ -364,7 +364,13 @@ export default function Dashboard() {
     ...(rawData.drowning || []).map(i => ({ date: i.date, type: 'Drowning' }))
   ], [rawData])
 
-  useEffect(() => { fetchAll() }, [])
+  // Wait for auth to finish initializing before fetching.
+  // This ensures the Supabase client has restored its session from localStorage
+  // before any query runs — otherwise the anon client has no token and gets 401.
+  useEffect(() => {
+    if (initializing) return
+    fetchAll()
+  }, [initializing])
 
   useEffect(() => {
     if (!allIncidents) return;
@@ -427,16 +433,16 @@ export default function Dashboard() {
   const fetchAll = async () => {
     setLoading(true)
     try {
-      const client = supabaseAdmin || supabase
+      const client = supabase
       const [
-        { count: empC, data: empD },
-        { count: volC, data: volD },
-        { count: incC, data: incD },
-        { count: drownC, data: drownD },
-        { count: transC, data: transD },
-        { count: pruneC, data: pruneD },
-        { count: evtsC, data: evtsD },
-        { count: vouchC, data: vouchD },
+        { data: empD },
+        { data: volD },
+        { data: incD },
+        { data: drownD },
+        { data: transD },
+        { data: pruneD },
+        { data: evtsD },
+        { data: vouchD },
         { data: calEventsD },
         { data: calEventsRecent }
       ] = await Promise.all([

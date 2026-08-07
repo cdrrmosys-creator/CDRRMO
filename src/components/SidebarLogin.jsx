@@ -6,19 +6,19 @@ export default function SidebarLogin() {
         <div style={{ textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '16px' }}>
             <img
-              src="https://lh3.googleusercontent.com/d/1-26zjRFIZWYnFHm-nUcrdue8wIx_rErz"
+              src="https://bakohorlnjuvqgwslzfm.supabase.co/storage/v1/object/public/Logos/Palayan%20city%20logo.png"
               alt="Palayan City Logo"
               style={{ height: '50px' }}
               onError={(e) => { e.target.style.display = 'none' }}
             />
             <img
-              src="https://lh3.googleusercontent.com/d/1H0xg8TFCBl6A2jPycEZNI6dxyX-HmWZ8"
+              src="https://bakohorlnjuvqgwslzfm.supabase.co/storage/v1/object/public/Logos/CDRRMO%20logo.png"
               alt="CDRRMO Logo"
               style={{ height: '64px' }}
               onError={(e) => { e.target.style.display = 'none' }}
             />
             <img
-              src="https://lh3.googleusercontent.com/d/1uY1Kn77Az5a25LLo23oo3uDk8ZOv8_so"
+              src="https://bakohorlnjuvqgwslzfm.supabase.co/storage/v1/object/public/Logos/Rescue%20Logo.png"
               alt="Rescue Logo"
               style={{ height: '50px' }}
               onError={(e) => { e.target.style.display = 'none' }}
